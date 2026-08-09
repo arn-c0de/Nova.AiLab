@@ -444,8 +444,11 @@ namespace Nova.AiLab
         <span class=""sw"" style=""background:#bc8cff""></span> spawn/site<br>
         <b>scoreboard</b> strength is the AI's own measure —
         damage × health ÷ firing interval, summed over the combat units, so twelve recruits
-        and twelve riflemen are not the same wave. AE, power and ""sees"" are as old as the
-        newest frame; everything else on the bar is exact for the tick.<br>
+        and twelve riflemen are not the same wave. <b>gathered</b> is only what stands in the
+        staging ring around the own HQ; everything outside it marched with an earlier wave and
+        is never called back. <b>wave</b> is that strength against the gate's threshold —
+        recomputed here, not recorded, and the AI decides on its own cadence. AE, power and
+        ""sees"" are as old as the newest frame; everything else on the bar is exact for the tick.<br>
         <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold ·
         <b>yellow rim</b> stuck · <b>red circles</b> hits landing ·
         <b>fading cross</b> died just now<br><br>
