@@ -1,5 +1,21 @@
 # Nova.AiLab — KI-Simulationslabor
 
+## Zusehen
+
+**▶ [Video: die Oberfläche im Betrieb, mit einem Gefecht der beiden Armeen](https://www.youtube.com/watch?v=SNa8hs-Odxo)**
+
+[![Das Labor beim Zusehen — Laufrouten, Gefecht, Ereignisprotokoll](Nova.AiLab/media/AiLabs-visual-v1.gif)](https://www.youtube.com/watch?v=SNa8hs-Odxo)
+
+Was da läuft, ist `player.html` aus einem Laborlauf: die Karte tickgenau
+vor- und zurückspulbar, jede Einheit anklickbar, ihre Laufroute gezeichnet,
+Treffer als rote Ringe, Sterben als verblassendes Kreuz — und daneben das
+vollständige Ereignisprotokoll der Partie. Womit man so einen Lauf erzeugt,
+steht unter [Start](#start) — oder ohne Kommandozeile mit `./lab-gui.sh`.
+
+**Und was es nicht ist:** ein Nachweis. Ein Laborlauf ist Diagnose. Was nicht
+im laufenden Spiel gesehen wurde, steht als ungesehen im PR-Text — das gilt
+auch für alles, was in diesem Video überzeugend aussieht.
+
 > **Das Labor ist aus dem Fork ([`arn-c0de/Project_Nova`](https://github.com/arn-c0de/Project_Nova))
 > herausgelöst und liegt jetzt in einem eigenen Repository — neben dem
 > Spiel-Checkout, nicht mehr darin.**
