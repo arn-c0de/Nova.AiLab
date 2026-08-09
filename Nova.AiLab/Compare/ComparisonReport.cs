@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace Nova.AiLab
@@ -48,9 +50,26 @@ namespace Nova.AiLab
         {
             CandidateResult reference = Find(set, referenceProfileId);
 
+            // The archive is indexed once instead of scanned per candidate per
+            // table. Two tables times n candidates times a linear search is a
+            // shape that only stays cheap while nobody adds candidates, and
+            // LabProfiles has grown from six to twenty-two of them.
+            Dictionary<string, CandidateResult> archive = IndexById(archived);
+
             var html = new StringBuilder(16 * 1024);
             html.Append(HeadAndStyle);
 
+            AppendHeader(html, set, archived);
+            AppendStrengthTable(html, set, reference, archive);
+            AppendFeelTable(html, set, reference, archive);
+            AppendLegends(html);
+
+            html.Append("</main>\n</body>\n</html>\n");
+            return html.ToString();
+        }
+
+        private static void AppendHeader(StringBuilder html, ResultSet set, ResultSet archived)
+        {
             html.Append("<header><h1>Nova AI Lab — candidate comparison</h1><div class=\"sub\">")
                 .Append(set.Candidates.Count).Append(" candidates · ")
                 .Append(set.Seeds.Length).Append(" seeds · budget ").Append(set.TickBudget)
@@ -79,7 +98,13 @@ namespace Nova.AiLab
                     .Append(" seeds play the identical match. The variance in this table comes from the ")
                     .Append("profiles and from the two faction seatings, not from the seeds.</div>\n");
             }
+        }
 
+        /// <summary>Who won, how fast, at what cost.</summary>
+        private static void AppendStrengthTable(
+            StringBuilder html, ResultSet set, CandidateResult reference,
+            Dictionary<string, CandidateResult> archive)
+        {
             html.Append("<main><table>\n<thead><tr>")
                 .Append("<th>candidate</th><th>changed against reference</th>")
                 .Append("<th>win %</th><th>W/L/D</th><th>decided tick</th>")
@@ -90,10 +115,8 @@ namespace Nova.AiLab
             foreach (CandidateResult c in set.Candidates)
             {
                 bool isReference = ReferenceEquals(c, reference);
-                CandidateResult old = Find(archived, c.ProfileId);
-                html.Append(isReference ? "<tr class=\"ref\">" : "<tr>");
-                html.Append("<td class=\"name\">").Append(Escape(c.ProfileId))
-                    .Append(isReference ? " <span class=\"tag\">reference</span>" : "").Append("</td>");
+                CandidateResult old = Archived(archive, c.ProfileId);
+                AppendRowName(html, c, isReference);
                 html.Append("<td class=\"changes\">")
                     .Append(c.DifferencesFromReference.Count == 0
                         ? "<span class=\"dim\">—</span>"
@@ -123,13 +146,21 @@ namespace Nova.AiLab
             }
 
             html.Append("</tbody></table>\n");
+        }
 
-            // ---- second table: how the match FELT, not who won ----
-            //
-            // Deliberately a SEPARATE table rather than six more columns on
-            // the first one. These read against a different question, and a
-            // twenty-column table is a table nobody reads — readability is the
-            // product here, because there is no ranking to fall back on.
+        /// <summary>
+        /// How the match FELT, not who won.
+        /// <para>
+        /// Deliberately a SEPARATE table rather than six more columns on the
+        /// first one. These read against a different question, and a
+        /// twenty-column table is a table nobody reads — readability is the
+        /// product here, because there is no ranking to fall back on.
+        /// </para>
+        /// </summary>
+        private static void AppendFeelTable(
+            StringBuilder html, ResultSet set, CandidateResult reference,
+            Dictionary<string, CandidateResult> archive)
+        {
             html.Append("<h2>game feel</h2>\n")
                 .Append("<div class=\"note\">Strength and speed are above. These columns ask how the match ")
                 .Append("PLAYED: did the army gather and strike, or trickle; did anything happen when it ")
@@ -146,10 +177,8 @@ namespace Nova.AiLab
             foreach (CandidateResult c in set.Candidates)
             {
                 bool isReference = ReferenceEquals(c, reference);
-                CandidateResult old = Find(archived, c.ProfileId);
-                html.Append(isReference ? "<tr class=\"ref\">" : "<tr>");
-                html.Append("<td class=\"name\">").Append(Escape(c.ProfileId))
-                    .Append(isReference ? " <span class=\"tag\">reference</span>" : "").Append("</td>");
+                CandidateResult old = Archived(archive, c.ProfileId);
+                AppendRowName(html, c, isReference);
 
                 Cell(html, c.AverageExchangeRatio, reference?.AverageExchangeRatio, isReference, old?.AverageExchangeRatio);
                 Cell(html, c.AverageCombatIntervals, reference?.AverageCombatIntervals, isReference, old?.AverageCombatIntervals);
@@ -163,7 +192,18 @@ namespace Nova.AiLab
             }
 
             html.Append("</tbody></table>\n");
+        }
 
+        /// <summary>The row opener both tables share: the candidate's name, and whether it is the yardstick.</summary>
+        private static void AppendRowName(StringBuilder html, CandidateResult candidate, bool isReference)
+        {
+            html.Append(isReference ? "<tr class=\"ref\">" : "<tr>");
+            html.Append("<td class=\"name\">").Append(Escape(candidate.ProfileId))
+                .Append(isReference ? " <span class=\"tag\">reference</span>" : "").Append("</td>");
+        }
+
+        private static void AppendLegends(StringBuilder html)
+        {
             html.Append("<section class=\"legend\">")
                 .Append("<p><b>Reading the feel table.</b> <i>exchange /100</i> is enemy entities lost per ")
                 .Append("100 own, <i>-1</i> when the candidate lost nothing. <i>combat intervals</i> and ")
@@ -192,9 +232,25 @@ namespace Nova.AiLab
                 .Append("<p><b>Then open the run.</b> A win rate does not explain that half the army was ")
                 .Append("stuck on a building corner — the view window does.</p>")
                 .Append("</section>\n");
+        }
 
-            html.Append("</main>\n</body>\n</html>\n");
-            return html.ToString();
+        /// <summary>Every candidate of a set by id, or an empty index for a null set.</summary>
+        private static Dictionary<string, CandidateResult> IndexById(ResultSet set)
+        {
+            var index = new Dictionary<string, CandidateResult>(StringComparer.Ordinal);
+            if (set == null) return index;
+            foreach (CandidateResult c in set.Candidates)
+            {
+                if (c.ProfileId != null) index[c.ProfileId] = c;
+            }
+            return index;
+        }
+
+        /// <summary>What the archive measured for this candidate, or null when it did not measure it.</summary>
+        private static CandidateResult Archived(Dictionary<string, CandidateResult> archive, string profileId)
+        {
+            if (profileId == null) return null;
+            return archive.TryGetValue(profileId, out CandidateResult found) ? found : null;
         }
 
         /// <summary>
@@ -277,43 +333,30 @@ namespace Nova.AiLab
             return html.ToString();
         }
 
-        private const string HeadAndStyle = @"<!doctype html>
-<html lang=""en"">
-<head>
-<meta charset=""utf-8"">
-<title>Nova AI Lab — candidate comparison</title>
-<style>
-  :root { color-scheme: dark; }
-  body { margin:0; background:#0d1117; color:#c9d1d9;
-         font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; }
-  header { padding:12px 16px; border-bottom:1px solid #21262d; }
-  h1 { font-size:15px; margin:0 0 3px; font-weight:600; }
-  h2 { font-size:13px; margin:26px 0 8px; font-weight:600; color:#e6edf3; }
-  .sub { color:#8b949e; font-size:12px; }
-  .warn { color:#d29922; font-size:12px; margin-top:6px; }
-  .note { margin:12px 16px 0; padding:8px 12px; border-left:3px solid #d29922;
-          background:#1c1a12; color:#c9d1d9; font-size:12px; }
-  main { padding:14px 16px 32px; }
-  table { border-collapse:collapse; width:100%; font-size:12px; }
-  th,td { padding:5px 9px; border-bottom:1px solid #21262d; text-align:right; white-space:nowrap; }
-  th { color:#8b949e; font-weight:600; text-align:right; position:sticky; top:0; background:#0d1117; }
-  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
-  td.changes { white-space:normal; color:#8b949e; font-size:11px; max-width:280px; }
-  tr.ref { background:#161b22; }
-  tr.ref td { border-bottom:1px solid #30363d; }
-  .tag { color:#58a6ff; font-size:10px; border:1px solid #1f6feb; border-radius:3px; padding:0 4px; }
-  .name { color:#e6edf3; }
-  .dim { color:#484f58; }
-  td.num .d { color:#8b949e; font-size:10px; margin-left:5px; }
-  td.num .was, .was { color:#6e7681; font-size:10px; margin-left:5px; }
-  td.small { color:#d29922; }
-  td.big { color:#f85149; }
-  .legend { margin-top:18px; color:#8b949e; font-size:12px; max-width:70ch; }
-  .legend b { color:#c9d1d9; }
-  a { color:#58a6ff; }
-</style>
-</head>
-<body>
-";
+        /// <summary>
+        /// Head, style and the opening body tag, loaded from an embedded
+        /// resource rather than held as a verbatim string here — same reason as
+        /// <see cref="HtmlPlayer"/>: CSS is easier to get right in a file that
+        /// an editor knows is CSS. The written report is byte-for-byte what it
+        /// was.
+        /// </summary>
+        private const string HeadResourceName = "Nova.AiLab.Compare.Report.head.html";
+
+        private static readonly string HeadAndStyle = LoadHead();
+
+        private static string LoadHead()
+        {
+            using Stream stream = typeof(ComparisonReport).Assembly.GetManifestResourceStream(HeadResourceName);
+            if (stream == null)
+            {
+                throw new InvalidOperationException(
+                    $"[AiLab] the embedded report head '{HeadResourceName}' is not in this assembly. " +
+                    "Nova.AiLab.csproj has to carry Compare/Report.head.html as an EmbeddedResource " +
+                    "under exactly that LogicalName.");
+            }
+
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            return reader.ReadToEnd();
+        }
     }
 }

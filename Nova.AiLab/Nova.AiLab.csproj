@@ -44,6 +44,23 @@
     <Compile Include="$(NovaScripts)\AI.Data\**\*.cs" Link="AI.Data\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- THE TWO HTML PAGES THE LAB WRITES.
+       They live as real .html files so an editor treats them as HTML: syntax
+       highlighting, a formatter, a linter, and no doubled quotes. They used to
+       be verbatim C# string constants — 1.300 lines of them in HtmlPlayer.cs.
+       What the lab WRITES is unchanged: each artifact directory still gets one
+       self-contained file that opens with a double-click.
+
+       LogicalName is spelled out rather than left to the default derivation
+       (RootNamespace plus directory), because the loader asks for the resource
+       by that exact name and a silent rename would only surface at run time. -->
+  <ItemGroup>
+    <EmbeddedResource Include="View\Player.template.html"
+                      LogicalName="Nova.AiLab.View.Player.template.html" />
+    <EmbeddedResource Include="Compare\Report.head.html"
+                      LogicalName="Nova.AiLab.Compare.Report.head.html" />
+  </ItemGroup>
+
   <!-- PROVENANCE, BAKED IN AT BUILD TIME.
        A result set is bound to the commit it was measured at and the report
        refuses to compare across that boundary. Before the lab moved out, the
