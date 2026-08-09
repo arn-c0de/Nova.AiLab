@@ -1,0 +1,15 @@
+# Baureste
+bin/
+obj/
+__pycache__/
+
+# Der jeweils letzte ROHE Laborlauf. Nicht versioniert, und das ist eine
+# Entscheidung, keine Bequemlichkeit: er ist jederzeit reproduzierbar, er ist
+# gross (view.ndjson und dashboard.html dominieren), und er gehoert zu einem
+# Commit des Spiel-Checkouts, der beim naechsten Merge-Fenster ohnehin
+# ungueltig wird.
+#
+# Was bleibt, ist der verdichtete Messblock je Lauf unter reports/data/ — die
+# Quelle, aus der jeder Bericht neu entsteht. Ein Bericht ohne seine Rohdaten
+# ist reproduzierbar; ein Repo, das jede Messung roh mitschleppt, ist es nicht.
+out/

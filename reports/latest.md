@@ -1,0 +1,255 @@
+# Laborlauf 20260809-0924-8fe6fece
+
+> [!IMPORTANT]
+> **DIAGNOSE, kein Nachweis.** Nichts in diesem Bericht wurde im laufenden Spiel gesehen.
+> Alle Zahlen stammen aus headless-Läufen derselben Quelldateien, die Unity lädt — das
+> macht sie vergleichbar, nicht wahr. Es gibt bewusst **keine Rangfolge**: die Werte stehen
+> nebeneinander, die Auswahl trifft ein Mensch.
+
+| Herkunft | Wert |
+| --- | --: |
+| gemessen am | 2026-08-09T09:24:22Z |
+| Commit | `8fe6fece5c0768389f8890e488c56159e5bb77e5` |
+| Definitionstabelle | `0x6326FA3E56CFF5A3` |
+| KI-Verhalten | `r4.779A1B5B` |
+| Seed | `0xA17E57DE57` |
+| Tickbudget | 27.000 |
+| Slots | 2 |
+| specVersion | 1 |
+| Fingerabdruck | `092e40441ace4bb3` |
+
+Interaktive Fassung derselben Zahlen: [`dashboard.html`](../out/dashboard.html) — Kurven mit Fadenkreuz, Heatmap mit Abstandsdetail, Scrubber. Lokal öffnen, kein Server nötig; GitHub zeigt HTML nicht an, dafür ist dieser Bericht da.
+
+## Laufart 1 · `match` — die Partie: KI gegen KI
+
+Eine kanonische Partie über beide Slots, Metriken alle 50 Ticks, reine Beobachtung — ein Lauf mit und ohne Trace liefert dieselbe Hash-Kette.
+
+| Kennzahl | Wert | Kontext |
+| --- | --: | --- |
+| Ausgang | VictoryElimination | Slot 0 · alliance |
+| Entschieden bei Tick | 5.931 | von 27.000 Budget |
+| Rechenzeit | 753 ms | 7.876 Ticks/s |
+| Metrikproben | 119 | alle 50 Ticks |
+| Hash-Kette | 12 | alle 500 Ticks |
+| Endzustands-Hash | `0x8E054C63DE80BDD6` | bei Tick 5.931 |
+
+| Endwert je Slot | Slot 0 · alliance | Slot 1 · legion |
+| --- | --: | --: |
+| Credits | 16.090 | 18.110 |
+| Armeegrösse | 12 | 8 |
+| Verluste, kumuliert | 24 | 47 |
+| Harvester | 2 | 2 |
+| Gebäude | 4 | 3 |
+| Sichtbare Feindeinheiten | 3 | 4 |
+
+1. Linie **Slot 0 · alliance** · 2. Linie **Slot 1 · legion**. `xychart-beta` kennt keine Legende, deshalb steht die Zuordnung hier. x-Achse Tick 0 bis 5.900, alle Werte ganzzahlig — kein Float verlässt die Simulation.
+
+**Credits** — Kassenstand je Slot
+
+```mermaid
+xychart-beta
+    title "Credits"
+    x-axis "Tick" 0 --> 5900
+    y-axis "Credits" 0 --> 20000
+    line [3000, 2300, 2300, 450, 450, 450, 280, 610, 220, 160, 490, 1150, 1480, 2140, 1990, 2650, 2860, 3520, 3850, 4510, 4840, 5500, 5710, 6250, 6580, 7240, 7570, 8230, 8440, 8860, 8950, 9610, 9940, 9640, 9970, 10630, 10960, 11380, 11710, 12370, 12700, 13360, 13450, 14110, 14440, 15100, 15430, 16090]
+    line [3000, 2450, 950, 950, 350, 530, 530, 1130, 1730, 2330, 2630, 3230, 3530, 4130, 4310, 4730, 5030, 5630, 5930, 6530, 7130, 7730, 7790, 7970, 8270, 8810, 9410, 9710, 10310, 10910, 10910, 11510, 12110, 12110, 12410, 12890, 13190, 13730, 14330, 14930, 15230, 15830, 15890, 16130, 16610, 17210, 17510, 18110]
+```
+
+**Armeegrösse** — lebende Kampfeinheiten
+
+```mermaid
+xychart-beta
+    title "Armeegrösse"
+    x-axis "Tick" 0 --> 5900
+    y-axis "Armeegrösse" 0 --> 20
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 4, 5, 7, 4, 4, 5, 7, 8, 9, 10, 12, 10, 11, 12, 12, 12, 12, 11, 10, 9, 11, 12, 5, 6, 7, 8, 8, 9, 10, 11, 12, 10, 11, 12, 12, 12, 12]
+    line [0, 0, 0, 0, 1, 3, 4, 6, 7, 9, 10, 12, 12, 12, 5, 4, 6, 7, 9, 11, 12, 12, 6, 3, 4, 5, 6, 8, 9, 11, 12, 12, 12, 2, 2, 4, 5, 6, 7, 9, 11, 12, 5, 4, 3, 5, 6, 8]
+```
+
+**Verluste, kumuliert** — verlorene Einheiten seit Tick 0
+
+```mermaid
+xychart-beta
+    title "Verluste, kumuliert"
+    x-axis "Tick" 0 --> 5900
+    y-axis "Verluste, kumuliert" 0 --> 50
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 5, 5, 5, 5, 5, 5, 5, 7, 7, 7, 7, 7, 7, 8, 10, 12, 12, 12, 20, 20, 20, 20, 22, 22, 22, 22, 22, 24, 24, 24, 24, 24, 24]
+    line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 10, 10, 10, 10, 10, 10, 10, 16, 21, 21, 22, 22, 22, 22, 22, 22, 22, 22, 33, 34, 34, 34, 35, 35, 35, 35, 35, 42, 45, 47, 47, 47, 47]
+```
+
+**Harvester** — Erntefahrzeuge im Feld
+
+```mermaid
+xychart-beta
+    title "Harvester"
+    x-axis "Tick" 0 --> 5900
+    y-axis "Harvester" 0 --> 2
+    line [0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+    line [0, 0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+```
+
+**Verworfene Intents:** 0 von 177 (Slot 0) und 0 von 131 (Slot 1). Diese Spalte ist die unterschätzte — sie zeigt, wo die KI gegen Executor-Regeln anrennt, und ist überall sonst stumm, weil `Submit()` das Verdikt nicht auswertet.
+
+**Der Seed ändert die Partie nicht.** Kein Simulationssystem zieht aus dem Kernel-PRNG; der Seed geht in Zustands-Hash und Snapshot, sonst nirgendwohin. Ein Sweep über 24 Seeds ist *eine* Beobachtung.
+
+## Laufart 4 · `compare` — Kandidatenprofile gegen die eingefrorene Referenz
+
+Jeder Kandidat spielt gegen `ms1-canonical`, in beiden Fraktionsrollen — das hebt die Spawnreihenfolge auf. Die Zeilenreihenfolge ist die Kandidatenliste, nicht die Güte.
+
+| Kandidat | geändert gegen Referenz | Sieg % | S/N/U | Entsch. Tick | Credits | Armee | verloren | Intents | verworfen |
+| --- | --- | --: | --: | --: | --: | --: | --: | --: | --: |
+| **ms1-canonical** _Referenz_ | — | 50 % | 1/1/0 | 5.931 | 17.100 | 10 | 35 | 308 | 0 |
+| **early-push** | armySize 12→10; squadThreshold 6→3 | 50 % | 1/1/0 | 10.335 (+74 %) | 31.890 (+86 %) | 4 (-60 %) | 59 (+69 %) | 652 | 0 |
+| **late-push** | armySize 12→20; squadThreshold 6→12 | 100 % | 2/0/0 | 9.753 (+64 %) | 27.635 (+62 %) | 18 (+80 %) | 89 (+154 %) | 951 | 0 |
+| **greedy-economy** | harvesters 2→4; armySize 12→16; squadThreshold 6→8 | 50 % | 1/1/0 | 13.065 (+120 %) | 80.365 (+370 %) | 8 (-20 %) | 97 (+177 %) | 1.147 | 0 |
+| **power-buffer** | powerReserve 0→30 | 0 % | 0/2/0 | 8.126 (+37 %) | 17.510 (+2 %) | 3 (-70 %) | 53 (+51 %) | 389 | 0 |
+| **fast-cadence** | cadence 20→10 | 0 % | 0/1/1 | 22.655 (+282 %) | 73.830 (+332 %) | 7 (-30 %) | 148 (+323 %) | 1.313 | 0 |
+| **wave-off** | waveSize 12→1 | 50 % | 1/1/0 | 11.389 (+92 %) | 31.070 (+82 %) | 8 (-20 %) | 100 (+186 %) | 1.093 | 0 |
+| **wave-6** | waveSize 12→6 | 50 % | 1/0/1 | 22.707 (+283 %) | 69.225 (+305 %) | 10 | 227 (+549 %) | 1.958 | 0 |
+| **wave-10** | waveSize 12→10 | 50 % | 1/1/0 | 15.935 (+169 %) | 48.080 (+181 %) | 7 (-30 %) | 152 (+334 %) | 1.097 | 0 |
+| **wave-6-far** | waveSize 12→6; staging 12→70; stagingTol 4→6 | 0 % | 0/2/0 | 13.784 (+132 %) | 37.575 (+120 %) | 5 (-50 %) | 130 (+271 %) | 1.375 | 0 |
+| **retreat-off** | retreatAt 60→0% | 50 % | 1/1/0 | 7.929 (+34 %) | 22.470 (+31 %) | 9 (-10 %) | 62 (+77 %) | 476 | 0 |
+| **retreat-40** | retreatAt 60→40% | 50 % | 1/1/0 | 8.429 (+42 %) | 24.885 (+46 %) | 10 | 63 (+80 %) | 521 | 0 |
+| **retreat-75** | retreatAt 60→75% | 50 % | 1/1/0 | 14.475 (+144 %) | 46.280 (+171 %) | 7 (-30 %) | 79 (+126 %) | 826 | 0 |
+| **retreat-25-near** | retreatAt 60→25%; retreatDanger 8→4 | 50 % | 1/1/0 | 6.675 (+13 %) | 18.450 (+8 %) | 9 (-10 %) | 45 (+29 %) | 397 | 0 |
+
+**Was hier _nicht_ steht.** Keine Spalte ist zu einer Note verrechnet und nichts ist nach Güte sortiert. Eine einzelne Zahl belohnt zuverlässig das Falsche — eine KI, die 5 % häufiger gewinnt, weil sie den Gegner mit Bauarbeitern zumüllt, ist keine bessere KI.
+
+**1 Seed je Kandidat** — die Seed-Achse ist heute leer, also sind das 2 Partien je Kandidat, nicht 2 unabhängige Stichproben.
+
+## Laufart 2 · `duel` — die Gegentabelle, gemessen statt abgelesen
+
+AE-Parität statt Stückzahlparität, drei Startabstände, jede Paarung in beide Richtungen. Zeile = die zuerst gespawnte Seite. Der Wert ist ihre Bilanz über die drei Abstände (Siege − Niederlagen, Bereich −3…+3); die Abstände einzeln stehen im Dashboard.
+
+| Zeile gewinnt ↓ / Spalte → | All.AntiArmorInfantry | All.Artillery | All.BasicInfantry | All.BattleTank | All.LightTank | All.ScoutVehicle | Leg.AntiArmorInfantry | Leg.Artillery | Leg.BasicInfantry | Leg.BattleTank | Leg.LightTank | Leg.ScoutVehicle |
+| --- | --: | --: | --: | --: | --: | --: | --: | --: | --: | --: | --: | --: |
+| **All.AntiArmorInfantry** | +3 | +2&nbsp;⚠ | -2 | 0 | +2 | -1 | +2 | +2&nbsp;⚠ | -2 | -1 | -1 | -1 |
+| **All.Artillery** | -2&nbsp;⚠ | +2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | +2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ |
+| **All.BasicInfantry** | +2 | +2&nbsp;⚠ | +1 | -2 | +1 | +2 | +1 | +2&nbsp;⚠ | -2 | -2 | +1 | +1 |
+| **All.BattleTank** | +2 | +2&nbsp;⚠ | +2 | +2 | +2 | +2 | -1 | +2&nbsp;⚠ | +2 | -2 | +2 | +2 |
+| **All.LightTank** | -2 | +2&nbsp;⚠ | -1 | -2 | +1 | +2 | -2 | +2&nbsp;⚠ | -1 | -3 | -1 | +2 |
+| **All.ScoutVehicle** | +1 | +2&nbsp;⚠ | -2 | -2 | -2 | +1 | +1 | +2&nbsp;⚠ | -2 | -2 | -2 | -1 |
+| **Leg.AntiArmorInfantry** | 0 | +2&nbsp;⚠ | -1 | +2 | +2 | -1 | +3 | +2&nbsp;⚠ | -2 | +1 | +3 | -1 |
+| **Leg.Artillery** | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | +2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ | -2&nbsp;⚠ |
+| **Leg.BasicInfantry** | +2 | +2&nbsp;⚠ | +2 | -2 | +1 | +2 | +2 | +2&nbsp;⚠ | +3 | -1 | +1 | +2 |
+| **Leg.BattleTank** | +1 | +2&nbsp;⚠ | +2 | +2 | +3 | +2 | 0 | +2&nbsp;⚠ | +1 | +3 | +2 | +2 |
+| **Leg.LightTank** | +1 | +2&nbsp;⚠ | +1 | -2 | +1 | +2 | -3 | +2&nbsp;⚠ | -1 | -2 | +1 | +2 |
+| **Leg.ScoutVehicle** | +1 | +2&nbsp;⚠ | -1 | -2 | -2 | +1 | +1 | +2&nbsp;⚠ | -2 | -2 | -2 | +1 |
+
+`·` — in keinem Abstand Kontakt · `⚠` — kein Kontakt in mindestens einem Abstand
+
+| Duelle | entschieden | ins Tickbudget | ohne Kontakt | wackelnde Parität | Budget je Seite |
+| --: | --: | --: | --: | --: | --: |
+| 576 | 395 | 181 | 100 | 6 | 720 AE |
+
+**100 Duelle ohne einen einzigen Schuss.** Wo die Waffenreichweite über der Sichtweite liegt, kann sie ohne Aufklärung nicht benutzt werden — `CombatSystem` verlangt das Ziel als sichtbar in der committed Team-Sicht. Das ist ein Balance-Befund, kein Messfehler.
+
+**6 Paarungen** liessen über 10 % eines Budgets ungenutzt — dort wackelt die AE-Parität selbst, ihr Ausgang ist schwaches Material.
+
+**5 Richtungsabweichungen** — Rollenpaarungen, bei denen A gegen B anders ausgeht als B gegen A. Sie sind so knapp, dass die Spawnreihenfolge sie kippt; das gehört in den Bericht, nicht wegkalibriert. Spiegelpaarungen (dieselbe Rolle gegen sich selbst) zählen nicht mit: dort entscheidet die dokumentierte Duell-Asymmetrie.
+
+<details><summary>Die betroffenen Paarungen</summary>
+
+- All.AntiArmorInfantry ↔ All.BattleTank
+- All.AntiArmorInfantry ↔ Leg.AntiArmorInfantry
+- All.BasicInfantry ↔ Leg.LightTank
+- All.BattleTank ↔ Leg.AntiArmorInfantry
+- Leg.AntiArmorInfantry ↔ Leg.BattleTank
+
+</details>
+
+## Laufart 2 · Belagerungsstaffel — womit reisst man eine Basis ein
+
+Gebäude schiessen nicht zurück — ausser der `DefensePlatform`. Gemessen wird deshalb die Zeit bis zum Abriss, gegen das eigene Fraktionsgebäude, Staffel *Berührung*. Sortierung alphabetisch, nicht nach Zeit.
+
+> [!WARNING]
+> **Diese Staffel läuft nicht auf AE-Parität**, anders als die Einheitenduelle. Jeder
+> Angreifer stellt sechs Einheiten *seiner* Kosten, die Tickzahlen sind untereinander
+> deshalb nicht direkt vergleichbar — die AE-Spalte gehört zur Tickspalte dazu. Wer
+> Waffenwirkung vergleichen will, rechnet `Ticks × AE`.
+
+| Angreifer | Gebäude | Ticks bis Abriss | Einheiten | AE | eigene Verluste |
+| --- | --- | --: | --: | --: | --: |
+| **All.AntiArmorInfantry** | All.Barracks | 52 | 6 | 1.500 | 0 |
+| **All.AntiArmorInfantry** | All.DefensePlatform | 52 | 6 | 1.500 | 1 |
+| **All.AntiArmorInfantry** | All.Power | 27 | 6 | 1.500 | 0 |
+| **All.Artillery** | All.Barracks | 72 | 6 | 6.000 | 0 |
+| **All.Artillery** | All.DefensePlatform | 72 | 6 | 6.000 | 0 |
+| **All.Artillery** | All.Power | 2 | 6 | 6.000 | 0 |
+| **All.BasicInfantry** | All.Barracks | 353 | 6 | 720 | 0 |
+| **All.BasicInfantry** | All.DefensePlatform | 292 | 6 | 720 | 6 |
+| **All.BasicInfantry** | All.Power | 236 | 6 | 720 | 0 |
+| **All.BattleTank** | All.Barracks | 127 | 6 | 5.400 | 0 |
+| **All.BattleTank** | All.DefensePlatform | 127 | 6 | 5.400 | 0 |
+| **All.BattleTank** | All.Power | 77 | 6 | 5.400 | 0 |
+| **All.LightTank** | All.Barracks | 182 | 6 | 3.600 | 0 |
+| **All.LightTank** | All.DefensePlatform | 182 | 6 | 3.600 | 0 |
+| **All.LightTank** | All.Power | 122 | 6 | 3.600 | 0 |
+| **All.ScoutVehicle** | All.Barracks | 332 | 6 | 1.800 | 0 |
+| **All.ScoutVehicle** | All.DefensePlatform | 382 | 6 | 1.800 | 2 |
+| **All.ScoutVehicle** | All.Power | 222 | 6 | 1.800 | 0 |
+| **Leg.AntiArmorInfantry** | Leg.Barracks | 52 | 6 | 1.200 | 0 |
+| **Leg.AntiArmorInfantry** | Leg.DefensePlatform | 52 | 6 | 1.200 | 1 |
+| **Leg.AntiArmorInfantry** | Leg.Power | 27 | 6 | 1.200 | 0 |
+| **Leg.Artillery** | Leg.Barracks | 72 | 6 | 4.800 | 0 |
+| **Leg.Artillery** | Leg.DefensePlatform | 72 | 6 | 4.800 | 0 |
+| **Leg.Artillery** | Leg.Power | 72 | 6 | 4.800 | 0 |
+| **Leg.BasicInfantry** | Leg.Barracks | 632 | 6 | 360 | 0 |
+| **Leg.BasicInfantry** | Leg.DefensePlatform | 172 | 6 | 360 | 6 |
+| **Leg.BasicInfantry** | Leg.Power | 422 | 6 | 360 | 0 |
+| **Leg.BattleTank** | Leg.Barracks | 52 | 6 | 4.200 | 0 |
+| **Leg.BattleTank** | Leg.DefensePlatform | 52 | 6 | 4.200 | 0 |
+| **Leg.BattleTank** | Leg.Power | 27 | 6 | 4.200 | 0 |
+| **Leg.LightTank** | Leg.Barracks | 202 | 6 | 2.700 | 0 |
+| **Leg.LightTank** | Leg.DefensePlatform | 202 | 6 | 2.700 | 0 |
+| **Leg.LightTank** | Leg.Power | 142 | 6 | 2.700 | 0 |
+| **Leg.ScoutVehicle** | Leg.Barracks | 332 | 6 | 1.320 | 0 |
+| **Leg.ScoutVehicle** | Leg.DefensePlatform | 492 | 6 | 1.320 | 4 |
+| **Leg.ScoutVehicle** | Leg.Power | 222 | 6 | 1.320 | 0 |
+
+**Nur 16 von 72 Belagerungen auf Waffenreichweite wurden entschieden**, gegen 72 von 72 auf Berührung. Dieselbe Ursache wie in der Gegentabelle: ohne Sicht kein Feuer.
+
+## Laufart 3 · `movement` — Bewegung: vier Szenarien
+
+Hindernisse sind Daten, nicht Code: eine Fussabdruckliste, eine Gruppe, ein Befehl.
+
+**Überlauf im Szenario `standoff`** — Zellen, die Fernkämpfer mit Angriffsbefehl über die Entfernung hinaus vorrücken, auf der sie zum ersten Mal Schaden angerichtet haben.
+
+| Fraktion / Rolle | Überlauf (nutzbar) | Reichweite | Sicht | Feuer ab | nächster Abstand | angekommen |
+| --- | --: | --: | --: | --: | --: | --: |
+| Alliance Artillery | 7 von 7 | 20 | 10 | 7 | 0 | 0/8 |
+| Legion Artillery | 7 von 7 | 18 | 10 | 7 | 0 | 0/8 |
+
+**Nur die erste Spalte ist Issue 03.** Der Abstand zwischen nominaler Reichweite und „Feuer ab" gehört der Aufklärung, nicht der Bewegung: `CombatSystem` verlangt das Ziel als sichtbar in der committed Team-Sicht. Ein Kontrolllauf, der die Gruppe auf voller Reichweite stehen liess, richtete über 2.000 Ticks null Schaden an — „auf Reichweite stehenbleiben" wäre also keine Verbesserung, sondern eine wirkungslose Waffe. Die Werte sind absichtlich fraktionsasymmetrisch (Allianz 20, Legion 18 Tiles). Im `standoff` ist „angekommen 0" kein Befund, sondern der Auftrag: die Gruppe greift an, sie reist nicht.
+
+**Alle Szenarien, gemessene Rohwerte je Fraktion**
+
+| Szenario | Fraktion | Rolle | Gruppe | angekommen | erster/letzter | Streuung | Weg | Luftlinie | blockiert | Durchlass | Überlauf (nutzbar) |
+| --- | --- | --- | --: | --: | --: | --: | --: | --: | --- | --- | --: |
+| Arrival | Alliance | BasicInfantry | 8 | 8 | 274/280 | 3 | 130 | — | — | — | — |
+| Arrival | Legion | BasicInfantry | 8 | 8 | 274/280 | 3 | 130 | — | — | — | — |
+| Blocking | Alliance | BasicInfantry | 16 | 16 | 158/178 | 2 | — | — | 0 Einh. · 0 Ticks | 2 Zellen @ y=63 | — |
+| Blocking | Legion | BasicInfantry | 16 | 16 | 158/178 | 2 | — | — | 0 Einh. · 0 Ticks | 2 Zellen @ y=63 | — |
+| Standoff | Alliance | Artillery | 8 | 0 | — | 0 | — | — | — | — | 7 |
+| Standoff | Legion | Artillery | 8 | 0 | — | 0 | — | — | — | — | 7 |
+| Detour | Alliance | BasicInfantry | 8 | 8 | 427/440 | 3 | 175 | 50 | — | 5 Zellen @ y=18 | — |
+| Detour | Legion | BasicInfantry | 8 | 8 | 427/440 | 3 | 175 | 50 | — | 5 Zellen @ y=18 | — |
+
+## Reproduktion
+
+Alle Zahlen dieses Berichts stammen aus vier Kommandos und einem Berichtslauf:
+
+```bash
+export DOTNET_ROOT="$PWD/.dotnet"; export PATH="$DOTNET_ROOT:$PATH"
+dotnet run --project Nova.AiLab -c Release -- match --trace-every 50 --hash-every 500 --view-every 25 --fog --out out/match
+dotnet run --project Nova.AiLab -c Release -- duel     --out out/duel
+dotnet run --project Nova.AiLab -c Release -- movement --out out/movement
+dotnet run --project Nova.AiLab -c Release -- compare  --out out/compare
+python3 Nova.AiLab/report/build_reports.py out
+```
+
+---
+
+Nova.AiLab ist lokales Werkzeug, kein Beitrag — es gerät in keinen `feat/`-Branch und wird nie gemergt. Diese Ergebnismenge ist an Commit `8fe6fece` und Definitionstabelle `0x6326FA3E56CFF5A3` gebunden. Nach dem nächsten Merge-Fenster des Maintainers sind die Zahlen nicht mehr vergleichbar und werden neu vermessen, nicht über die Grenze hinweg verglichen.
+
+*DIAGNOSIS — never proof. No scalar score, no ranking: the numbers sit side by side and a human picks.*
