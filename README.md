@@ -1,7 +1,8 @@
 # Nova.AiLab — KI-Simulationslabor
 
-> **Das Labor ist aus dem Fork herausgelöst und liegt jetzt in einem eigenen
-> Repository — neben dem Spiel-Checkout, nicht mehr darin.**
+> **Das Labor ist aus dem Fork ([`arn-c0de/Project_Nova`](https://github.com/arn-c0de/Project_Nova))
+> herausgelöst und liegt jetzt in einem eigenen Repository — neben dem
+> Spiel-Checkout, nicht mehr darin.**
 >
 > Der Gewinn ist kein Ordnungsgewinn, sondern ein Messgewinn: Solange das Labor
 > **in** einem Branch lag, konnte es nur diesen einen Branch messen. Jeder andere
@@ -31,6 +32,14 @@ ProjectNova - HASHKRIEG/
 └── Nova.AiLab/          dieses Labor, eigenes Repo
 ```
 
+Drei Repositories, die dabei auseinanderzuhalten sind:
+
+| Repository | Rolle |
+|---|---|
+| [`VibecodingGermany/Project_Nova`](https://github.com/VibecodingGermany/Project_Nova) | das Spiel selbst — Ziel jedes Pull Requests. Wird nur gefetcht, nie dorthin gepusht |
+| [`arn-c0de/Project_Nova`](https://github.com/arn-c0de/Project_Nova) | mein Fork davon, üblicherweise der Checkout unter `Project_Nova/` — von hier geht ein PR nach oben |
+| [`arn-c0de/Nova.AiLab`](https://github.com/arn-c0de/Nova.AiLab) | dieses Labor. Kein Beitrag zum Spiel, sondern das Werkzeug, das es vermisst |
+
 Welcher Checkout gemessen wird, entscheidet die MSBuild-Eigenschaft
 `NovaRepo` (Vorgabe: `../Project_Nova`). Sie bestimmt beides zugleich — welche
 Quelldateien einkompiliert werden **und** welchen Commit die Artefakte als
@@ -46,17 +55,17 @@ Ein zweiter Checkout (oder ein `git worktree`) ist der bequeme Weg, zwei
 Branches nebeneinander zu messen, ohne dauernd umzuschalten.
 
 **Wem was gehört:** Das Labor gehört mir ([`LICENSE`](LICENSE)) — der Maintainer
-und die Mitwirkenden von Project Nova dürfen es benutzen, um Branches zu
-vermessen, nur nicht weitergeben. Was ich am *Spiel* ändere und per Pull Request
-einreiche, richtet sich dagegen nach den Bedingungen des Hauptrepos, und zwar
-nur der eingereichte Diff. Beide Richtungen und ihre Grenze stehen in
-[`CONTRIBUTIONS.md`](CONTRIBUTIONS.md).
+und die Mitwirkenden von [Project Nova](https://github.com/VibecodingGermany/Project_Nova)
+dürfen es benutzen, um Branches zu vermessen, nur nicht weitergeben. Was ich am
+*Spiel* ändere und per Pull Request einreiche, richtet sich dagegen nach den
+Bedingungen des Hauptrepos, und zwar nur der eingereichte Diff. Beide Richtungen
+und ihre Grenze stehen in [`CONTRIBUTIONS.md`](CONTRIBUTIONS.md).
 
 **Was im Spiel-Repo bleibt:** die In-Game-Debughilfen, weil sie Spielcode sind
 — der Bezeichner im F3-Panel, das Aufdecken der Karte, der Zeitraffer. Die
-liegen weiterhin auf `lab/ai-simulation` und gehören in keinen `feat/`-Branch.
-Plan und Begründung des Labors:
-[`docs/feature-ideas/AiSimulationEnvironment.md`](../Project_Nova/docs/feature-ideas/AiSimulationEnvironment.md).
+liegen weiterhin auf [`lab/ai-simulation`](https://github.com/arn-c0de/Project_Nova/tree/lab/ai-simulation)
+im Fork und gehören in keinen `feat/`-Branch. Plan und Begründung des Labors:
+[`docs/feature-ideas/AiSimulationEnvironment.md`](https://github.com/arn-c0de/Project_Nova/blob/lab/ai-simulation/docs/feature-ideas/AiSimulationEnvironment.md).
 
 **Was nicht mitversioniert wird:** `out/` — das ist der jeweils letzte rohe
 Lauf, und er ist reproduzierbar. Die *verdichteten* Messblöcke unter
