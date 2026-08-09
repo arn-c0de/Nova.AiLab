@@ -47,7 +47,7 @@ namespace Nova.AiLab
     /// meant to be read with <c>grep</c> at three in the morning.
     /// </para>
     /// </summary>
-    public sealed class DebugEvent
+    public sealed class DebugEvent : INdjsonLine
     {
         /// <summary>Value of a field this kind does not carry.</summary>
         public const int Absent = int.MinValue;
@@ -299,36 +299,60 @@ namespace Nova.AiLab
         private readonly List<DebugEvent> _events = new List<DebugEvent>(4096);
         private readonly Dictionary<uint, UnitTally> _tallies = new Dictionary<uint, UnitTally>(256);
 
-        // ---- shadow state of the previous tick, per entity POOL SLOT -----
-        private readonly bool[] _active;
-        private readonly ushort[] _version;
-        private readonly uint[] _raw;
-        private readonly byte[] _owner;
-        private readonly UnitRole[] _role;
-        private readonly int[] _health;
-        private readonly long[] _orderKey;
-        private readonly long[] _goalKey;
-        private readonly bool[] _moving;
-        private readonly uint[] _attack;
-
         /// <summary>
-        /// The attack targets of the tick BEFORE this one. A killer's current
-        /// target is already cleared when the kill is observed — <c>KillUnit</c>
-        /// resolves every order on the dead id in the same tick — so the
-        /// attribution needs the value it had a tick earlier.
+        /// The previous tick of ONE entity pool slot.
+        /// <para>
+        /// This used to be twenty-one parallel arrays. They were allocated in
+        /// twenty-one lines, written in twenty-one assignments, and read as
+        /// <c>_health[i]</c> beside <c>_x[i]</c> beside <c>_stuck[i]</c> — with
+        /// nothing but discipline holding them at the same index. Adding an
+        /// observed field meant remembering four places, and forgetting one
+        /// produced a shadow that disagreed with itself: an edge reported
+        /// against a stale value, which reads like a finding about the
+        /// simulation and is a defect in the observer.
+        /// </para>
+        /// <para>
+        /// A struct is the same memory in the same order — one array of
+        /// contiguous records rather than twenty-one arrays walked in lockstep
+        /// — and the per-tick scan touches each record once instead of jumping
+        /// between twenty-one places.
+        /// </para>
         /// </summary>
-        private readonly uint[] _attackPrev;
+        private struct EntityShadow
+        {
+            public bool Active;
+            public ushort Version;
+            public uint Raw;
+            public byte Owner;
+            public UnitRole Role;
+            public int Health;
+            public long OrderKey;
+            public long GoalKey;
+            public bool Moving;
+            public uint Attack;
 
-        private readonly ushort[] _field;
-        private readonly ushort[] _siteDef;
-        private readonly int[] _cargo;
-        private readonly bool[] _returning;
-        private readonly bool[] _site;
-        private readonly int[] _x;
-        private readonly int[] _y;
-        private readonly int[] _stillTicks;
-        private readonly bool[] _stuck;
-        private readonly bool[] _below;
+            /// <summary>
+            /// The attack target of the tick BEFORE this one. A killer's current
+            /// target is already cleared when the kill is observed —
+            /// <c>KillUnit</c> resolves every order on the dead id in the same
+            /// tick — so the attribution needs the value it had a tick earlier.
+            /// </summary>
+            public uint AttackPrev;
+
+            public ushort Field;
+            public ushort SiteDef;
+            public int Cargo;
+            public bool Returning;
+            public bool Site;
+            public int X;
+            public int Y;
+            public int StillTicks;
+            public bool Stuck;
+            public bool Below;
+        }
+
+        /// <summary>Shadow state of the previous tick, per entity POOL SLOT.</summary>
+        private readonly EntityShadow[] _shadow;
 
         /// <summary>Victims of this tick, paired with the event that has to name an attacker.</summary>
         private readonly List<DebugEvent> _needAttacker = new List<DebugEvent>(16);
@@ -338,28 +362,7 @@ namespace Nova.AiLab
             _host = host ?? throw new ArgumentNullException(nameof(host));
             _slotCount = host.SlotCount;
 
-            int capacity = host.Entities.Capacity;
-            _active = new bool[capacity];
-            _version = new ushort[capacity];
-            _raw = new uint[capacity];
-            _owner = new byte[capacity];
-            _role = new UnitRole[capacity];
-            _health = new int[capacity];
-            _orderKey = new long[capacity];
-            _goalKey = new long[capacity];
-            _moving = new bool[capacity];
-            _attack = new uint[capacity];
-            _attackPrev = new uint[capacity];
-            _field = new ushort[capacity];
-            _siteDef = new ushort[capacity];
-            _cargo = new int[capacity];
-            _returning = new bool[capacity];
-            _site = new bool[capacity];
-            _x = new int[capacity];
-            _y = new int[capacity];
-            _stillTicks = new int[capacity];
-            _stuck = new bool[capacity];
-            _below = new bool[capacity];
+            _shadow = new EntityShadow[host.Entities.Capacity];
         }
 
         public IReadOnlyList<DebugEvent> Events => _events;
@@ -375,24 +378,33 @@ namespace Nova.AiLab
         public void Collect(uint tick)
         {
             _needAttacker.Clear();
-            Array.Copy(_attack, _attackPrev, _attack.Length);
 
             UnitState[] units = _host.Entities.RawUnits;
             for (int i = 0; i < units.Length; i++)
             {
                 ref readonly UnitState u = ref units[i];
-                bool sameUnit = _active[i] && u.IsActive && u.Id.Version == _version[i];
+                ref EntityShadow shadow = ref _shadow[i];
 
-                if (_active[i] && !sameUnit) EmitDeath(tick, i);
+                // The attack target of the tick before this one, carried over
+                // before anything can overwrite it. This used to be a full
+                // Array.Copy of the entity capacity at the top of every tick —
+                // 1024 entries times 27.000 ticks, for a value only the
+                // attribution below reads. Folded into the pass that walks
+                // these records anyway, it is one assignment.
+                shadow.AttackPrev = shadow.Attack;
+
+                bool sameUnit = shadow.Active && u.IsActive && u.Id.Version == shadow.Version;
+
+                if (shadow.Active && !sameUnit) EmitDeath(tick, i);
 
                 if (!u.IsActive)
                 {
-                    _active[i] = false;
+                    shadow.Active = false;
                     continue;
                 }
                 if (u.PlayerId >= _slotCount)
                 {
-                    Snapshot(tick, i, in u, sameUnit);
+                    Snapshot(i, in u, sameUnit);
                     continue;
                 }
 
@@ -408,7 +420,7 @@ namespace Nova.AiLab
                     EmitEdges(tick, i, in u, raw, isSite);
                 }
 
-                Snapshot(tick, i, in u, sameUnit);
+                Snapshot(i, in u, sameUnit);
             }
 
             if (_needAttacker.Count > 0) AttributeAttackers();
@@ -451,26 +463,27 @@ namespace Nova.AiLab
 
         private void EmitDeath(uint tick, int i)
         {
-            if (_owner[i] >= _slotCount) return;
+            ref EntityShadow shadow = ref _shadow[i];
+            if (shadow.Owner >= _slotCount) return;
 
-            UnitTally tally = TallyOf(_raw[i], _owner[i], _role[i]);
+            UnitTally tally = TallyOf(shadow.Raw, shadow.Owner, shadow.Role);
             tally.LastTick = tick;
             tally.Died = true;
 
             var death = new DebugEvent
             {
                 Tick = tick,
-                Id = _raw[i],
-                Slot = _owner[i],
-                Role = _role[i],
+                Id = shadow.Raw,
+                Slot = shadow.Owner,
+                Role = shadow.Role,
                 Kind = DebugEventKind.Death,
-                A = _x[i],
-                B = _y[i],
-                C = _health[i],
+                A = shadow.X,
+                B = shadow.Y,
+                C = shadow.Health,
                 // The same position A/B carry for this kind — named, so the
                 // reconstruction never has to know which kind it is holding.
-                VictimX = _x[i],
-                VictimY = _y[i],
+                VictimX = shadow.X,
+                VictimY = shadow.Y,
             };
             Add(death);
             _needAttacker.Add(death);
@@ -478,18 +491,20 @@ namespace Nova.AiLab
 
         private void EmitEdges(uint tick, int i, in UnitState u, uint raw, bool isSite)
         {
+            ref EntityShadow shadow = ref _shadow[i];
+
             UnitTally tally = TallyOf(raw, u.PlayerId, u.Role);
             tally.LastTick = tick;
             tally.Role = u.Role;
 
             // ---- health -------------------------------------------------
-            if (u.CurrentHealth < _health[i])
+            if (u.CurrentHealth < shadow.Health)
             {
-                tally.DamageTaken += _health[i] - u.CurrentHealth;
+                tally.DamageTaken += shadow.Health - u.CurrentHealth;
                 var damage = new DebugEvent
                 {
                     Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
-                    Kind = DebugEventKind.Damage, A = _health[i], B = u.CurrentHealth,
+                    Kind = DebugEventKind.Damage, A = shadow.Health, B = u.CurrentHealth,
                     // A/B are HEALTH here. The reconstruction needs a position
                     // and has to be handed one.
                     VictimX = u.Transform.PositionX.RawValue,
@@ -498,24 +513,24 @@ namespace Nova.AiLab
                 Add(damage);
                 _needAttacker.Add(damage);
             }
-            else if (u.CurrentHealth > _health[i])
+            else if (u.CurrentHealth > shadow.Health)
             {
                 Add(new DebugEvent
                 {
                     Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
-                    Kind = DebugEventKind.Heal, A = _health[i], B = u.CurrentHealth,
+                    Kind = DebugEventKind.Heal, A = shadow.Health, B = u.CurrentHealth,
                 });
             }
 
             // ---- the site becoming a building ---------------------------
             // The definition id has to come from the tick the entity WAS a
             // site: TryGetSite says nothing once the site is gone.
-            if (_site[i] && !isSite)
+            if (shadow.Site && !isSite)
             {
                 Add(new DebugEvent
                 {
                     Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
-                    Kind = DebugEventKind.SiteDone, Ref = _siteDef[i],
+                    Kind = DebugEventKind.SiteDone, Ref = shadow.SiteDef,
                 });
             }
 
@@ -526,21 +541,21 @@ namespace Nova.AiLab
             // Arrival clears the target through Stop() and lands on the
             // invalid value, which is not an order and is not counted here.
             long orderKey = OrderKeyOf(u.TargetGridPos);
-            if (orderKey >= 0 && orderKey != _orderKey[i])
+            if (orderKey >= 0 && orderKey != shadow.OrderKey)
             {
                 tally.OrderChanges++;
-                Add(GridChange(tick, raw, u, DebugEventKind.Order, _orderKey[i], orderKey));
+                Add(GridChange(tick, raw, u, DebugEventKind.Order, shadow.OrderKey, orderKey));
             }
 
             long goalKey = OrderKeyOf(u.GoalGridPos);
-            if (goalKey != _goalKey[i])
+            if (goalKey != shadow.GoalKey)
             {
                 tally.GoalChanges++;
-                Add(GridChange(tick, raw, u, DebugEventKind.Goal, _goalKey[i], goalKey));
+                Add(GridChange(tick, raw, u, DebugEventKind.Goal, shadow.GoalKey, goalKey));
             }
 
             // ---- moving, and standing still while doing it ---------------
-            if (u.IsMoving != _moving[i])
+            if (u.IsMoving != shadow.Moving)
             {
                 Add(new DebugEvent
                 {
@@ -551,56 +566,56 @@ namespace Nova.AiLab
                 });
             }
 
-            bool stood = u.Transform.PositionX.RawValue == _x[i] && u.Transform.PositionY.RawValue == _y[i];
+            bool stood = u.Transform.PositionX.RawValue == shadow.X && u.Transform.PositionY.RawValue == shadow.Y;
             if (u.IsMoving)
             {
                 tally.MovingTicks++;
                 if (stood)
                 {
                     tally.BlockedTicks++;
-                    _stillTicks[i]++;
-                    if (_stillTicks[i] >= StuckThresholdTicks && !_stuck[i])
+                    shadow.StillTicks++;
+                    if (shadow.StillTicks >= StuckThresholdTicks && !shadow.Stuck)
                     {
-                        _stuck[i] = true;
+                        shadow.Stuck = true;
                         Add(new DebugEvent
                         {
                             Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
-                            Kind = DebugEventKind.Stuck, A = _x[i], B = _y[i],
+                            Kind = DebugEventKind.Stuck, A = shadow.X, B = shadow.Y,
                         });
                     }
                 }
             }
 
-            if ((!u.IsMoving || !stood) && _stuck[i])
+            if ((!u.IsMoving || !stood) && shadow.Stuck)
             {
                 Add(new DebugEvent
                 {
                     Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
-                    Kind = DebugEventKind.Unstuck, A = _stillTicks[i], B = _x[i], C = _y[i],
+                    Kind = DebugEventKind.Unstuck, A = shadow.StillTicks, B = shadow.X, C = shadow.Y,
                 });
-                _stuck[i] = false;
+                shadow.Stuck = false;
             }
-            if (!u.IsMoving || !stood) _stillTicks[i] = 0;
+            if (!u.IsMoving || !stood) shadow.StillTicks = 0;
 
             // ---- attack target ------------------------------------------
             uint attack = u.AttackTarget.IsValid ? UnitCommandStateView.ToRawEntityId(u.AttackTarget) : 0u;
-            if (attack != _attack[i])
+            if (attack != shadow.Attack)
             {
                 DebugEventKind kind = attack == 0
                     ? DebugEventKind.AttackStop
-                    : _attack[i] == 0 ? DebugEventKind.AttackStart : DebugEventKind.AttackSwitch;
+                    : shadow.Attack == 0 ? DebugEventKind.AttackStart : DebugEventKind.AttackSwitch;
                 if (kind != DebugEventKind.AttackStop) tally.AttackStarts++;
                 Add(new DebugEvent
                 {
                     Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
-                    Kind = kind, Ref = attack == 0 ? _attack[i] : attack,
+                    Kind = kind, Ref = attack == 0 ? shadow.Attack : attack,
                 });
             }
 
             // ---- harvesting and cargo -----------------------------------
-            if (u.HarvestFieldId != _field[i])
+            if (u.HarvestFieldId != shadow.Field)
             {
-                ushort fieldId = u.HarvestFieldId != 0 ? u.HarvestFieldId : _field[i];
+                ushort fieldId = u.HarvestFieldId != 0 ? u.HarvestFieldId : shadow.Field;
                 bool known = _host.Economy.TryGetField(fieldId, out AetheriumField field);
                 Add(new DebugEvent
                 {
@@ -611,13 +626,13 @@ namespace Nova.AiLab
                     B = known ? SimFixed.FromInt(field.GridPos.Y).RawValue : DebugEvent.Absent,
                 });
             }
-            if (u.IsReturningCargo != _returning[i])
+            if (u.IsReturningCargo != shadow.Returning)
             {
                 Add(new DebugEvent
                 {
                     Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
                     Kind = u.IsReturningCargo ? DebugEventKind.CargoFull : DebugEventKind.CargoDelivered,
-                    A = u.IsReturningCargo ? u.CargoAE : _cargo[i],
+                    A = u.IsReturningCargo ? u.CargoAE : shadow.Cargo,
                 });
             }
 
@@ -627,7 +642,7 @@ namespace Nova.AiLab
             // and the same run said two things about the same unit.
             int healthPercent = u.MaxHealth > 0 ? u.CurrentHealth * 100 / u.MaxHealth : 0;
             bool below = ViewRecorder.IsBelowRetreatMarker(u.Role, isSite, healthPercent);
-            if (below != _below[i])
+            if (below != shadow.Below)
             {
                 Add(new DebugEvent
                 {
@@ -704,7 +719,7 @@ namespace Nova.AiLab
 
                     uint attackerRaw = UnitCommandStateView.ToRawEntityId(a.Id);
                     uint nowTarget = a.AttackTarget.IsValid ? UnitCommandStateView.ToRawEntityId(a.AttackTarget) : 0u;
-                    uint thenTarget = _attackPrev[a.Id.Index];
+                    uint thenTarget = _shadow[a.Id.Index].AttackPrev;
 
                     if (nowTarget == victim.Id || thenTarget == victim.Id)
                     {
@@ -759,33 +774,41 @@ namespace Nova.AiLab
             return tally;
         }
 
-        private void Snapshot(uint tick, int i, in UnitState u, bool sameUnit)
+        /// <summary>
+        /// This tick becomes the previous one. <c>AttackPrev</c> is deliberately
+        /// NOT written here: <see cref="Collect"/> carries it over at the top of
+        /// the pass, before anything can overwrite the value the attribution
+        /// needs.
+        /// </summary>
+        private void Snapshot(int i, in UnitState u, bool sameUnit)
         {
-            _active[i] = true;
-            _version[i] = u.Id.Version;
-            _raw[i] = UnitCommandStateView.ToRawEntityId(u.Id);
-            _owner[i] = u.PlayerId;
-            _role[i] = u.Role;
-            _health[i] = u.CurrentHealth;
-            _orderKey[i] = OrderKeyOf(u.TargetGridPos);
-            _goalKey[i] = OrderKeyOf(u.GoalGridPos);
-            _moving[i] = u.IsMoving;
-            _attack[i] = u.AttackTarget.IsValid ? UnitCommandStateView.ToRawEntityId(u.AttackTarget) : 0u;
-            _field[i] = u.HarvestFieldId;
-            _cargo[i] = u.CargoAE;
-            _returning[i] = u.IsReturningCargo;
-            _site[i] = _host.Construction.TryGetSite(_raw[i], out ushort siteDefId, out _, out _);
-            _siteDef[i] = _site[i] ? siteDefId : (ushort)0;
-            _x[i] = u.Transform.PositionX.RawValue;
-            _y[i] = u.Transform.PositionY.RawValue;
+            ref EntityShadow shadow = ref _shadow[i];
+
+            shadow.Active = true;
+            shadow.Version = u.Id.Version;
+            shadow.Raw = UnitCommandStateView.ToRawEntityId(u.Id);
+            shadow.Owner = u.PlayerId;
+            shadow.Role = u.Role;
+            shadow.Health = u.CurrentHealth;
+            shadow.OrderKey = OrderKeyOf(u.TargetGridPos);
+            shadow.GoalKey = OrderKeyOf(u.GoalGridPos);
+            shadow.Moving = u.IsMoving;
+            shadow.Attack = u.AttackTarget.IsValid ? UnitCommandStateView.ToRawEntityId(u.AttackTarget) : 0u;
+            shadow.Field = u.HarvestFieldId;
+            shadow.Cargo = u.CargoAE;
+            shadow.Returning = u.IsReturningCargo;
+            shadow.Site = _host.Construction.TryGetSite(shadow.Raw, out ushort siteDefId, out _, out _);
+            shadow.SiteDef = shadow.Site ? siteDefId : (ushort)0;
+            shadow.X = u.Transform.PositionX.RawValue;
+            shadow.Y = u.Transform.PositionY.RawValue;
 
             int healthPercent = u.MaxHealth > 0 ? u.CurrentHealth * 100 / u.MaxHealth : 0;
-            _below[i] = ViewRecorder.IsBelowRetreatMarker(u.Role, _site[i], healthPercent);
+            shadow.Below = ViewRecorder.IsBelowRetreatMarker(u.Role, shadow.Site, healthPercent);
 
             if (sameUnit) return;
 
-            _stillTicks[i] = 0;
-            _stuck[i] = false;
+            shadow.StillTicks = 0;
+            shadow.Stuck = false;
         }
     }
 }
