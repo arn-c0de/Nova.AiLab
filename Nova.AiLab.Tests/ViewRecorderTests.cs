@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Nova.AI;
+using Nova.Simulation.Combat;
+using Nova.Simulation.Definitions;
+using Nova.Simulation.State;
 using NUnit.Framework;
 
 namespace Nova.AiLab.Tests
@@ -260,6 +264,65 @@ namespace Nova.AiLab.Tests
             finally
             {
                 if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+            }
+        }
+
+        /// <summary>
+        /// The scoreboard weighs the two armies with the AI's own formula, and
+        /// the two numbers it needs — attack damage and firing interval — are
+        /// baked into the page per slot and role.
+        /// <para>
+        /// THIS IS THE GUARD AGAINST A SECOND DEFINITION TABLE. A page that
+        /// carried its own values would keep answering ""who is stronger"" long
+        /// after the definitions moved, and it would answer wrong. So the test
+        /// reads the numbers back out of the generated page and holds them
+        /// against <see cref="WeaponProfiles"/> for every role of both
+        /// factions, and against <see cref="CombatStrength"/> for the one
+        /// multiplication the page does itself.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void PlayerCarriesTheWeaponNumbersItWeighsArmiesWith()
+        {
+            MatchSpec spec = ShortSpec();
+            string html = HtmlPlayer.Build(spec.MapWidth, spec.MapHeight, Seed, spec.Slots);
+
+            const string marker = "const WEAPONS = ";
+            int start = html.IndexOf(marker, StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "the page must carry the table");
+            int end = html.IndexOf(";", start, StringComparison.Ordinal);
+            string json = html.Substring(start + marker.Length, end - start - marker.Length);
+
+            // [[ [d,c], [d,c], … ], … ] — one array per slot, one pair per role.
+            string[] perSlot = json.Trim('[', ']').Split(new[] { "],[[" }, StringSplitOptions.None);
+            Assert.That(perSlot.Length, Is.EqualTo(spec.Slots.Length), "one row per seat");
+
+            for (int slot = 0; slot < spec.Slots.Length; slot++)
+            {
+                FactionId faction = spec.Slots[slot].Faction;
+                string[] pairs = perSlot[slot].Trim('[', ']').Split(new[] { "],[" }, StringSplitOptions.None);
+
+                for (int role = 0; role < pairs.Length; role++)
+                {
+                    string[] values = pairs[role].Trim('[', ']').Split(',');
+                    int damage = int.Parse(values[0]);
+                    int cooldown = int.Parse(values[1]);
+
+                    WeaponProfile weapon = WeaponProfiles.Get(faction, (UnitRole)role);
+                    Assert.That(damage, Is.EqualTo(weapon.AttackDamage),
+                        $"slot {slot} ({faction}) role {(UnitRole)role}: attack damage");
+                    Assert.That(cooldown, Is.EqualTo(weapon.AttackCooldownTicks),
+                        $"slot {slot} ({faction}) role {(UnitRole)role}: firing interval");
+
+                    // And the page's one line of arithmetic, at a health the
+                    // formula cannot round away: it must land where the AI's
+                    // own strength lands, or the bar contradicts the wave gate
+                    // it is meant to explain.
+                    const int health = 37;
+                    int fromTheTable = damage <= 0 || cooldown <= 0 ? 0 : damage * health / cooldown;
+                    Assert.That(fromTheTable, Is.EqualTo(CombatStrength.Of(faction, (UnitRole)role, health)),
+                        $"slot {slot} ({faction}) role {(UnitRole)role}: strength at {health} health");
+                }
             }
         }
 

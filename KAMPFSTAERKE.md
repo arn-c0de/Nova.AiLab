@@ -117,7 +117,7 @@ zweites Mal, und diesmal mit einer Klippe:
 
 | `targetArmySize` | Allianz-Sitz: Tick | eig. Verluste | Austausch | Intents | Legion-Sitz: Verluste |
 |---:|---:|---:|---:|---:|---:|
-| **12** *(heute)* | 5.750 | 23 | 221 | 286 | **51** |
+| **12** *(heute)* | 5.773 | 23 | 221 | 286 | **51** |
 | 16 | 7.450 | 21 | 357 | **509** | 56 |
 | 18 | 8.750 | **33** | 290 | **582** | 64 |
 | **20** | **4.050** | **5** | **680** | 251 | 64 |
@@ -278,7 +278,7 @@ gegen `gathered`, `SkirmishAiSystem.cs:628-634`). In Punkten heisst das:
 Bei gleichem Einsatz gerechnet ist der Unterschied klein (12 Rifleman kosten
 1.440 AE; 24 Rekruten kosten dasselbe und bringen 1.056 Punkte) — die Legion
 ist nicht schwächer, sie ist **billiger und zahlreicher**, und der Zähler
-verbietet ihr, das auszuspielen. Die 90 zu 39 Verluste aus §1 sind die Folge
+verbietet ihr, das auszuspielen. Die 51 zu 23 Verluste aus §1 sind die Folge
 davon, nicht der Waffenwerte.
 
 Damit ist das Kampfstärke-System nicht nur eine Tuning-Vorbereitung, sondern
@@ -331,8 +331,18 @@ stehen.
 **Neu:** die Welle marschiert, wenn `S_sammelnd >= S_voll`.
 
 ```
-WaveReady  =  S_sammelnd >= WaveStrengthPoints
+erreichbar = max(0, TargetArmySize − committed − sammelnd) × S(Rekrut, voll)
+             // 0, wenn keine Kaserne steht: ein freier Kopf zählt nur,
+             // solange etwas hineinbauen kann
+WaveReady  =  S_sammelnd >= min(WaveStrengthPoints, S_sammelnd + erreichbar)
 ```
+
+> [!NOTE]
+> **Nachtrag: der Deckel gehört zur Regel, nicht als Zusatz daneben.** Die
+> Fassung ohne ihn (`WaveReady = S_sammelnd >= WaveStrengthPoints`) stand hier
+> zuerst und hätte die Blockade aus `f13f4d5` zurückgebracht: Überlebende
+> ausserhalb des Rings belegen die Obergrenze, also kann die Produktion die
+> Schwelle nie mehr liefern. Gebaut ist die Fassung oben.
 
 - **Aus-Stellung:** `WaveStrengthPoints: 0` → die Zählregel von heute, Bit für
   Bit dieselbe Entscheidung. Ohne diese Stellung ist die Regel im Selbstspiel
@@ -340,21 +350,23 @@ WaveReady  =  S_sammelnd >= WaveStrengthPoints
 - **Startwert zum Messen:** `1200` — genau die heutige volle Allianz-Welle. Die
   Allianz verhält sich damit nahezu wie bisher, und die Änderung wird auf der
   Legion-Seite sichtbar, wo sie hingehört.
-- Die Kappung gegen die Armeeobergrenze aus `EffectiveWaveSize()`
-  (`SkirmishAiSystem.cs:648-652`) bleibt sinngemäss nötig: ein Stärkeziel über
-  dem, was die Armeeobergrenze je liefern kann, lässt die Armee bis zum
-  Zeitlimit am Sammelpunkt stehen. Neue Fassung: gegen das **Armee-Stärkeziel**
-  aus §7 kappen, nicht gegen eine Einheitenzahl.
+- Gekappt wird gegen das, was der Ring noch **erreichen** kann — siehe die
+  Formel oben. Ein Stärkeziel über dem, was die Armeeobergrenze je liefern kann,
+  liesse die Armee sonst bis zum Zeitlimit am Sammelpunkt stehen. Die in einer
+  früheren Fassung dieses Abschnitts angekündigte Kappung „gegen das
+  Armee-Stärkeziel aus §7" wurde **nicht** gebaut und wird auch nicht
+  gebraucht.
 
 **Was zu prüfen ist, bevor das als gut gilt:** Die Legion sammelt bei 1200
-Punkten rund **27 Rekruten** statt 12. Drei Folgen, alle messbar:
+Punkten **28 Rekruten** statt 12 (27 wären 1.188 — einer zu wenig). Drei
+Folgen, alle messbar:
 
-1. Formationsverteilung am Sammelpunkt — 27 Einheiten breiten sich weiter aus
+1. Formationsverteilung am Sammelpunkt — 28 Einheiten breiten sich weiter aus
    als 12. Der **Ring** (Distanz + Toleranz = 16 Zellen) zählt, nicht die
    Toleranz allein; genau daran ist die erste Wellenfassung gescheitert
    (Journal V004). Die Regel trägt das, aber es ist die erste Zahl, die man
    nachsieht.
-2. Produktionsdauer — 27 Rekruten aus **einer** Kaserne bei 5 Warteschlangen­plätzen
+2. Produktionsdauer — 28 Rekruten aus **einer** Kaserne bei 5 Warteschlangen­plätzen
    (`ProductionSystem.MaxQueueEntries`) dauern. Das ist das Argument für die
    zweite Kaserne in §6, nicht gegen die Regel.
 3. Befehlsgrösse — 100 Entity-IDs je Kommando (`CommandLimits.MaxEntityIdsPerCommand`),
@@ -768,12 +780,12 @@ Journaleintrag mit Abschnitt „Schlechter".
 | # | Branch | Was | `Revision` | Erste Zahl, die man ansieht |
 |---:|---|---|---:|---|
 | 0 | *(nur Labor)* | Stärkemetrik, Kandidatenprofile, Berichtsspalten | — | die heutige Stärkekurve als Referenz |
-| ~~0b~~ | ~~`fix/ai-army-cap`~~ | ~~`targetArmySize: 12 → 24`~~ — **gemessen und zurückgestellt (§1.2):** hilft nur der Allianz und nur ab 20, schadet der Legion bei jeder Stellung, und unter 20 ist es schlechter als gar nichts. Kommt als reine Zahl **nach** 2 wieder, wenn die Kopplung an das Wellentor weg ist | — | — |
-| 1 | `feat/ai-combat-strength` | `CombatStrength.cs` + Profilfelder, **von keiner Regel gelesen** | 4 *(kein Bump)* | Endzustands-Hash unverändert — der Nachweis, dass es verhaltensneutral war |
-| 2 | `feat/ai-strength-wave-gate` | §5 Wellentor über Stärke | **5** | Legion: Wellengrösse in Einheiten; Formationsverteilung am Sammelpunkt |
-| 3 | `feat/ai-reinforce-doctrine` | §6 Nachschub / Abbruch | **6** | **Intents je 1.000 Ticks** (V002-Fehlermodus) |
-| 4 | `feat/ai-vehicle-buildout` | §7 Bauliste bis Fahrzeugwerk **+** §8.1 Kaufregel | **7** | `buildingsByRole`, Credits-Kurve, Armeezusammensetzung |
-| 5 | `feat/ai-army-strength-target` | §8.2 Stärkeziel statt Einheitenzahl | **8** | Credits-Kurve: steigt sie immer noch monoton? |
+| ~~0b~~ | ~~`fix/ai-army-cap`~~ | ~~`targetArmySize: 12 → 24`~~ — **gemessen und zurückgestellt (§1.2):** die Erhöhung **allein** schadet der Legion (Verluste 51 → 64). Mit dem Wellentor gewinnt derselbe Sitz bei 20, 24, 30, 32 und 36 — die frühere Lesart „schadet der Legion bei jeder Stellung" ist damit **widerrufen** (V007). Die Zahl liegt ausserdem in `MatchRunner`, also in fremdem Terrain: sie ist eine Rückfrage, kein PR | — | — |
+| ~~1~~ | ~~`feat/ai-combat-strength`~~ | ~~`CombatStrength.cs` + Profilfelder, von keiner Regel gelesen~~ — **mit 2 zusammengelegt:** die Formel allein ohne Leser wäre toter Code gewesen, und der Nachweis der Verhaltensneutralität gelingt am gebauten Tor genauso (Endzustands-Pin unverändert) | — | — |
+| 2 | `feat/ai-strength-wave-gate` | §5 Wellentor über Stärke — **gebaut, ausgeliefert schlafend** | **6** | Legion: Wellengrösse in Einheiten; Formationsverteilung am Sammelpunkt |
+| 3 | `feat/ai-reinforce-doctrine` | §6 Nachschub / Abbruch | **7** | **Intents je 1.000 Ticks** (V002-Fehlermodus) |
+| 4 | `feat/ai-vehicle-buildout` | §7 Bauliste bis Fahrzeugwerk **+** §8.1 Kaufregel | **8** | `buildingsByRole`, Credits-Kurve, Armeezusammensetzung |
+| 5 | `feat/ai-army-strength-target` | §8.2 Stärkeziel statt Einheitenzahl | **9** | Credits-Kurve: steigt sie immer noch monoton? |
 | 6 | `feat/ai-difficulty-profiles` | §11, **nur Zahlen** | 8 *(kein Bump)* | drei Profile nebeneinander, keine Rangliste |
 
 **Reihenfolge, die nicht verhandelbar ist:**

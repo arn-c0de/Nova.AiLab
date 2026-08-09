@@ -66,7 +66,7 @@ namespace Nova.AiLab
                 // copyable as a unit and opens with a double-click.
                 File.WriteAllText(
                     Path.Combine(directory, HtmlPlayer.FileName),
-                    HtmlPlayer.Build(spec.MapWidth, spec.MapHeight, spec.Slots.Length, result.Seed));
+                    HtmlPlayer.Build(spec.MapWidth, spec.MapHeight, result.Seed, spec.Slots));
             }
 
             if (result.Tracks.Count > 0)

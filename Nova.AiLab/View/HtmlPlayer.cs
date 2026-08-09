@@ -1,5 +1,9 @@
+using System;
 using System.Globalization;
 using System.Text;
+using Nova.Simulation.Combat;
+using Nova.Simulation.Definitions;
+using Nova.Simulation.State;
 
 namespace Nova.AiLab
 {
@@ -48,17 +52,96 @@ namespace Nova.AiLab
 
         public static string Build(int mapWidth, int mapHeight, int slotCount, ulong seed)
         {
+            return Build(mapWidth, mapHeight, seed, null);
+        }
+
+        /// <param name="slots">
+        /// The seats of the run, in slot order — the page names the faction and
+        /// the profile per slot and weighs each side with the game's own
+        /// strength formula. Null keeps the page readable without them: the top
+        /// bar then counts units and says that it cannot weigh them.
+        /// </param>
+        public static string Build(int mapWidth, int mapHeight, ulong seed, SlotSpec[] slots)
+        {
+            int slotCount = slots != null ? slots.Length : 0;
             var html = new StringBuilder(64 * 1024);
             html.Append(Template
                 .Replace("__MAP_WIDTH__", mapWidth.ToString(CultureInfo.InvariantCulture))
                 .Replace("__MAP_HEIGHT__", mapHeight.ToString(CultureInfo.InvariantCulture))
                 .Replace("__SLOT_COUNT__", slotCount.ToString(CultureInfo.InvariantCulture))
                 .Replace("__SEED__", "0x" + seed.ToString("X", CultureInfo.InvariantCulture))
+                .Replace("__SLOTS_JSON__", BuildSlotsJson(slots))
+                .Replace("__WEAPONS_JSON__", BuildWeaponsJson(slots))
                 .Replace("__VIEW_FILE__", RunArtifacts.ViewFileName)
                 .Replace("__TRACKS_FILE__", RunArtifacts.TracksFileName)
                 .Replace("__EVENTS_FILE__", RunArtifacts.EventsFileName)
                 .Replace("__UNITS_FILE__", RunArtifacts.UnitsFileName));
             return html.ToString();
+        }
+
+        /// <summary>Who sat in which seat: slot, faction, profile id.</summary>
+        private static string BuildSlotsJson(SlotSpec[] slots)
+        {
+            if (slots == null) return "[]";
+            var json = new StringBuilder(64 * slots.Length);
+            json.Append('[');
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (i > 0) json.Append(',');
+                SlotSpec s = slots[i];
+                json.Append("{\"slot\":").Append(s.Slot)
+                    .Append(",\"faction\":\"").Append(s.Faction.ToString().ToLowerInvariant())
+                    .Append("\",\"profile\":\"").Append(s.IsAi ? s.ProfileId ?? "unknown" : "none")
+                    .Append("\"}");
+            }
+            json.Append(']');
+            return json.ToString();
+        }
+
+        /// <summary>
+        /// The two numbers <see cref="Nova.AI.CombatStrength"/> multiplies and
+        /// divides by, per slot and role: attack damage and firing interval.
+        /// <para>
+        /// THE NUMBERS TRAVEL, THE FORMULA IS ONE LINE. The page must be able
+        /// to say which side is stronger — a head count calls twelve Legion
+        /// recruits the same wave as twelve Alliance riflemen, which is the
+        /// error <c>CombatStrength</c> exists to correct. Shipping the table
+        /// instead of the values keeps the definitions the single source: the
+        /// page cannot invent a strength for a role the game does not arm, and
+        /// a definition change lands in the next generated player by itself.
+        /// </para>
+        /// <para>
+        /// Per SLOT and not per faction, because that is how the page indexes
+        /// it — a unit knows its slot, and the seat knows the faction.
+        /// </para>
+        /// </summary>
+        private static string BuildWeaponsJson(SlotSpec[] slots)
+        {
+            if (slots == null) return "[]";
+            var roles = (UnitRole[])Enum.GetValues(typeof(UnitRole));
+            int highest = 0;
+            for (int i = 0; i < roles.Length; i++)
+            {
+                if ((int)roles[i] > highest) highest = (int)roles[i];
+            }
+
+            var json = new StringBuilder(256 * slots.Length);
+            json.Append('[');
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (i > 0) json.Append(',');
+                json.Append('[');
+                for (int role = 0; role <= highest; role++)
+                {
+                    if (role > 0) json.Append(',');
+                    WeaponProfile weapon = WeaponProfiles.Get(slots[i].Faction, (UnitRole)role);
+                    json.Append('[').Append(weapon.AttackDamage).Append(',')
+                        .Append(weapon.AttackCooldownTicks).Append(']');
+                }
+                json.Append(']');
+            }
+            json.Append(']');
+            return json.ToString();
         }
 
         // The page is one string on purpose: an artifact directory should be
@@ -98,6 +181,22 @@ namespace Nova.AiLab
      chase each other a pixel at a time on every redraw. */
   .mapcol { flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column;
             align-items:center; justify-content:flex-start; }
+
+  /* The scoreboard over the map. flex:0 0 auto and a measured height: the
+     canvas is sized from what is LEFT in the column, so a bar that grows by a
+     row must shrink the map instead of pushing it out of the window. */
+  /* Thirteen columns in a column that can be folded narrow: the bar scrolls
+     sideways on its own rather than widening the page under the map. */
+  #topbar { flex:0 0 auto; align-self:stretch; margin-bottom:6px; overflow-x:auto; }
+  #topbar table { font-size:11px; }
+  #topbar th, #topbar td { padding:2px 6px; white-space:nowrap; }
+  #topbar th { color:#8b949e; font-weight:400; }
+  #topbar td.num { font-variant-numeric:tabular-nums; }
+  #topNote { margin-top:2px; font-size:11px; }
+  /* One bar, one glance: how the fighting strength is split right now. */
+  #shareBar { display:flex; height:8px; border-radius:4px; overflow:hidden;
+              background:#161b22; margin-bottom:4px; }
+  #shareBar div { height:100%; }
   canvas#map { background:#010409; border:1px solid #21262d; border-radius:4px;
            image-rendering:pixelated; display:block; cursor:crosshair; flex:0 0 auto; }
   aside#side { flex:0 0 430px; width:430px; min-height:0; display:flex; flex-direction:column; }
@@ -190,6 +289,18 @@ namespace Nova.AiLab
 
 <main>
   <div class=""mapcol"">
+    <!-- THE SCOREBOARD. Everything that used to need the layers tab, a count
+         by hand, or a guess: who is stronger, who has the army, who has the
+         money, who is losing units right now. -->
+    <div id=""topbar"">
+      <div id=""shareBar""></div>
+      <table id=""top""><thead><tr>
+        <th>slot</th><th>strength</th><th>share</th><th>army</th><th>workers</th>
+        <th>buildings</th><th>health</th><th>AE</th><th>power</th><th>sees</th>
+        <th>spawned</th><th>lost</th><th>damage taken</th>
+      </tr></thead><tbody></tbody></table>
+      <div class=""sub"" id=""topNote"">—</div>
+    </div>
     <canvas id=""map"" width=""700"" height=""700""></canvas>
     <div class=""hint"" id=""mapNote"">—</div>
   </div>
@@ -238,10 +349,6 @@ namespace Nova.AiLab
 
     <div class=""panel"" id=""tab-layers"" hidden>
       <div class=""scroll"">
-        <table id=""headers""><thead><tr>
-          <th>slot</th><th>credits</th><th>power</th><th>army</th><th>sees</th>
-        </tr></thead><tbody></tbody></table>
-
         <div class=""layers"">
           <label><input type=""checkbox"" id=""layerLines"" checked> order lines</label>
           <label><input type=""checkbox"" id=""layerHealth"" checked> health as brightness</label>
@@ -258,7 +365,6 @@ namespace Nova.AiLab
               <option value=""0"">the whole run</option>
             </select></label>
         </div>
-        <div class=""hint"" id=""mapNote"">—</div>
       </div>
     </div>
 
@@ -274,6 +380,10 @@ namespace Nova.AiLab
         <span class=""sw"" style=""background:#d29922""></span> stuck ·
         <span class=""sw"" style=""background:#3fb950""></span> harvest/cargo ·
         <span class=""sw"" style=""background:#bc8cff""></span> spawn/site<br>
+        <b>scoreboard</b> strength is the AI's own measure —
+        damage × health ÷ firing interval, summed over the combat units, so twelve recruits
+        and twelve riflemen are not the same wave. AE, power and ""sees"" are as old as the
+        newest frame; everything else on the bar is exact for the tick.<br>
         <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold ·
         <b>yellow rim</b> stuck · <b>red circles</b> hits landing ·
         <b>fading cross</b> died just now<br><br>
@@ -299,10 +409,16 @@ const ONE = 65536;                       // Q16.16: positions arrive as raw inte
 const SLOT_COLOURS = ['#58a6ff','#f85149','#3fb950','#d29922','#bc8cff','#39c5cf','#ff9e64','#8b949e'];
 const LINE_COLOURS = [null,'#f85149','#3fb950','#58a6ff'];
 const SHAPE_GLYPH = ['▣','▢','✚','●','▲'];
-const SHAPE_NAME  = ['building','site','builder','harvester','combat'];
 const ROLE_NAME = ['unit','builder','harvester','HQ','refinery','power','storage','barracks',
                    'vehicleFactory','researchLab','radar','defensePlatform','basicInfantry',
                    'antiArmorInfantry','scoutVehicle','lightTank','battleTank','artillery'];
+
+// WHO SAT WHERE, and what this run's definition table arms them with. Both are
+// baked in when the page is written: the artifacts carry ids and health, not
+// factions and weapon values, and a page that guessed them would weigh the two
+// armies against a table nobody measured with.
+const SLOTS = __SLOTS_JSON__;
+const WEAPONS = __WEAPONS_JSON__;   // [slot][role] = [attackDamage, cooldownTicks]
 
 // Few, discrete colours: an event band with twenty hues is a colour chart,
 // not a reading aid.
@@ -528,11 +644,21 @@ const HIT_FLASH_TICKS = 8;
  * start cannot drift the way an incremental state can when you scrub back.
  * <p>
  * The returned map carries a second one on `.dying`: the units that died
- * within the last DEATH_FADE_TICKS, with the tick and the place.
+ * within the last DEATH_FADE_TICKS, with the tick and the place. And on
+ * `.tally`, per slot, what the run has cost so far — built, lost, damage
+ * taken. Counted HERE and not in a second pass: the walk over the events is
+ * already happening, and a number that came from a different walk could
+ * disagree with the picture beside it.
  */
 function stateAt(atTick) {
   const state = new Map();
   const dying = new Map();
+  const tally = new Map();
+  const of = slot => {
+    let t = tally.get(slot);
+    if (!t) { t = { built:0, lost:0, damageTaken:0 }; tally.set(slot, t); }
+    return t;
+  };
   const end = lowerBound(eventTicks, atTick + 1);
   for (let i = 0; i < end; i++) {
     const e = events[i];
@@ -543,16 +669,19 @@ function stateAt(atTick) {
                           site:false, siteDef:0, moving:false, attack:0, field:0, fx:0, fy:0,
                           cargo:false, cargoAE:0, goalX:-1, goalY:-1, orderX:-1, orderY:-1,
                           below:false, stuck:false, born:e.t });
+        of(e.slot).built++;
         break;
       case 'death':
         if (u && atTick - e.t <= DEATH_FADE_TICKS && e.x !== undefined) {
           dying.set(e.id, { unit:u, t:e.t, x:e.x, y:e.y });
         }
+        of(e.slot).lost++;
         state.delete(e.id);
         break;
       default:
         if (!u) break;
-        if (e.k === 'damage' || e.k === 'heal') u.hp = e.to;
+        if (e.k === 'damage') { of(e.slot).damageTaken += Math.max(0, e.from - e.to); u.hp = e.to; }
+        else if (e.k === 'heal') u.hp = e.to;
         else if (e.k === 'siteOpen') { u.site = true; u.siteDef = e.def; }
         else if (e.k === 'siteDone') { u.site = false; u.role = e.role; }
         else if (e.k === 'moveStart') u.moving = true;
@@ -573,6 +702,7 @@ function stateAt(atTick) {
     }
   }
   state.dying = dying;
+  state.tally = tally;
   return state;
 }
 
@@ -805,7 +935,12 @@ function fitCanvas() {
   // The column is a flex item with a real height now, so the room it has is
   // its own — no arithmetic against window.innerHeight that goes wrong the
   // moment anything above the map changes height.
-  const size = Math.round(Math.max(320, Math.min(column.clientWidth, column.clientHeight, 1800)));
+  // …minus what stands above and below it. The scoreboard grows with the seat
+  // count, so the room for the map is measured, never assumed.
+  const chrome = document.getElementById('topbar').offsetHeight +
+                 document.getElementById('mapNote').offsetHeight + 10;
+  const size = Math.round(Math.max(320,
+    Math.min(column.clientWidth, column.clientHeight - chrome, 1800)));
   if (canvas.width !== size) { canvas.width = size; canvas.height = size; }
 }
 
@@ -861,7 +996,7 @@ function draw() {
   if (document.getElementById('layerFog').checked) drawFog(frame);
   markDeath();
 
-  renderHeaders(frame);
+  renderTopBar(frame);
   document.getElementById('mapNote').innerHTML =
     'positions, health, orders and flags are rebuilt for tick <b>' + tick + '</b> exactly · ' +
     'fog and the header row come from frame t=' + (frame ? frame.t : '—') +
@@ -1004,11 +1139,104 @@ function markDeath() {
   ctx.restore();
 }
 
-function renderHeaders(frame) {
-  const body = document.querySelector('#headers tbody');
-  body.innerHTML = !frame ? '' : frame.h.map(h =>
-    '<tr><td style=""color:' + SLOT_COLOURS[h[0] % SLOT_COLOURS.length] + '"">slot ' + h[0] +
-    '</td><td>' + h[1] + '</td><td>' + h[2] + '</td><td>' + h[3] + '</td><td>' + h[4] + '</td></tr>').join('');
+// ------------------------------------------------------- the scoreboard
+
+/**
+ * What one entity is worth in a fight — <c>Nova.AI.CombatStrength.Of</c>,
+ * the same one line: damage times remaining health per firing interval,
+ * truncating integer division.
+ * <p>
+ * NOT A HEAD COUNT, and that is the whole reason it is here. Twelve Legion
+ * recruits and twelve Alliance riflemen are the same number and not the same
+ * army — the AI's wave gate weighs them with this formula, so a bar that
+ * claims to show ""who is stronger"" has to weigh them the same way or it
+ * contradicts the decision it is supposed to explain.
+ */
+function strengthOf(u) {
+  const table = WEAPONS[u.slot];
+  if (!table || u.hp <= 0) return 0;
+  const weapon = table[u.role];
+  if (!weapon) return 0;
+  const damage = weapon[0], cooldown = weapon[1];
+  if (damage <= 0 || cooldown <= 0) return 0;
+  return Math.floor(damage * u.hp / cooldown);
+}
+
+/** Everything the scoreboard shows, per seat, at the current tick. */
+function slotStats(frame) {
+  const stats = new Map();
+  const seats = SLOTS.length ? SLOTS : [...new Set([...world.values()].map(u => u.slot))]
+    .sort((a, b) => a - b).map(slot => ({ slot, faction:'?', profile:'?' }));
+
+  for (const seat of seats) {
+    stats.set(seat.slot, { seat, army:0, workers:0, buildings:0, sites:0, strength:0,
+                           hp:0, hpMax:0, built:0, lost:0, damageTaken:0,
+                           credits:null, power:null, sees:null });
+  }
+
+  for (const u of world.values()) {
+    const s = stats.get(u.slot);
+    if (!s) continue;
+    const shape = shapeOf(u);
+    if (shape === 1) s.sites++;
+    else if (shape === 0) s.buildings++;
+    else if (shape === 4) { s.army++; s.strength += strengthOf(u); }
+    else s.workers++;
+    s.hp += u.hp; s.hpMax += u.hpMax;
+  }
+
+  if (world.tally) {
+    for (const [slot, t] of world.tally) {
+      const s = stats.get(slot);
+      if (s) { s.built = t.built; s.lost = t.lost; s.damageTaken = t.damageTaken; }
+    }
+  }
+
+  // Credits, power and what a side can see exist ONLY in the frames. They are
+  // as old as the newest frame at or before this tick, and the note says so —
+  // the alternative is a number that looks exact and is not.
+  if (frame) {
+    for (const h of frame.h) {
+      const s = stats.get(h[0]);
+      if (s) { s.credits = h[1]; s.power = h[2]; s.sees = h[4]; }
+    }
+  }
+  return [...stats.values()];
+}
+
+function renderTopBar(frame) {
+  const stats = slotStats(frame);
+  const total = stats.reduce((sum, s) => sum + s.strength, 0);
+  const colour = s => SLOT_COLOURS[s.seat.slot % SLOT_COLOURS.length];
+  const num = v => v === null ? '<span class=""sub"">—</span>' : v;
+
+  document.getElementById('shareBar').innerHTML = total === 0
+    ? '<div style=""flex:1;background:#161b22""></div>'
+    : stats.map(s => '<div style=""flex:' + s.strength + ';background:' + colour(s) + '"" title=""slot ' +
+        s.seat.slot + ': ' + s.strength + ' strength""></div>').join('');
+
+  document.querySelector('#top tbody').innerHTML = stats.map(s =>
+    '<tr>' +
+    '<td style=""color:' + colour(s) + '"" title=""profile ' + s.seat.profile + '"">slot ' +
+      s.seat.slot + ' · ' + s.seat.faction + '</td>' +
+    '<td class=""num"">' + s.strength + '</td>' +
+    '<td class=""num"">' + (total ? Math.round(s.strength * 100 / total) + '%' : '—') + '</td>' +
+    '<td class=""num"">' + s.army + '</td>' +
+    '<td class=""num"">' + s.workers + '</td>' +
+    '<td class=""num"">' + s.buildings + (s.sites ? ' +' + s.sites + '&nbsp;site' : '') + '</td>' +
+    '<td class=""num"">' + (s.hpMax ? Math.round(s.hp * 100 / s.hpMax) + '%' : '—') + '</td>' +
+    '<td class=""num"">' + num(s.credits) + '</td>' +
+    '<td class=""num"">' + num(s.power) + '</td>' +
+    '<td class=""num"">' + num(s.sees) + '</td>' +
+    '<td class=""num"">' + s.built + '</td>' +
+    '<td class=""num"">' + s.lost + '</td>' +
+    '<td class=""num"">' + s.damageTaken + '</td>' +
+    '</tr>').join('');
+
+  document.getElementById('topNote').innerHTML =
+    'army strength, counts, health, spawned, lost and damage are exact for tick <b>' + tick + '</b> · ' +
+    'AE, power and ""sees"" come from frame t=' + (frame ? frame.t : '—') +
+    (WEAPONS.length ? '' : ' · <span class=""warn"">no weapon table in this player — strength is 0</span>');
 }
 
 // -------------------------------------------------------------- the band
@@ -1077,7 +1305,10 @@ function renderUnits() {
   body.innerHTML = rows.map(r => {
     const colour = SLOT_COLOURS[r.slot % SLOT_COLOURS.length];
     const glyph = r.shape >= 0 ? SHAPE_GLYPH[r.shape] : '✖';
-    const name = r.shape >= 0 ? SHAPE_NAME[r.shape] : (ROLE_NAME[r.role] || 'unit');
+    // The ROLE, not the shape: the glyph already says ▲ combat, and ""combat""
+    // spelled out next to it says nothing a reader could look for in the game.
+    // ""basicInfantry"" is the thing that stands on the map.
+    const name = roleNameOf(r.id);
     // Short words, not pictograms: the monospace stacks this page runs in fall
     // back to a replacement box for half the symbol block, and a box says
     // nothing at all.
@@ -1128,9 +1359,9 @@ function describe(e) {
     case 'goal': return 'goal ' + cell(e.fx, e.fy) + ' → ' + cell(e.tx, e.ty);
     case 'moveStart': return 'started moving';
     case 'moveStop': return 'stopped';
-    case 'attackStart': return 'attacks #' + e.target;
-    case 'attackSwitch': return 'switches to #' + e.target;
-    case 'attackStop': return 'stops attacking #' + e.target;
+    case 'attackStart': return 'attacks ' + shortLabel(e.target);
+    case 'attackSwitch': return 'switches to ' + shortLabel(e.target);
+    case 'attackStop': return 'stops attacking ' + shortLabel(e.target);
     case 'harvestStart': return 'harvests field ' + e.field;
     case 'harvestStop': return 'leaves field ' + e.field;
     case 'cargoFull': return 'cargo full (' + e.cargo + ' AE)';
@@ -1156,6 +1387,150 @@ function by(e) {
 
 function cell(x, y) { return x < 0 || y < 0 ? '—' : x + ',' + y; }
 
+// ---------------------------------------------- who a unit is, what it does
+
+/**
+ * WHAT THE THING IS IN THE GAME, not only which number it carries. ""#1044""
+ * is an identifier; ""#1044 basicInfantry"" is a unit one can recognise in the
+ * match. Both lists, the log and the detail panel say it the same way.
+ * <p>
+ * The LIVE role wins over the recorded one: a construction site becomes a
+ * building mid-match, and only the reconstructed state knows which of the two
+ * this tick is looking at.
+ */
+function roleNameOf(id) {
+  const live = world.get(id), row = units.get(id);
+  if (!live && !row) return 'unit';
+  if (live && live.site) return 'construction site';
+  const role = live ? live.role : row.role;
+  return ROLE_NAME[role] || 'unit';
+}
+
+function slotOf(id) {
+  const live = world.get(id), row = units.get(id);
+  return live ? live.slot : (row ? row.slot : -1);
+}
+
+/** ""#1044 basicInfantry"" — short enough for a log row. */
+function shortLabel(id) {
+  const slot = slotOf(id);
+  const colour = slot >= 0 ? SLOT_COLOURS[slot % SLOT_COLOURS.length] : '#c9d1d9';
+  return '<span style=""color:' + colour + '"">#' + id + ' ' + roleNameOf(id) + '</span>';
+}
+
+/** The same with its owner, and a mark when it is not alive at this tick. */
+function unitLabel(id) {
+  const slot = slotOf(id);
+  return shortLabel(id) + (slot >= 0 ? ' · slot ' + slot : '') +
+    (world.has(id) ? '' : ' <span class=""sub"">(gone)</span>');
+}
+
+/** Cells between two Q16.16 points — ""how far away is what it shoots at"". */
+function cellDistance(a, b) {
+  const dx = (a[0] - b[0]) / ONE, dy = (a[1] - b[1]) / ONE;
+  return Math.round(Math.sqrt(dx * dx + dy * dy));
+}
+
+/** The tick the newest of these events happened at, at or before `tick`. */
+function sinceTick(id, kinds) {
+  const list = eventsById.get(id);
+  if (!list) return -1;
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].t <= tick && kinds.indexOf(list[i].k) >= 0) return list[i].t;
+  }
+  return -1;
+}
+
+/** How many attackers the detail panel names before it counts the rest. */
+const ATTACKER_ROWS = 6;
+
+/** Everyone who is shooting at this unit right now. */
+function attackersOf(id) {
+  const out = [];
+  for (const u of world.values()) if (u.attack === id) out.push(u.id);
+  return out;
+}
+
+/** The owner's headquarters, for the one direction question below. */
+function baseOf(slot) {
+  for (const u of world.values()) {
+    if (u.slot === slot && u.role === 3 && !u.site) return posAt(u.id, tick);
+  }
+  return null;
+}
+
+/**
+ * Whether the unit is walking TOWARDS its own base — the visible half of a
+ * retreat, and no more than that.
+ * <p>
+ * The AI pulls a wounded unit back to the STAGING CELL, and neither that cell
+ * nor the profile's retreat percentage is in the artifacts: the white rim is
+ * a fixed 25 % drawing marker, not the rule that fires. So this is read off
+ * the geometry and labelled derived, instead of printing a decision the
+ * recording does not carry.
+ */
+function walkingHome(u) {
+  // Combat units only. A harvester walks home every trip — saying so there
+  // would print the word ""retreat"" over the economy running normally, which
+  // is the same mistake as the white rim on a builder was.
+  if (shapeOf(u) !== 4) return false;
+  if (!u.moving || u.goalX < 0) return false;
+  const home = baseOf(u.slot), here = posAt(u.id, tick);
+  if (!home || !here) return false;
+  // Two cells of slack: a unit that circles its goal is not walking home.
+  return cellDistance([u.goalX * ONE, u.goalY * ONE], home) + 2 < cellDistance(here, home);
+}
+
+/**
+ * ONE SENTENCE FOR WHAT THE UNIT IS DOING at this tick. The panel used to say
+ * ""moving"" and leave the reader to join ""attacking #1044"", ""goal 109,109""
+ * and a white rim into a behaviour by themselves.
+ * <p>
+ * Same priority the recorder and the map lines use: an attack says more about
+ * a unit than the walk that carries it there.
+ */
+function behaviourOf(u) {
+  const here = posAt(u.id, tick);
+  const marks = [];
+  let main, movementIsTheSentence = false;
+
+  if (u.site) {
+    main = 'being built (def ' + u.siteDef + ')';
+  } else if (u.attack) {
+    const target = posAt(u.attack, tick);
+    const away = here && target ? ', ' + cellDistance(here, target) + ' cells away' : '';
+    const since = sinceTick(u.id, ['attackStart', 'attackSwitch']);
+    main = (world.has(u.attack) ? 'attacking ' : 'attacking the gone ') + unitLabel(u.attack) + away +
+      (since >= 0 ? ' <span class=""sub"">· since tick ' + since + '</span>' : '');
+  } else if (u.cargo) {
+    main = 'carrying ' + u.cargoAE + ' AE back to a refinery';
+  } else if (u.field) {
+    main = 'harvesting field ' + u.field +
+      (Number.isFinite(u.fx) ? ' at ' + cell(Math.floor(u.fx / ONE), Math.floor(u.fy / ONE)) : '');
+  } else if (u.moving && u.goalX >= 0) {
+    const away = here ? ' (' + cellDistance(here, [u.goalX * ONE, u.goalY * ONE]) + ' cells to go)' : '';
+    main = 'walking to ' + cell(u.goalX, u.goalY) + away;
+    movementIsTheSentence = true;
+  } else if (u.moving) {
+    main = 'moving';
+    movementIsTheSentence = true;
+  } else {
+    main = 'standing';
+    movementIsTheSentence = true;
+  }
+
+  // The walk belongs in the line even when something else is the headline: a
+  // unit that shoots while closing in and one that shoots where it stands are
+  // two different behaviours, and the panel used to show both as ""attacking"".
+  if (!movementIsTheSentence && !u.site) marks.push(u.moving ? 'on the move' : 'not moving');
+  // …unless carrying IS the sentence, and then it is in there already.
+  if (u.cargo && u.attack) marks.push('cargo ' + u.cargoAE + ' AE');
+  if (u.stuck) marks.push('<span class=""warn"">STUCK</span>');
+  if (u.below) marks.push('<span class=""warn"">below the retreat mark</span>');
+  if (walkingHome(u)) marks.push('<span class=""derived"">heading for its own base (derived)</span>');
+  return main + (marks.length ? ' · ' + marks.join(' · ') : '');
+}
+
 function renderDetail() {
   const detail = document.getElementById('detail');
   if (selected === null) {
@@ -1165,23 +1540,33 @@ function renderDetail() {
 
   const live = world.get(selected);
   const unit = units.get(selected);
-  const rows = [['id', '#' + selected]];
+  const rows = [];
 
+  rows.push(['unit', (live || unit)
+    ? SHAPE_GLYPH[shapeOf(live || { site:false, role:unit.role })] + ' ' + unitLabel(selected)
+    : '#' + selected + ' <span class=""sub"">(not in this run)</span>']);
   if (unit) {
-    rows.push(['slot', unit.slot + ' · ' + (ROLE_NAME[unit.role] || 'unit')]);
     rows.push(['life', 'tick ' + unit.firstTick + '…' + unit.lastTick + (unit.died ? ' · died' : '')]);
   }
   if (live) {
     const p = posAt(selected, tick);
     rows.push(['health', live.hp + '/' + live.hpMax + '  (' + healthPercentOf(live) + '%)']);
     rows.push(['cell', p ? Math.floor(p[0] / ONE) + ',' + Math.floor(p[1] / ONE) : '—']);
-    rows.push(['state', (live.moving ? 'moving' : 'standing') +
-      (live.stuck ? ' · <span class=""warn"">STUCK</span>' : '') +
-      (live.cargo ? ' · cargo ' + live.cargoAE + ' AE' : '') +
-      (live.below ? ' · below retreat mark' : '')]);
+    rows.push(['doing', behaviourOf(live)]);
     rows.push(['goal', cell(live.goalX, live.goalY)]);
     rows.push(['order', cell(live.orderX, live.orderY)]);
-    rows.push(['attacking', live.attack ? '#' + live.attack : '—']);
+    rows.push(['attacking', live.attack ? unitLabel(live.attack) : '—']);
+
+    // THE OTHER HALF OF A FIGHT. Who this unit shoots at is one event away;
+    // who shoots at IT was, until now, a search through the log — and that is
+    // the question one has while watching something die.
+    const attackers = attackersOf(selected);
+    rows.push(['attacked by', attackers.length
+      ? attackers.length + (attackers.length === 1 ? ' unit<br>' : ' units<br>') +
+        attackers.slice(0, ATTACKER_ROWS).map(unitLabel).join('<br>') +
+        (attackers.length > ATTACKER_ROWS
+          ? '<br><span class=""sub"">… and ' + (attackers.length - ATTACKER_ROWS) + ' more</span>' : '')
+      : '<span class=""sub"">nobody — nothing has this one as its target</span>']);
   } else {
     rows.push(['at this tick', unit && unit.firstTick > tick ? 'not born yet' : 'dead']);
   }
@@ -1197,7 +1582,7 @@ function renderDetail() {
       unit.killsDerived + ' (derived)</span>']);
   }
 
-  detail.innerHTML = '<h2>#' + selected + '</h2><dl>' +
+  detail.innerHTML = '<h2>#' + selected + ' ' + roleNameOf(selected) + '</h2><dl>' +
     rows.map(r => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
 }
 

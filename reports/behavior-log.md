@@ -257,16 +257,20 @@ Verlusten, 21 verliert mit 70 und einem Austausch von 40 — schlechter als heut
 Wer aus dieser Nachbarschaft die 20 nimmt, hat eine Einzelpartie getroffen.
 
 **30 und 32 sind es nicht, und es gibt einen Grund dafür.** 1.200 Punkte sind
-**28 Legions-Rekruten** (27 sind 1.188, einer zu wenig). Unterhalb einer
-Obergrenze von 28 ist die Schwelle **unerreichbar**, der Deckel „was die
-Produktion noch liefern kann" bindet, und die Welle marschiert wieder auf
-Kopfzahl — nur auf eine grössere. Genau das sind die Zermürbungspartien bei 22,
-24 und 28 (78, 178 und 154 eigene Verluste). Bei 28 exakt bleibt kein Kopf übrig,
-um während des Sammelns weiterzubauen. **28 + 2 = 30** ist die kleinste Kappe,
-die beides freiräumt — und dort entscheidet die Legion **schneller als die
-heutige KI** (5.005 gegen 5.773) bei 23 statt 51 eigenen Verlusten und Austausch
-139 statt 45. Das ist eine Ableitung aus dem Schwellwert, keine Auswahl aus der
-Kurve.
+**28 Legions-Rekruten** (27 sind 1.188, einer zu wenig). Die Punktklausel kann
+aber nur entscheiden, solange **noch ein Kopf frei** ist — sonst hat der Deckel
+„was die Produktion noch liefern kann" längst geöffnet. Sie greift deshalb
+erstmals bei Obergrenze **29**, nicht 28.
+
+Und darunter fällt die Welle **nicht auf Kopfzahl zurück**, wie hier zuerst
+stand: sie degeneriert zu **„sammle die gesamte Armeeobergrenze"**. Genau das
+sind die Zermürbungspartien bei 22, 24 und 28 (78, 178 und 154 eigene Verluste)
+— die Legion sammelt erst alle 24 bzw. 28 und hat dann nichts mehr in
+Produktion. **30** ist die erste Stellung, in der die Schwelle greift und
+trotzdem zwei Köpfe zum Nachbauen frei bleiben, und dort entscheidet die Legion
+**schneller als die heutige KI** (5.005 gegen 5.773) bei 23 statt 51 eigenen
+Verlusten und Austausch 139 statt 45. Das ist eine Ableitung aus dem
+Schwellwert, keine Auswahl aus der Kurve.
 
 Nach oben hin steigt nur noch der Preis: die Allianz sättigt bei 23 Einheiten
 (gleiche Zahlen ab Kappe 24), aber ihre APM klettert weiter bis 47, weil der
@@ -275,22 +279,66 @@ reine Intent-Erzeugung.
 
 ### Der Fund, der die Obergrenze aus diesem PR heraushält
 
-> **`MatchRunner` liest `AiProfiles.Ms1Canonical` nicht.** Es konstruiert
-> `AiFactionProfile` mit vier eigenen Literalen, und `targetArmySize: 12` ist
-> eines davon (`MatchRunner.cs:252`). Der Wert in `AiProfiles` zu ändern hätte
-> das **Labor** verschoben und das **Spiel** genau so gelassen, wie es ist —
-> und den Kommentar „was MatchRunner heute ausliefert, Wert für Wert" zur Lüge
-> gemacht. Aufgefallen ist es, weil der gepinnte Endzustand nach der Änderung
-> **nicht** wanderte: `SkirmishAiTests.BuildMatch` spiegelt denselben
-> Vierzahl-Aufruf.
+> **`MatchRunner` überschreibt vier Profilwerte mit eigenen Literalen**, und
+> `targetArmySize: 12` ist eines davon (`MatchRunner.cs:254`). Die übrigen
+> fünfzehn holt es sehr wohl aus `AiProfiles.Ms1Canonical` — über den
+> historischen `AiFactionProfile`-Konstruktor, der genau dafür da ist; nur
+> deshalb kommt `waveStrengthPoints` überhaupt im Spiel an.
+>
+> Folge für die Obergrenze: sie in `AiProfiles` zu ändern hätte das **Labor**
+> verschoben und das **Spiel** genau so gelassen, wie es ist — und den
+> Kommentar „was MatchRunner heute ausliefert, Wert für Wert" zur Lüge gemacht.
+> Aufgefallen ist es, weil der gepinnte Endzustand nach der Änderung **nicht**
+> wanderte: `SkirmishAiTests.BuildAiHost` spiegelt denselben Vierzahl-Aufruf.
 >
 > `Scripts/Gameplay/Match/` ist Netzstrang und laut Arbeitsvertrag §2
 > ausdrücklich nicht anzufassen. Die Obergrenze ist damit eine **Rückfrage an
 > den Maintainer**, keine Änderung, die wir einreichen — eine Zeile in seiner
 > Datei. Die Zahlen dafür stehen oben.
 >
-> **Nebenbefund:** diese vier Zahlen können still auseinanderlaufen. Heute
-> stimmen sie mit `Ms1Canonical` überein, und nichts erzwingt das.
+> **Nebenbefund, inzwischen geschlossen:** diese vier Zahlen konnten still
+> auseinanderlaufen — der Profil-Hash rechnet über `Ms1Canonical`, der
+> Endzustands-Pin spiegelt MatchRunners Literale, beide Wächter sehen also von
+> je einer Seite an der Lücke vorbei. `AiProfileTests.MatchRunnerPassesTheSame\
+> FourNumbersTheShippedProfileCarries` liest jetzt MatchRunners Quelltext und
+> wird rot, wenn sie abweichen. Lesen ist kein Anfassen.
+
+### Gegengelesen — was die Prüfung noch gefunden hat
+
+Vier unabhängige Durchgänge über den fertigen Stand (Arithmetik, Scope und
+Determinismus, Testaussagekraft, Behauptungen gegen Code). Scope, Baselines,
+Verträge, Assembly-Trennung und `.meta`-GUID waren sauber. Der Rest war es nicht:
+
+> **Der Deckel zählte Köpfe, die niemand bauen kann.** „Was die Produktion noch
+> liefern kann" rechnete freie Plätze der Armeeobergrenze mit, auch ohne
+> Kaserne. Bei Obergrenze 12 folgenlos, bei der vorgeschlagenen 30 ein Hänger:
+> plateauiert die Armee unter der Schwelle, wartet die Welle bis zum Zeitlimit.
+> Der Zählpfad kannte das Problem nicht, weil er unabhängig davon bei `waveSize`
+> marschierte — ein Punktschwellwert hat diese zweite Grenze nicht. Behoben, die
+> Aus-Stellung bleibt bitgenau.
+
+> **Die Arithmetik war nicht prüfbar, und das war messbar.** Mutationsprobe: den
+> Negativ-Clamp löschen — Suite grün. `waveStrengthPoints` ganz ignorieren —
+> Suite grün. Die ausgelieferte Obergrenze erreicht die unterscheidenden
+> Zustände nie. Die Schwelle liegt jetzt als reine Funktion in
+> `WaveStrengthGate` mit eigener Fixture; beide Mutationen fallen.
+
+> **Der Dormanz-Wächter bewachte die falsche Zahl.** Er prüfte
+> `Kappe × 44 <= 1200` aus drei Konstanten. Die tragende Ungleichung ist
+> `(Kappe − 1) × stärkste produzierte Einheit < Schwelle`, also `11 × 100 <
+> 1200` — **Reserve neun Punkte pro Allianz-Schütze**. Ein Schadenspunkt mehr
+> beim Schützen hätte das Tor geweckt und der Test hätte weitergeschlafen. Er
+> rechnet jetzt aus `CombatStrength`.
+
+> **„`MatchRunner` liest `AiProfiles` nicht" war falsch** — siehe die Korrektur
+> oben. Es liest fünfzehn der neunzehn Werte und überschreibt vier.
+
+> **`NoFloatInSimulationTests` bewacht `Scripts/AI*` nicht**, obwohl ein
+> Kommentar von uns das behauptete. Es scannt `Core` und `Simulation`. Der neue
+> Code ist float-frei, aber ein `float` unter `Scripts/AI/` käme heute lautlos
+> durch die CI. Kommentar korrigiert; die Lücke selbst nicht, weil der Test
+> zweimal existiert und die EditMode-Kopie unter `Assets/Tests/` nicht
+> zugeteilt ist — steht als Frage im PR.
 
 ### Offen
 

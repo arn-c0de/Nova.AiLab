@@ -5,7 +5,7 @@
 > **Branch:** `feat/ai-strength-wave-gate` · **Basis:** `upstream/main` (`f13f4d5`)
 > · **Bezeichner:** `r5.779A1B5B` → **`r6.E34435F9`**
 >
-> **Gebaut und gemessen.** Tests 638/638 grün, Determinismus Exit 0.
+> **Gebaut, gemessen und gegengelesen.** Tests 649/649 grün, Determinismus Exit 0.
 > Der Abschnitt „Im laufenden Spiel gesehen" ist leer und bleibt es, bis ein
 > Mensch gespielt hat.
 >
@@ -140,9 +140,9 @@ bis zu 35, sie sammelt also während des Gefechts weiter.
 > Die Kopplung war *eine* Ursache, nicht *die*. Was 18 von 20 unterscheidet,
 > ist unerklärt, und dieser PR behauptet nicht, es erklärt zu haben.
 
-## Ein Fund unterwegs
+## Drei Funde unterwegs
 
-Die erste Fassung hob den Schwellwert auf mindestens **eine vollgesunde
+**Der Boden, der eine zweite Regel war.** Die erste Fassung hob den Schwellwert auf mindestens **eine vollgesunde
 produzierte Einheit** an — als Absicherung gedacht, tatsächlich eine zweite
 Regel. Damit wartete ein einzelner **verwundeter** Nachzügler (weniger wert als
 ein frischer Rekrut, während die Kappe von den Kämpfenden draussen belegt ist)
@@ -151,19 +151,39 @@ Nummer kleiner. Das Labor hat sie sofort gezeigt — die kanonische Partie lief
 **1.650 Ticks länger** (7.423 statt 5.773). Ohne den Boden ist die Aus-Stellung
 wieder bitgenau. Der Boden ist raus, der Grund steht als Kommentar im Code.
 
+**Ein freier Kopf ist nur frei, solange etwas hineinbauen kann.** Der Deckel
+sagt „was die Produktion noch liefern kann" — und rechnete dabei Köpfe, die
+ohne Kaserne niemand füllen wird. Mit angehobener Obergrenze wäre daraus ein
+Hänger geworden: plateauiert die Armee unter der Schwelle, weil die Kaserne
+zerstört ist, wartet die Welle bis zum Zeitlimit, während die Basis abgetragen
+wird. Der Zählpfad hatte das Problem nie, weil er unabhängig davon bei
+`waveSize` marschierte; ein Punktschwellwert hat diese zweite Grenze nicht und
+muss den Produzenten deshalb selbst modellieren. Credits gehen bewusst **nicht**
+ein: pleite ist vorübergehend, ein Tor das mit der Kasse flackert würde die
+Armee jede Kadenz neu ordnen (V002).
+
+**Die Arithmetik war nicht prüfbar.** In einer Mutationsprobe blieb die ganze
+Suite grün, als der Negativ-Clamp gelöscht **und** als `waveStrengthPoints`
+komplett ignoriert wurde — die ausgelieferte Obergrenze erreicht die
+unterscheidenden Zustände schlicht nie. Deshalb liegt die Schwelle jetzt als
+reine Funktion in `WaveStrengthGate` und wird direkt geprüft, an Zuständen, die
+eine Partie nicht auf Bestellung erzeugt. Beide Mutationen fallen jetzt.
+
 ## Was sich ändert
 
 | Datei | Was |
 |---|---|
-| `Assets/_Project/Scripts/AI/CombatStrength.cs` **(neu)** | die Formel. Statische Klasse, kein System, kein Zustand |
-| `Assets/_Project/Scripts/AI/SkirmishAiSystem.cs` | zweiter Zweig in `ResolveArmyPosture` plus `StrengthThreshold`; der Zählpfad bleibt unberührt daneben stehen |
+| `Assets/_Project/Scripts/AI/CombatStrength.cs` **(neu, + `.meta`)** | die Formel. Statische Klasse, kein System, kein Zustand |
+| `Assets/_Project/Scripts/AI/WaveStrengthGate.cs` **(neu, + `.meta`)** | die Schwellwert-Arithmetik als reine Funktion — eigener Typ, damit sie direkt prüfbar ist |
+| `Assets/_Project/Scripts/AI/SkirmishAiSystem.cs` | zweiter Zweig in `ResolveArmyPosture`; der Zählpfad bleibt unberührt daneben stehen |
 | `Assets/_Project/Scripts/AI/AiFactionProfile.cs` | reicht das neue Feld durch — Signatur unverändert, `MatchRunner` bleibt unangetastet |
 | `Assets/_Project/Scripts/AI.Data/AiProfile.cs` | Feld `WaveStrengthPoints`, Konstruktor, `Equals`, `GetHashCode` |
 | `Assets/_Project/Scripts/AI.Data/AiProfiles.cs` | `Ms1Canonical: 1200`, `LegacyDefaults: 0` |
 | `Assets/_Project/Scripts/AI.Data/AiBehaviorId.cs` | `Revision` 5 → **6**, neues Feld am Ende des Profil-Hashes |
 | `tools/Nova.SimRunner.Tests/CombatStrengthTests.cs` **(neu)** | die Formel gegen die Tabelle |
+| `tools/Nova.SimRunner.Tests/WaveStrengthGateTests.cs` **(neu)** | die Schwelle an den Zuständen, die eine Partie nicht erzeugt |
 | `tools/Nova.SimRunner.Tests/SkirmishAiTests.cs` | Wellentest über Positionen, Bezeichner-Pin nachgezogen |
-| `tools/Nova.SimRunner.Tests/AiProfileTests.cs` | das neue Feld im Tuning-Pfad |
+| `tools/Nova.SimRunner.Tests/AiProfileTests.cs` | Dormanz-Zusicherung und der Wächter über `MatchRunner`s vier Literale |
 | `CHANGELOG.md` | ein Eintrag unter `[Unreleased]` |
 
 **Warum die Formel in `AI/` liegt und nicht in `AI.Data/`:** `Nova.AI.Data`
@@ -183,26 +203,34 @@ eingeordnet ist. `MatchRunner` nicht angefasst, Tick-Reihenfolge nicht,
 geändert. Ganzzahlig durchgehend, kein `System.Random`, keine Wanduhr, keine
 Abhängigkeit von Iterationsreihenfolge.
 
-## Tests — 638/638 grün (vorher 619)
+## Tests — 649/649 grün (vorher 619)
 
 1. **Formel gegen die Tabelle**, zwölf Werte, beide Fraktionen, inklusive der
-   Abschneidung.
+   Abschneidung — und ein verwundeter Wert, der **nicht** glatt aufgeht (50
+   Leben → 55), weil das der einzige Pfad ist, den das Tor im Spiel wirklich
+   läuft.
 2. **Unbewaffnet ⇒ 0** über *jede* Rolle beider Fraktionen, nicht über eine
    Liste von Namen — die Regel folgt der Definitionstabelle.
-3. **Verwundet wiegt weniger**, und tot wiegt 0 statt negativ (ein negativer
-   Summand liesse eine sammelnde Welle sich wieder auflösen).
+3. **Die Schwelle als reine Funktion**, an den Zuständen, die eine Partie nicht
+   auf Bestellung erzeugt: mehr Einheiten am Leben als die Kappe erlaubt, eine
+   zerstörte Kaserne, eine Schwelle die statt der Decke bindet, exakt erreichter
+   Schwellwert. Diese Fixture existiert wegen einer Mutationsprobe — mit der
+   Arithmetik im System vergraben blieb die Suite grün, wenn man den Clamp
+   löschte **oder** `waveStrengthPoints` ganz ignorierte.
 4. **Wellentor an Positionen, nicht an Intents** — Negativkontrolle: zwei Läufe,
-   die sich in **einem** Profilwert unterscheiden, Armeeobergrenze 24. Auf dem
-   Zählpfad marschiert die Legion mit zwölf Rekruten, auf dem Punktpfad mit
-   mehr. Auf `r5` sind beide Zahlen gleich und der Test fällt.
+   die sich in **einem** Profilwert unterscheiden, Armeeobergrenze 36. Der
+   Zählpfad marschiert bei zwölf Rekruten, der Punktpfad später — **und vor
+   erschöpfter Kappe**, was die zweite Zusicherung festhält. Ohne sie misst der
+   Test „die Welle wartet auf eine volle Armee" und nennt es Schwellwert.
 5. **Der Bezeichner-Pin** hält Entscheidungstick 2.548 und Endzustand
-   `0x14472B2B943ED2BB` — **unverändert**. Nur `AiBehaviorId.Value` wird
-   nachgezogen, und der Kommentar daneben sagt, warum das hier richtig ist.
-6. **Ein Test nagelt fest, dass das Tor schlafend ausgeliefert wird**:
-   `TargetArmySize × 44 <= WaveStrengthPoints`, also kann der Deckel nie über
-   die Schwelle kommen. Er geht rot, sobald jemand die Obergrenze anhebt — und
-   das ist der Moment, in dem er gelesen werden soll. Die Fehlermeldung verweist
-   auf den r6-Eintrag in `AiBehaviorId`.
+   `0x14472B2B943ED2BB` — **unverändert**.
+6. **Die Dormanz** als die Ungleichung, die sie wirklich trägt:
+   `(Kappe − 1) × stärkste produzierte Einheit < waveStrengthPoints`, also
+   `11 × 100 < 1200`. **Die Reserve ist neun Punkte pro Schütze**, deshalb
+   rechnet der Test sie aus `CombatStrength` statt aus einer abgeschriebenen
+   Zahl: Waffenwerte sind der Auftrag genau dieses Strangs, und ein Schadenspunkt
+   mehr beim Allianz-Schützen weckt das Tor.
+7. **Der Wächter über `MatchRunner`s vier Literale** (siehe „Rückfrage").
 
 **Keine der vier Determinismus-Baselines ist angefasst.** Sie fahren kein
 KI-System und bleiben grün.
@@ -219,10 +247,11 @@ Obergrenze anfasst.
 
 ## Rückfrage: die Armeeobergrenze liegt in eurer Datei
 
-Damit das Tor überhaupt greifen kann, muss die Armeeobergrenze über **28**
-liegen — 1.200 Punkte sind 28 Legions-Rekruten zu je 44. Sie steht aber nicht in
-`AiProfiles`, sondern als Literal in
-[`MatchRunner.cs:252`](../../Project_Nova/Assets/_Project/Scripts/Gameplay/Match/MatchRunner.cs),
+Damit das Tor überhaupt greifen kann, muss die Armeeobergrenze bei mindestens
+**29** liegen: 1.200 Punkte sind 28 Legions-Rekruten zu je 44, und die
+Punktklausel entscheidet nur, solange noch ein Kopf frei ist. Diesen Wert
+überschreibt `MatchRunner` mit einem eigenen Literal
+([`MatchRunner.cs:254`](../../Project_Nova/Assets/_Project/Scripts/Gameplay/Match/MatchRunner.cs)),
 und `Scripts/Gameplay/Match/` ist Netzstrang. **Wir fassen das nicht an** und
 schlagen es stattdessen vor:
 
@@ -234,14 +263,15 @@ new AiFactionProfile(_config.FactionPerSlot[aiSlot].ToString(),
     targetHarvesterCount: 2),
 ```
 
-**Warum 30 und nicht die beste Zahl der Kurve.** 1.200 Punkte sind 28 Rekruten
-(27 sind 1.188, einer zu wenig). Unter Obergrenze 28 ist die Schwelle
-unerreichbar, der Deckel bindet, und die Welle marschiert wieder auf Kopfzahl —
-nur auf eine grössere. Bei 28 exakt bleibt kein Kopf übrig, um während des
-Sammelns weiterzubauen. **28 + 2 = 30** räumt beides frei. Das ist aus dem
-Schwellwert abgeleitet, nicht aus der Kurve gewählt — und das ist wichtig, weil
-die Kurve trügt: Obergrenze **20 gewinnt, 19 und 21 verlieren**. Wer dort das
-Maximum nimmt, trifft eine Einzelpartie.
+**Warum 30 und nicht die beste Zahl der Kurve.** Unter Obergrenze 29 greift die
+Schwelle nicht, und die Welle fällt dann *nicht* auf eine Kopfzahl zurück —
+sie degeneriert zu „sammle die gesamte Armeeobergrenze". Genau das sind die
+Zermürbungspartien bei 22, 24 und 28: die Legion sammelt erst alle 24 bzw. 28
+und hat dann nichts mehr in Produktion. **30** ist die erste Stellung, in der
+die Schwelle greift und trotzdem zwei Köpfe zum Nachbauen frei bleiben. Das ist
+aus dem Schwellwert abgeleitet, nicht aus der Kurve gewählt — und das ist
+wichtig, weil die Kurve trügt: Obergrenze **20 gewinnt, 19 und 21 verlieren**.
+Wer dort das Maximum nimmt, trifft eine Einzelpartie.
 
 | Obergrenze | Legion: Tick | Sieger | eig. Verl. | Austausch | APM |
 |---:|---:|---|---:|---:|---:|
@@ -259,11 +289,17 @@ Ticks, 12 statt 23 Verluste, Austausch 225 gegen 221 — und APM 46 gegen 29, da
 ist der Preis. Nach oben wird nur die APM teurer; die Allianz sättigt bei 23
 Einheiten, ab Obergrenze 40 ist die Kappe reine Intent-Erzeugung.
 
-**Ein Nebenbefund, der euch gehört:** `MatchRunner` liest `AiProfiles` nicht,
-sondern trägt vier eigene Literale. Heute stimmen sie mit `Ms1Canonical`
-überein, und nichts erzwingt das — sie können still auseinanderlaufen. Aufgefallen
-ist es hier, weil der gepinnte Endzustand nach einer Änderung an `Ms1Canonical`
-**nicht** wanderte: `SkirmishAiTests.BuildMatch` spiegelt denselben Aufruf.
+**Ein Nebenbefund, den dieser PR gleich mitschliesst:** `MatchRunner` holt
+fünfzehn der neunzehn Profilwerte über den historischen
+`AiFactionProfile`-Konstruktor aus `Ms1Canonical` — nur so kommt
+`waveStrengthPoints` überhaupt im Spiel an — und **überschreibt vier** mit
+eigenen Literalen. Diese vier konnten still auseinanderlaufen: der Profil-Hash
+rechnet über `Ms1Canonical`, der Endzustands-Pin spiegelt MatchRunners Literale,
+beide Wächter sehen also von je einer Seite an der Lücke vorbei. Aufgefallen ist
+es, weil der Pin nach einer Änderung an `Ms1Canonical` **nicht** wanderte.
+`AiProfileTests.MatchRunnerPassesTheSameFourNumbersTheShippedProfileCarries`
+liest jetzt euren Quelltext und wird rot, wenn die vier abweichen — gelesen,
+nicht geändert.
 
 ## Was ausdrücklich **nicht** drin ist
 
@@ -278,8 +314,9 @@ ist es hier, weil der gepinnte Endzustand nach einer Änderung an `Ms1Canonical`
 ## Checkliste
 
 - [x] Branch frisch von `upstream/main`, nicht aus `lab/` gecherrypickt
-- [x] `dotnet test tools/Nova.SimRunner.Tests/Nova.SimRunner.Tests.csproj -c Release` — 638/638
-- [x] Determinismus zuerst: `match --repeat 2 --hash-every 100`, **Exit 0**
+- [x] `dotnet test tools/Nova.SimRunner.Tests/Nova.SimRunner.Tests.csproj -c Release` — 649/649
+- [x] Determinismus zuerst: `match --repeat 2 --hash-every 100` **im Labor-Repo**
+  (`arn-c0de/Nova.AiLab`, nicht `tools/Nova.SimRunner`), **Exit 0**
 - [x] Aus-Stellung bitgenau gegen die Referenz geprüft (Tick 5.773, `0x2B34B4E194257940`)
 - [x] `AiBehaviorId.Revision` auf 6, neues Feld im Profil-Hash
 - [x] Zeile unter `[Unreleased]` in `CHANGELOG.md`

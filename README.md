@@ -203,7 +203,7 @@ ohne etwas dafür zu bekommen.)
 | `ViewFrame.cs` / `ViewRecorder.cs` | die Sichtframes aus §3.4 — Tätigkeit, nicht nur Position; reiner Beobachter. Seit der Laufroutenarbeit trägt jede Zeile die **Entity-ID** als zehnte Spalte, angehängt statt eingeschoben |
 | `EntityTrackRecorder.cs` | die Positionsspur, **jeder Tick**: Delta gegen die letzte Position, Keyframe alle 500 Ticks. Die Route ist absichtlich feiner als das Bild |
 | `TerminalView.cs` | ANSI-Liveansicht, beantwortet „läuft gerade etwas schief?" |
-| `HtmlPlayer.cs` | eine selbstständige Seite mit canvas: Scrubber, Einzeltick, Ebenen — dazu Einheitenliste, Spur der Auswahl, Detailfeld und Ereignisband. Kein Build, kein Server |
+| `HtmlPlayer.cs` | eine selbstständige Seite mit canvas: Scrubber, Einzeltick, Ebenen — dazu Einheitenliste, Spur der Auswahl, Detailfeld und Ereignisband. Kein Build, kein Server. Über der Karte steht die **Anzeigetafel je Sitz**: Kampfstärke und ihr Anteil, Armee, Arbeiter, Gebäude, Gesundheit, AE, Strom, Sicht, gebaut, verloren, Schaden. Das Detailfeld sagt in einem Satz, **was die Einheit gerade tut** — wen sie angreift (mit Rolle, Besitzer und Entfernung), wer auf sie schiesst, ob sie erntet, trägt, klemmt oder zur eigenen Basis läuft |
 
 ### `Sweep/` — dieselbe Spec über viele Seeds
 
