@@ -115,6 +115,10 @@ dotnet run --project Nova.AiLab -c Release -- match --view-every 25 --fog --out 
 # nebeneinanderlegen, Historie durchsehen — alles in einer lokalen Seite
 ./lab-gui.sh
 
+# eine verbesserte Ansicht auf ALTE Läufe legen: schreibt nur player.html neu,
+# die gemessenen Daten daneben bleiben unangetastet
+dotnet run --project Nova.AiLab -c Release -- player --out out
+
 # Seed-Matrix über alle Kerne, jeder 20. Lauf doppelt zur Selbstkontrolle
 dotnet run --project Nova.AiLab -c Release -- sweep --seeds 24 --out out/sweep
 

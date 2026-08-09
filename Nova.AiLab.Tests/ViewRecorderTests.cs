@@ -326,6 +326,94 @@ namespace Nova.AiLab.Tests
             }
         }
 
+        /// <summary>
+        /// The bar says what the gathered army weighs and what the wave gate
+        /// wants for it. Both numbers are recomputed in the page, so both are
+        /// pinned here: the inputs against the profile, and the arithmetic
+        /// against <see cref="WaveStrengthGate"/> itself.
+        /// <para>
+        /// The ring radius is the one that matters most. ""Gathered"" is not
+        /// ""every combat unit"" — it is what stands inside
+        /// <c>StagingDistanceCells + StagingToleranceCells</c> of the own HQ,
+        /// and a page that got that radius wrong would show a full wave next to
+        /// an AI that is still waiting, which is worse than showing nothing.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void PlayerCarriesTheWaveNumbersAndRepeatsTheGate()
+        {
+            MatchSpec spec = ShortSpec();
+            string html = HtmlPlayer.Build(spec.MapWidth, spec.MapHeight, Seed, spec.Slots);
+
+            const string marker = "const WAVE = ";
+            int start = html.IndexOf(marker, StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "the page must carry the wave rules");
+            string json = html.Substring(start + marker.Length,
+                html.IndexOf(";", start, StringComparison.Ordinal) - start - marker.Length);
+
+            string[] seats = json.Trim('[', ']').Split(new[] { "},{" }, StringSplitOptions.None);
+            Assert.That(seats.Length, Is.EqualTo(spec.Slots.Length), "one rule set per seat");
+
+            for (int i = 0; i < spec.Slots.Length; i++)
+            {
+                SlotSpec seat = spec.Slots[i];
+                AiFactionProfile profile = seat.Profile;
+
+                Assert.That(Number(seats[i], "ring"),
+                    Is.EqualTo(profile.Profile.StagingDistanceCells + profile.Profile.StagingToleranceCells),
+                    "the staging ring is what tells a gathered unit from one that already marched");
+                Assert.That(Number(seats[i], "waveSize"), Is.EqualTo(profile.Profile.WaveSize));
+                Assert.That(Number(seats[i], "points"), Is.EqualTo(profile.Profile.WaveStrengthPoints));
+                Assert.That(Number(seats[i], "cap"), Is.EqualTo(profile.TargetArmySize));
+                Assert.That(Number(seats[i], "cadence"), Is.EqualTo(profile.Profile.DecisionTickInterval));
+                Assert.That(Number(seats[i], "produced"),
+                    Is.EqualTo(CombatStrength.OfFullHealth(seat.Faction, UnitRole.BasicInfantry)),
+                    "one more unit is worth what the Barracks actually builds");
+                Assert.That(Number(seats[i], "producerRole"), Is.EqualTo((int)UnitRole.Barracks));
+
+                // And the arithmetic the page repeats, over the states a match
+                // walks through: an empty ring, a filling one, everything out,
+                // and more alive than the cap allows for at home.
+                int points = Number(seats[i], "points");
+                int cap = Number(seats[i], "cap");
+                int produced = Number(seats[i], "produced");
+                foreach (int gathered in new[] { 0, 1, 6, 12, 15 })
+                {
+                    foreach (int committed in new[] { 0, 4, 12 })
+                    {
+                        foreach (bool canProduce in new[] { true, false })
+                        {
+                            long strength = (long)gathered * produced;
+
+                            // Line for line what waveState() computes.
+                            int free = canProduce ? cap - committed - gathered : 0;
+                            if (free < 0) free = 0;
+                            long attainable = strength + (long)free * produced;
+                            long need = points < attainable ? points : attainable;
+
+                            Assert.That(need, Is.EqualTo(WaveStrengthGate.Threshold(
+                                    points, strength, gathered, committed, produced, cap, canProduce)),
+                                $"threshold at gathered {gathered}, committed {committed}, produce {canProduce}");
+                            Assert.That(strength >= need, Is.EqualTo(WaveStrengthGate.IsReady(
+                                    points, strength, gathered, committed, produced, cap, canProduce)),
+                                $"verdict at gathered {gathered}, committed {committed}, produce {canProduce}");
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>One integer field out of the page's own JSON, without a JSON dependency.</summary>
+        private static int Number(string json, string key)
+        {
+            int start = json.IndexOf($"\"{key}\":", StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), $"the page must carry '{key}'");
+            start += key.Length + 3;
+            int end = start;
+            while (end < json.Length && (char.IsDigit(json[end]) || json[end] == '-')) end++;
+            return int.Parse(json.Substring(start, end - start));
+        }
+
         [Test]
         public void NoViewRequested_WritesNoViewArtifacts()
         {

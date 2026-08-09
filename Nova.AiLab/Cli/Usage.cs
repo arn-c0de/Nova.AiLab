@@ -17,6 +17,8 @@ namespace Nova.AiLab
             "  movement [options]     the four movement scenarios: arrival, blocking, standoff, detour\n" +
             "  compare [options]      run every candidate profile against the frozen reference and\n" +
             "                         write report.html, resultset.json and a PR draft\n" +
+            "  player --out <dir>     write player.html again into an artifact directory (or into every\n" +
+            "                         run below it) — the data stays as it is, only the page is new\n" +
             "\n" +
             "Spec:\n" +
             "  --spec <file>          JSON MatchSpec (plan section 3.2); flags below override it\n" +

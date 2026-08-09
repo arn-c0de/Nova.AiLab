@@ -46,6 +46,42 @@ REPO = os.environ.get('NovaRepo') or os.path.normpath(os.path.join(LAB, '..', 'P
 # Frage, ob subprocess wirklich nirgends eine Shell benutzt.
 SAFE_REF = re.compile(r'^[A-Za-z0-9._/-]{1,120}$')
 
+# Eine Laufkennung oder ein Blockname: derselbe Zeichenvorrat ohne Schraegstrich.
+SAFE_NAME = re.compile(r'^[A-Za-z0-9._-]{1,120}$')
+
+
+def safe_name(value, pattern, what):
+    """Ein Name aus einer Anfrage, oder eine Ausnahme. Drei Dinge, nicht eines:
+
+    1. der Zeichenvorrat — `pattern`,
+    2. kein `.`- oder `..`-Bestandteil und kein leerer, damit aus einem Namen
+       nie eine Bewegung im Dateibaum wird. `..` allein passte durch beide
+       Muster und zeigte auf den Elternordner,
+    3. kein fuehrender Bindestrich. Der Name geht als Argument an `git`, und
+       ein Argument, das mit `-` beginnt, ist dort eine Option und kein Wert.
+    """
+    text = (value or '').strip()
+    parts = text.split('/')
+    if not pattern.match(text) or text.startswith('-') or any(p in ('', '.', '..') for p in parts):
+        raise ValueError(f'{what} nicht erlaubt: {value!r}')
+    return text
+
+
+def inside(base, *parts):
+    """Ein Pfad UNTER `base`, oder gar keiner.
+
+    JEDER Pfad, in den ein Stueck Anfrage eingeht, laeuft durch hier — und
+    zwar aufgeloest, nicht nur zusammengesetzt: `realpath` zieht `..` und
+    Symlinks heraus, bevor verglichen wird, sonst prueft man den Text und
+    oeffnet den Pfad. Ein Treffer ausserhalb ist kein 404, sondern ein Fehler:
+    die Steuerseite hat dort nichts zu suchen, auch nicht lesend.
+    """
+    root = os.path.realpath(base)
+    target = os.path.realpath(os.path.join(root, *parts))
+    if target != root and not target.startswith(root + os.sep):
+        raise ValueError(f'Pfad ausserhalb von {base}: {os.path.join(*parts)!r}')
+    return target
+
 # Der Dateiname, den RunArtifacts fuer die Seite vergibt.
 HtmlPlayerName = 'player.html'
 
@@ -99,10 +135,8 @@ def checkout_for(ref):
     if ref in ('', 'current', current):
         return REPO, current or 'HEAD'
 
-    if not SAFE_REF.match(ref):
-        raise ValueError(f'Branchname nicht erlaubt: {ref!r}')
-
-    path = os.path.join(WORKTREES, ref.replace('/', '_'))
+    ref = safe_name(ref, SAFE_REF, 'Branchname')
+    path = inside(WORKTREES, ref.replace('/', '_'))
     if not os.path.isdir(os.path.join(path, '.git')) and not os.path.isfile(os.path.join(path, '.git')):
         os.makedirs(WORKTREES, exist_ok=True)
         shutil.rmtree(path, ignore_errors=True)
@@ -145,6 +179,20 @@ def run_meta(directory):
         'state': ('fertig' if result else
                   'fehlgeschlagen' if meta.get('exitCode') not in (None, 0) else 'läuft…'),
     }
+
+
+def newest_player():
+    """Der zuletzt geschriebene `player.html` unter `out/gui/`, oder nichts.
+
+    Nach Aenderungszeit, nicht nach Lauf: die Seite ist ein Werkzeug und der
+    Lauf sind die Daten. `player --out out/gui` schreibt alle Seiten neu, ohne
+    eine einzige Zahl anzufassen — danach gewinnt die neue hier automatisch.
+    """
+    candidates = glob.glob(os.path.join(GUI_RUNS, '*', HtmlPlayerName))
+    root = os.path.join(GUI_RUNS, HtmlPlayerName)
+    if os.path.exists(root):
+        candidates.append(root)
+    return max(candidates, key=os.path.getmtime) if candidates else None
 
 
 def gui_runs():
@@ -255,9 +303,7 @@ def compare(a_id, b_id):
 
 
 def run_dir(run_id):
-    if not re.match(r'^[A-Za-z0-9._-]{1,120}$', run_id or ''):
-        raise ValueError(f'Laufkennung nicht erlaubt: {run_id!r}')
-    path = os.path.join(GUI_RUNS, run_id)
+    path = inside(GUI_RUNS, safe_name(run_id, SAFE_NAME, 'Laufkennung'))
     if not os.path.isdir(path):
         raise ValueError(f'Lauf unbekannt: {run_id}')
     return path
@@ -272,7 +318,7 @@ def start_run(options):
 
     stamp = time.strftime('%Y%m%d-%H%M%S')
     run_id = f"{stamp}-{ref.replace('/', '_')}-{commit or 'unknown'}"
-    directory = os.path.join(GUI_RUNS, run_id)
+    directory = inside(GUI_RUNS, safe_name(run_id, SAFE_NAME, 'Laufkennung'))
     os.makedirs(directory, exist_ok=True)
 
     args = ['match',
@@ -432,10 +478,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.send_json(compare(query.get('a', [''])[0], query.get('b', [''])[0]))
 
             elif url.path == '/api/history':
-                name = query.get('id', [''])[0]
-                if not re.match(r'^[A-Za-z0-9._-]{1,120}$', name):
-                    raise ValueError('Kennung nicht erlaubt')
-                self.send_file(os.path.join(HISTORY, name + '.json'), 'application/json; charset=utf-8')
+                name = safe_name(query.get('id', [''])[0], SAFE_NAME, 'Kennung')
+                self.send_file(inside(HISTORY, name + '.json'), 'application/json; charset=utf-8')
 
             elif url.path.startswith('/runs/'):
                 self.serve_artifact(url.path[len('/runs/'):])
@@ -466,21 +510,25 @@ class Handler(http.server.BaseHTTPRequestHandler):
         bleibt so. Fuer die Steuerseite ist es aber falsch: ein Lauf von
         letzter Woche wuerde mit dem Player von letzter Woche angesehen, und
         jede Verbesserung an der Ansicht waere fuer alles Aeltere unsichtbar.
-        Deshalb gewinnt hier der zuletzt geschriebene Player. Die Daten holt
-        er weiter relativ zu seiner URL, also aus dem Lauf, den man angeklickt
-        hat.
+        Deshalb gewinnt hier der NEUESTE Player, den das Labor geschrieben hat
+        — nicht die Kopie, die nach dem letzten Lauf liegen blieb. Wer die
+        Ansicht verbessert und `player --out out/gui` laufen laesst, sieht sie
+        hier sofort; frueher brauchte es dafuer einen neuen Messlauf. Die Daten
+        holt die Seite weiter relativ zu ihrer URL, also aus dem Lauf, den man
+        angeklickt hat.
         """
         parts = urllib.parse.unquote(relative).split('/')
-        current = os.path.join(GUI_RUNS, HtmlPlayerName)
-        if len(parts) == 2 and parts[1] == HtmlPlayerName and os.path.exists(current):
+        current = newest_player()
+        if len(parts) == 2 and parts[1] == HtmlPlayerName and current:
             self.send_file(current, 'text/html; charset=utf-8')
             return
 
-        target = os.path.normpath(os.path.join(GUI_RUNS, urllib.parse.unquote(relative)))
-        # Der Pfad muss UNTER dem Laufordner bleiben. Ohne diese Zeile ist ein
-        # ../../ in der URL ein Lesezugriff auf alles, was der Benutzer lesen darf.
-        if not target.startswith(os.path.realpath(GUI_RUNS) + os.sep) and \
-           not target.startswith(GUI_RUNS + os.sep):
+        # Der Pfad muss UNTER dem Laufordner bleiben. Ohne diese Pruefung ist
+        # ein ../../ in der URL ein Lesezugriff auf alles, was der Benutzer
+        # lesen darf.
+        try:
+            target = inside(GUI_RUNS, urllib.parse.unquote(relative))
+        except ValueError:
             self.send_error(403)
             return
         types = {'.html': 'text/html; charset=utf-8', '.json': 'application/json; charset=utf-8',

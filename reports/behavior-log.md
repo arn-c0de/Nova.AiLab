@@ -99,6 +99,81 @@ sie ohne sie gar nicht auftreten könnten; eine Aussage darüber, wie sich Stufe
 
 ---
 
+## B003 · 2026-08-09 · **Beobachtung am Player** — die Welle sammelt, während das HQ fällt
+
+**Quelle:** Mensch am Bildschirm, Laboraufnahmen `out/gui/…-1810/1811/1812` ·
+**KI-Verhalten:** `r6.E34435F9` · **Stand:** `feat/ai-strength-wave-gate` (`308d8cf`)
+
+> Wörtlich: „Einheiten greifen Headquarter an, aber die roten NPC sammeln sich
+> an ihrem Armee-Sammelpunkt, anstatt erst die an ihrem Headquarter zu
+> bekämpfen."
+
+Nachgemessen, und die Beobachtung hält:
+
+| Lauf | HQ unter Beschuss | davon wehrlos | max. Wartende | Angriffe der Wartenden |
+|---|---:|---:|---:|---:|
+| **heute** (ausgeliefert) | 3.169 Ticks | **19 %** | **9** | 75 |
+| Kappe 30 **ohne** Tor | 3.270 Ticks | **18 %** | **11** | 45 |
+| Tor + Kappe 30 | *(HQ nie angegriffen)* | — | — | — |
+
+„Wehrlos" heisst: mindestens drei eigene Kampfeinheiten stehen 8–16 Zellen vom
+eigenen HQ entfernt — also am Sammelpunkt — während ein Feind innerhalb von
+10 Zellen das HQ beschiesst. Spitzenwert in der ausgelieferten Fassung: **neun
+Einheiten warten, während das HQ fällt.**
+
+### Die Ursache, und sie ist nicht neu
+
+Eine Einheit, die am Sammelpunkt **angekommen** ist, bekommt **überhaupt keinen
+Befehl** — das ist Absicht und in `ResolveUnitAssignment` so kommentiert, weil
+ein Befehl je Kadenz die Intent-Zahl aufbläht (V002). Sie hängt damit
+ausschliesslich an der D-087-Auto-Acquisition, und die reicht nur so weit wie
+die Waffe: Legions-Infanterie 6 Zellen. Der Sammelpunkt liegt **12 Zellen** vom
+eigenen HQ entfernt. Ein Angreifer am HQ ist damit ausserhalb jeder Reichweite —
+die 75 bzw. 45 gezählten Angriffe sind die Fälle, in denen der Feind nahe genug
+vorbeikam, nicht Verteidigung.
+
+**Das ist ein Defekt der ausgelieferten KI, nicht von r6.** Er existiert, seit
+der Sammelpunkt existiert (r3). Eine Verteidigungsregel gibt es nicht: `DefendBase`
+wurde in V002 gebaut und wieder ausgebaut (+23 % Intents, schlechteres Spiel).
+
+### Aber r6 macht die Aussetzzeit erheblich grösser
+
+| Lauf | Einheit-Ticks am Sammelpunkt je 1.000 Ticks | längste Wartezeit einer Einheit |
+|---|---:|---:|
+| **heute** | 3.502 | 1.048 Ticks |
+| Kappe 30 **ohne** Tor | 4.186 | 886 Ticks |
+| **Tor + Kappe 30** | **12.326** | **3.214 Ticks** |
+
+> **Das Wellentor verdreifacht die Zeit, die Einheiten wartend herumstehen, und
+> eine einzelne Einheit wartet bis zu 3.214 Ticks — über fünf Spielminuten.**
+> Genau das ist die Fläche, auf der der beobachtete Fehler auftritt. Dass das
+> Legions-HQ im Tor-Lauf nie angegriffen wurde, ist kein Gegenbeweis: die Legion
+> hat diese Partie gewonnen, bevor es dazu kam. Auf einer Karte oder einem Seed
+> mit früherem Druck ist die dreifache Aussetzzeit ein dreifaches Risiko.
+
+### Folge für die PR-Reihenfolge
+
+Die Anhebung der Armeeobergrenze auf 30 (Rückfrage im PR) **darf nicht vor einer
+Abbruchregel kommen**. Bisher stand im Plan: Tor → Kappe → Nachschub-Doktrin.
+Richtig ist: **Tor → Abbruch/Verteidigung → Kappe**.
+
+Das ausgelieferte Tor selbst bleibt davon unberührt — es ist schlafend, die
+Aussetzzeit von heute ändert sich durch diesen PR nicht.
+
+### Offen
+
+- Welcher Auslöser? Kandidaten: Feind innerhalb des Sammelrings, Feind in
+  N Zellen um ein eigenes Gebäude, oder eingesteckter Schaden. Die V002-Falle
+  ist, den Auslöser zu weit zu fassen — „reagiere auf eine echte Bedrohung,
+  nicht auf alles was sich bewegt".
+- Als **Übersteuerung von `WaveReady`** ist es billig: die Welle marschiert
+  sofort, statt dass die ganze Armee jede Kadenz ein neues Ziel bekommt. Das
+  ist die Form, an der `DefendBase` gescheitert ist — sie wäre hier vermieden.
+- Ungemessen: ob die Aussetzzeit auch dann dreifach bleibt, wenn die Abbruch-
+  regel greift.
+
+---
+
 ## V007 · 2026-08-09 · Kampfstärke statt Kopfzahl — **gebaut, und ausgeliefert wirkungslos**
 
 **Lauf:** [`runs/20260809-1519-f13f4d5f.md`](runs/20260809-1519-f13f4d5f.md) ·

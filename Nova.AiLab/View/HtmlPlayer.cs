@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Text;
+using Nova.AI;
 using Nova.Simulation.Combat;
 using Nova.Simulation.Definitions;
 using Nova.Simulation.State;
@@ -72,12 +73,73 @@ namespace Nova.AiLab
                 .Replace("__SEED__", "0x" + seed.ToString("X", CultureInfo.InvariantCulture))
                 .Replace("__SLOTS_JSON__", BuildSlotsJson(slots))
                 .Replace("__WEAPONS_JSON__", BuildWeaponsJson(slots))
+                .Replace("__WAVE_JSON__", BuildWaveJson(slots))
                 .Replace("__VIEW_FILE__", RunArtifacts.ViewFileName)
                 .Replace("__TRACKS_FILE__", RunArtifacts.TracksFileName)
                 .Replace("__EVENTS_FILE__", RunArtifacts.EventsFileName)
                 .Replace("__UNITS_FILE__", RunArtifacts.UnitsFileName));
             return html.ToString();
         }
+
+        /// <summary>
+        /// The numbers the wave gate decides on, per seat — so the page can
+        /// say what the AI is waiting for instead of only what it has.
+        /// <para>
+        /// A GATHERED ARMY IS NOT ""EVERY COMBAT UNIT"". The AI counts what
+        /// stands inside the ring around its own HQ
+        /// (<c>StagingDistanceCells + StagingToleranceCells</c>); everything
+        /// outside it marched with an earlier wave and is never called back.
+        /// Without the ring radius the page could only show a total, and a
+        /// total cannot explain a wave that does not launch.
+        /// </para>
+        /// <para>
+        /// <c>produced</c> is the full-health strength of the role the Barracks
+        /// queues, <c>producerRole</c> the role that has to be standing for
+        /// production to count at all — the two inputs of the gate's ceiling
+        /// clause. All of it is profile and definition data, and none of it is
+        /// in the artifacts.
+        /// </para>
+        /// </summary>
+        private static string BuildWaveJson(SlotSpec[] slots)
+        {
+            if (slots == null) return "[]";
+            var json = new StringBuilder(128 * slots.Length);
+            json.Append('[');
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (i > 0) json.Append(',');
+                SlotSpec seat = slots[i];
+                // A seat built by hand can carry the default struct, whose
+                // wave values are all zero — that would read as ""the gate is
+                // off"" instead of ""nobody said"". The shipped profile is what
+                // MatchSpec.DefaultSlots puts there, so it is also the honest
+                // stand-in here.
+                AiFactionProfile profile = seat.Profile.Profile.WaveSize > 0
+                    ? seat.Profile
+                    : SlotSpec.CanonicalProfile(seat.Faction);
+                json.Append("{\"slot\":").Append(seat.Slot)
+                    .Append(",\"ring\":")
+                        .Append(profile.Profile.StagingDistanceCells + profile.Profile.StagingToleranceCells)
+                    .Append(",\"waveSize\":").Append(profile.Profile.WaveSize)
+                    .Append(",\"points\":").Append(profile.Profile.WaveStrengthPoints)
+                    .Append(",\"cap\":").Append(profile.TargetArmySize)
+                    .Append(",\"cadence\":").Append(profile.Profile.DecisionTickInterval)
+                    .Append(",\"produced\":")
+                        .Append(CombatStrength.OfFullHealth(seat.Faction, ProducedCombatRole))
+                    .Append(",\"producerRole\":").Append((int)UnitRole.Barracks)
+                    .Append('}');
+            }
+            json.Append(']');
+            return json.ToString();
+        }
+
+        /// <summary>
+        /// The role the Barracks queues — <c>SkirmishAiSystem.ProducedCombatRole</c>,
+        /// which is private there. Named here so the page's ceiling clause uses
+        /// the same unit the AI counts on, and so a change over there is one
+        /// grep away rather than a silent disagreement.
+        /// </summary>
+        private const UnitRole ProducedCombatRole = UnitRole.BasicInfantry;
 
         /// <summary>Who sat in which seat: slot, faction, profile id.</summary>
         private static string BuildSlotsJson(SlotSpec[] slots)
@@ -295,9 +357,9 @@ namespace Nova.AiLab
     <div id=""topbar"">
       <div id=""shareBar""></div>
       <table id=""top""><thead><tr>
-        <th>slot</th><th>strength</th><th>share</th><th>army</th><th>workers</th>
-        <th>buildings</th><th>health</th><th>AE</th><th>power</th><th>sees</th>
-        <th>spawned</th><th>lost</th><th>damage taken</th>
+        <th>slot</th><th>strength</th><th>share</th><th>gathered</th><th>wave</th>
+        <th>army</th><th>workers</th><th>buildings</th><th>health</th><th>AE</th>
+        <th>power</th><th>sees</th><th>spawned</th><th>lost</th><th>damage taken</th>
       </tr></thead><tbody></tbody></table>
       <div class=""sub"" id=""topNote"">—</div>
     </div>
@@ -419,6 +481,7 @@ const ROLE_NAME = ['unit','builder','harvester','HQ','refinery','power','storage
 // armies against a table nobody measured with.
 const SLOTS = __SLOTS_JSON__;
 const WEAPONS = __WEAPONS_JSON__;   // [slot][role] = [attackDamage, cooldownTicks]
+const WAVE = __WAVE_JSON__;         // per slot: ring, waveSize, points, cap, produced, …
 
 // Few, discrete colours: an event band with twenty hues is a colour chart,
 // not a reading aid.
@@ -1162,6 +1225,66 @@ function strengthOf(u) {
   return Math.floor(damage * u.hp / cooldown);
 }
 
+/**
+ * THE ARMY THAT IS ACTUALLY GATHERED, and what it is waiting for.
+ * <p>
+ * The AI does not weigh ""every combat unit"": it weighs what stands inside the
+ * ring around its own HQ. Everything outside marched with an earlier wave and
+ * is never called back — so a side can hold twenty units and still not launch,
+ * and the total strength beside it explains nothing. This is the number that
+ * does.
+ * <p>
+ * RECOMPUTED, NOT READ. No artifact carries the AI's verdict, so the page
+ * repeats its arithmetic — ring membership, the strength sum, and the gate's
+ * ceiling clause — from the state at this tick. Two honest consequences: the
+ * page can only be as right as this copy of the rule, and the AI decides on
+ * its own cadence, so between two decisions the flag here can already have
+ * flipped while the army has not moved yet. Both are why the column says
+ * ""derived"".
+ */
+function waveState(slot) {
+  const rules = WAVE.find(w => w.slot === slot);
+  const home = baseOf(slot);
+  if (!rules || !home) return null;
+
+  const hqX = Math.floor(home[0] / ONE), hqY = Math.floor(home[1] / ONE);
+  let gathered = 0, gatheredStrength = 0, committed = 0, canProduce = false;
+
+  for (const u of world.values()) {
+    if (u.slot !== slot) continue;
+    if (!u.site && u.role === rules.producerRole) canProduce = true;
+    if (shapeOf(u) !== 4) continue;
+    const p = posAt(u.id, tick);
+    if (!p) continue;
+    const dx = Math.abs(Math.floor(p[0] / ONE) - hqX);
+    const dy = Math.abs(Math.floor(p[1] / ONE) - hqY);
+    if (Math.max(dx, dy) > rules.ring) committed++;
+    else { gathered++; gatheredStrength += strengthOf(u); }
+  }
+
+  // Clamped to the army cap, exactly as EffectiveWaveSize does: a wave size
+  // above the cap would wait for units production can never deliver.
+  const size = Math.min(rules.waveSize, rules.cap);
+  const shared = { gathered, gatheredStrength, committed, cadence: rules.cadence };
+  if (size <= 1) return Object.assign(shared, { mode:'off', reason:'waveSize 1 — every unit marches' });
+
+  if (rules.points > 0 && rules.produced > 0) {
+    // The gate's ceiling: the threshold never exceeds what the ring can still
+    // GROW to, or the wave waits for strength that cannot arrive.
+    let free = canProduce ? rules.cap - committed - gathered : 0;
+    if (free < 0) free = 0;
+    const attainable = gatheredStrength + free * rules.produced;
+    const need = Math.min(rules.points, attainable);
+    return Object.assign(shared, { mode:'points', have:gatheredStrength, need,
+                                   ready: gatheredStrength >= need, canProduce });
+  }
+
+  let reachable = rules.cap - committed;
+  if (reachable < 1) reachable = 1;
+  const need = Math.min(size, reachable);
+  return Object.assign(shared, { mode:'count', have:gathered, need, ready: gathered >= need, canProduce });
+}
+
 /** Everything the scoreboard shows, per seat, at the current tick. */
 function slotStats(frame) {
   const stats = new Map();
@@ -1185,6 +1308,8 @@ function slotStats(frame) {
     s.hp += u.hp; s.hpMax += u.hpMax;
   }
 
+  for (const s of stats.values()) s.wave = waveState(s.seat.slot);
+
   if (world.tally) {
     for (const [slot, t] of world.tally) {
       const s = stats.get(slot);
@@ -1204,6 +1329,30 @@ function slotStats(frame) {
   return [...stats.values()];
 }
 
+/** What stands in the ring: how many of the army, and what they weigh. */
+function gatheredCell(wave) {
+  if (!wave) return '<span class=""sub"">—</span>';
+  const army = wave.gathered + wave.committed;
+  if (army === 0) return '<span class=""sub"">no army</span>';
+  return wave.gatheredStrength +
+    ' <span class=""sub"">· ' + wave.gathered + ' of ' + army + '</span>';
+}
+
+/** What the gate wants before it lets them march. */
+function waveCell(wave) {
+  if (!wave) return '<span class=""sub"">—</span>';
+  if (wave.mode === 'off') return '<span class=""sub"">off · ' + wave.reason + '</span>';
+  // An empty ring passes the gate arithmetically — the ceiling clause drops the
+  // threshold to zero — but there is nobody to send. ""0 / 0 marches"" would be
+  // the one line on this bar that reads like a decision and is none.
+  if (wave.gathered === 0) return '<span class=""sub"">ring empty · all out</span>';
+  const unit = wave.mode === 'count' ? ' units' : '';
+  const verdict = wave.ready
+    ? '<span class=""ok"">marches</span>'
+    : '<span class=""warn"">waits</span>';
+  return '<span class=""derived"">' + wave.have + ' / ' + wave.need + unit + '</span> ' + verdict;
+}
+
 function renderTopBar(frame) {
   const stats = slotStats(frame);
   const total = stats.reduce((sum, s) => sum + s.strength, 0);
@@ -1221,6 +1370,8 @@ function renderTopBar(frame) {
       s.seat.slot + ' · ' + s.seat.faction + '</td>' +
     '<td class=""num"">' + s.strength + '</td>' +
     '<td class=""num"">' + (total ? Math.round(s.strength * 100 / total) + '%' : '—') + '</td>' +
+    '<td class=""num"">' + gatheredCell(s.wave) + '</td>' +
+    '<td class=""num"">' + waveCell(s.wave) + '</td>' +
     '<td class=""num"">' + s.army + '</td>' +
     '<td class=""num"">' + s.workers + '</td>' +
     '<td class=""num"">' + s.buildings + (s.sites ? ' +' + s.sites + '&nbsp;site' : '') + '</td>' +
@@ -1233,9 +1384,12 @@ function renderTopBar(frame) {
     '<td class=""num"">' + s.damageTaken + '</td>' +
     '</tr>').join('');
 
+  const cadence = stats.length && stats[0].wave ? stats[0].wave.cadence : 0;
   document.getElementById('topNote').innerHTML =
     'army strength, counts, health, spawned, lost and damage are exact for tick <b>' + tick + '</b> · ' +
     'AE, power and ""sees"" come from frame t=' + (frame ? frame.t : '—') +
+    ' · <span class=""derived"">gathered/wave is the gate recomputed here' +
+    (cadence ? ', while the AI decides every ' + cadence + ' ticks' : '') + '</span>' +
     (WEAPONS.length ? '' : ' · <span class=""warn"">no weapon table in this player — strength is 0</span>');
 }
 

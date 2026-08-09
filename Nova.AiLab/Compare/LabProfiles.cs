@@ -155,6 +155,33 @@ namespace Nova.AiLab
             // muss das Punkttor den Unterschied machen, wenn die Erklaerung
             // stimmt — sonst ist sie falsch und gehoert widerrufen.
             Derive("army-16-count", targetArmySize: 16, waveStrengthPoints: 0),
+
+            // Das Gegenstueck zur vorgeschlagenen Stellung: dieselbe Kappe,
+            // kein Tor. Ohne diese Zeile laesst sich "die Kappe allein schadet
+            // der Legion" nicht bei 30 zeigen, sondern nur bei 16/24/36.
+            Derive("army-30-count", targetArmySize: 30, waveStrengthPoints: 0),
+
+            // Die Kappenkurve MIT Tor, dicht abgetastet. Drei Stuetzpunkte
+            // reichten nicht und waren irrefuehrend: Kappe 20 gewinnt, 19 und
+            // 21 verlieren beide. Aus so einer Kurve das Maximum zu nehmen ist
+            // eine Einzelpartie treffen, keine Messung.
+            //
+            // Was traegt, ist eine Ableitung: 1200 Punkte sind 28 Legions-
+            // Rekruten zu je 44, und die Punktklausel entscheidet nur, solange
+            // noch ein Kopf frei ist — sie greift also erstmals bei Kappe 29.
+            // Darunter faellt die Welle nicht auf Kopfzahl zurueck, sondern
+            // degeneriert zu "sammle die gesamte Armeeobergrenze": genau die
+            // Zermuerbungspartien bei 22, 24 und 28. Diese neun Stellungen
+            // zeigen beide Seiten der Grenze. Zahlen: Journal V007.
+            Derive("army-19", targetArmySize: 19),
+            Derive("army-21", targetArmySize: 21),
+            Derive("army-22", targetArmySize: 22),
+            Derive("army-28", targetArmySize: 28),
+            Derive("army-30", targetArmySize: 30),
+            Derive("army-32", targetArmySize: 32),
+            Derive("army-34", targetArmySize: 34),
+            Derive("army-40", targetArmySize: 40),
+            Derive("army-48", targetArmySize: 48),
         };
 
         public static bool TryGet(string profileId, out AiProfile profile)

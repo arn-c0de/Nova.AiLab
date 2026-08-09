@@ -39,6 +39,7 @@ namespace Nova.AiLab
                 "duel" => DuelCommand.Run(options),
                 "movement" => MovementCommand.Run(options),
                 "compare" => CompareCommand.Run(options),
+                "player" => PlayerCommand.Run(options),
                 _ => Fail($"unknown mode '{args[0]}'"),
             };
         }
