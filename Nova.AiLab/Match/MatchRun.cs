@@ -50,6 +50,19 @@ namespace Nova.AiLab
         public List<ViewFrame> View = new List<ViewFrame>();
 
         /// <summary>
+        /// The position track — where every entity actually walked, at full
+        /// tick resolution. Empty unless the view window is on and
+        /// <see cref="MatchSpec.TrackIntervalTicks"/> is positive.
+        /// </summary>
+        public List<TrackFrame> Tracks = new List<TrackFrame>();
+
+        /// <summary>What happened to each entity, at the exact tick it happened.</summary>
+        public List<DebugEvent> Events = new List<DebugEvent>();
+
+        /// <summary>One row per entity, derived from track and events at the end of the run.</summary>
+        public List<RouteMetrics> Units = new List<RouteMetrics>();
+
+        /// <summary>
         /// The game-feel columns (NEXT-STEPS.md section 7), one entry per slot.
         /// Empty without a trace: three of the four are per-interval or
         /// per-tick derivations, and zeros would read as measurements.
@@ -99,8 +112,15 @@ namespace Nova.AiLab
             bool chained = spec.HashIntervalTicks > 0;
             bool traced = spec.TraceIntervalTicks > 0;
             bool viewed = spec.ViewIntervalTicks > 0;
+            // Track and events ride along with the view window rather than on
+            // a switch of their own: whoever records frames is looking for an
+            // explanation, and at thirty entities the route and the edges are
+            // too cheap to be worth turning off.
+            bool tracked = viewed && spec.TrackIntervalTicks > 0;
             TraceCollector collector = traced ? new TraceCollector(host) : null;
             ViewRecorder recorder = viewed ? new ViewRecorder(host, spec.RecordFog) : null;
+            EntityTrackRecorder tracker = tracked ? new EntityTrackRecorder(host) : null;
+            DebugEventLog eventLog = tracked ? new DebugEventLog(host) : null;
 
             if (chained)
             {
@@ -115,6 +135,13 @@ namespace Nova.AiLab
                 ViewFrame opening = recorder.Capture(host.Kernel.CurrentTick.Value);
                 result.View.Add(opening);
                 onFrame?.Invoke(opening);
+            }
+            if (tracked)
+            {
+                // The shadow state starts empty, so this first pass reports
+                // the canonical opening as spawns — which is what it is.
+                result.Tracks.Add(tracker.Capture(host.Kernel.CurrentTick.Value));
+                eventLog.Collect(host.Kernel.CurrentTick.Value);
             }
 
             for (int i = 0; i < spec.TickBudget && !host.Victory.IsDecided; i++)
@@ -136,6 +163,17 @@ namespace Nova.AiLab
                     // consumers, no second code path that could disagree.
                     onFrame?.Invoke(frame);
                 }
+                if (tracked)
+                {
+                    // Events EVERY tick, unconditionally: an edge that falls
+                    // between two samples is not late, it is gone.
+                    eventLog.Collect(tick);
+                    if (tick % (uint)spec.TrackIntervalTicks == 0)
+                    {
+                        TrackFrame track = tracker.Capture(tick);
+                        if (!track.IsEmpty) result.Tracks.Add(track);
+                    }
+                }
                 if (chained && tick % (uint)spec.HashIntervalTicks == 0)
                 {
                     result.HashChain.Add(new HashChainEntry(tick, host.Kernel.CalculateStateHash()));
@@ -155,6 +193,12 @@ namespace Nova.AiLab
                 collector.FinishReactions();
                 result.Feel = FeelMetrics.Compute(
                     result.Trace, collector.Reactions, result.FinalTick, host.SlotCount);
+            }
+
+            if (tracked)
+            {
+                result.Events.AddRange(eventLog.Events);
+                result.Units = RouteMetrics.Compute(result.Tracks, result.Events, eventLog.Tallies);
             }
 
             watch.Stop();

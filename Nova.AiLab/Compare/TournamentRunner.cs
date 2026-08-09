@@ -137,6 +137,10 @@ namespace Nova.AiLab
                 StartingCreditsAE = spec.StartingCreditsAE,
                 TraceIntervalTicks = spec.TraceIntervalTicks,
                 ViewIntervalTicks = 50,
+                // The sample run a comparison links into is the one somebody
+                // opens when a candidate looks wrong, so it carries the track
+                // and the events too — that is the whole point of keeping it.
+                TrackIntervalTicks = spec.TrackIntervalTicks,
                 HashIntervalTicks = 500,
                 Slots = slots,
             };

@@ -86,6 +86,7 @@ namespace Nova.AiLab
                     case "traceIntervalTicks": spec.TraceIntervalTicks = RequireInt(property, origin); break;
                     case "hashIntervalTicks": spec.HashIntervalTicks = RequireInt(property, origin); break;
                     case "viewIntervalTicks": spec.ViewIntervalTicks = RequireInt(property, origin); break;
+                    case "trackIntervalTicks": spec.TrackIntervalTicks = RequireInt(property, origin); break;
                     case "recordFog": spec.RecordFog = property.Value.GetBoolean(); break;
 
                     case "slots":
@@ -218,6 +219,7 @@ namespace Nova.AiLab
             if (spec.TickBudget < 1) throw new FormatException($"{origin}: tickBudget must be positive");
             if (spec.TraceIntervalTicks < 0) throw new FormatException($"{origin}: traceIntervalTicks must not be negative");
             if (spec.ViewIntervalTicks < 0) throw new FormatException($"{origin}: viewIntervalTicks must not be negative");
+            if (spec.TrackIntervalTicks < 0) throw new FormatException($"{origin}: trackIntervalTicks must not be negative");
             if (spec.HashIntervalTicks < 0) throw new FormatException($"{origin}: hashIntervalTicks must not be negative");
             if (spec.EntityCapacity < 1) throw new FormatException($"{origin}: entityCapacity must be positive");
             if (spec.Slots.Length > CanonicalOpening.MaxSeatedSlots)

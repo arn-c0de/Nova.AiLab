@@ -27,6 +27,10 @@ namespace Nova.AiLab
             "  --hash-every <n>       state hash every n ticks (default 0 = end state only)\n" +
             "  --view-every <n>       view frame every n ticks (default 0 = off)\n" +
             "  --fog                  record the fog layer with each view frame\n" +
+            "  --track-every <n>      position sample every n ticks while the view is on (default 1 = every\n" +
+            "                         tick, 0 = no track). The route is finer than the picture on purpose;\n" +
+            "                         events are read every tick regardless, an edge between two samples\n" +
+            "                         cannot be recovered\n" +
             "  --profile <id>         named lab profile for every AI slot (see compare for the ids)\n" +
             "  --profile0 <id>        named lab profile for slot 0 only — with --profile1 this is a\n" +
             "  --profile1 <id>        ONE-SIDED match: with the new behaviour against without it\n" +
@@ -34,7 +38,8 @@ namespace Nova.AiLab
             "match:\n" +
             "  --repeat <n>           run the same spec n times and compare the hash chains\n" +
             "  --watch                draw the running match in the terminal (implies --view-every 20)\n" +
-            "  --out <dir>            write result.json, trace.ndjson, hashchain.json, view.ndjson, player.html\n" +
+            "  --out <dir>            write result.json, trace.ndjson, hashchain.json, view.ndjson,\n" +
+            "                         tracks.ndjson, events.ndjson, units.json, player.html\n" +
             "\n" +
             "sweep:\n" +
             "  --seeds <n>            number of seeds, derived from --seed (default 8)\n" +
