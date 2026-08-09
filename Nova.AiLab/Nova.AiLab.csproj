@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Nova.AiLab</RootNamespace>
+    <!-- Same determinism define the Unity host, SimRunner and the test lane
+         use (docs/tech/SimulationCore.md section 9). -->
+    <DefineConstants>$(DefineConstants);NOVA_FIXED_POINT</DefineConstants>
+  </PropertyGroup>
+
+  <!-- WHICH CHECKOUT THIS LAB MEASURES.
+       The lab lives OUTSIDE the game repository so it can measure whatever is
+       checked out over there — any branch, without being merged into it. That
+       is the whole point of it sitting here: a measurement tool that has to be
+       carried onto every branch it wants to look at can only ever look at its
+       own.
+
+       Override it to point at a second checkout or a git worktree, so two
+       branches can be compared without switching back and forth: pass
+       -p:NovaRepo=/pfad/zum/checkout to dotnet, or set NovaRepo in the
+       environment. MSBuild reads environment variables as properties, so
+       both forms work; lab.sh takes the same path behind its repo switch. -->
+  <PropertyGroup>
+    <NovaRepo Condition="'$(NovaRepo)' == ''">$(MSBuildThisFileDirectory)..\..\Project_Nova</NovaRepo>
+    <NovaScripts>$(NovaRepo)\Assets\_Project\Scripts</NovaScripts>
+  </PropertyGroup>
+
+  <Target Name="NovaRepoExists" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(NovaScripts)')"
+           Text="NovaRepo does not point at a Project Nova checkout: '$(NovaRepo)' has no Assets/_Project/Scripts. Pass -p:NovaRepo=&lt;path&gt; or set the NovaRepo environment variable." />
+  </Target>
+
+  <ItemGroup>
+    <Compile Include="$(NovaScripts)\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(NovaScripts)\Simulation\**\*.cs" Link="Simulation\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The gap this lab closes (plan section 1): Nova.SimRunner.csproj links
+         Core/Simulation/Networking but NOT AI/, so the AI match only ran
+         headless through the test project. The lab binds the AI sources
+         itself; the SimRunner csproj is the pattern, not the template. -->
+    <Compile Include="$(NovaScripts)\AI\**\*.cs" Link="AI\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(NovaScripts)\AI.Data\**\*.cs" Link="AI.Data\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- PROVENANCE, BAKED IN AT BUILD TIME.
+       A result set is bound to the commit it was measured at and the report
+       refuses to compare across that boundary. Before the lab moved out, the
+       commit came from `git rev-parse HEAD` in the working directory — which
+       was the game repo only because the lab happened to live inside it. From
+       here that would report the LAB's commit, or nothing, and the refusal
+       would quietly stop refusing.
+
+       So the path travels with the binary: whatever sources were compiled in,
+       that is the checkout whose commit belongs on the artifact. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>NovaRepo</_Parameter1>
+      <_Parameter2>$(NovaRepo)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

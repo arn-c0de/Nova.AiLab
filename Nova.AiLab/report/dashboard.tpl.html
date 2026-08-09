@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nova.AiLab — Laborlauf</title>
+<style>
+:root {
+  color-scheme: light;
+  --plane:#f9f9f7; --surface:#fcfcfb;
+  --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --hair:rgba(11,11,11,0.10);
+  --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a;
+  --warning:#fab219; --critical:#d03b3b; --good:#0ca30c;
+  --warn-wash:#fdf6e3;
+  --div-n3:#a02523; --div-n2:#e34948; --div-n1:#f3b5b4;
+  --div-0:#f0efec;
+  --div-p1:#9ec5f4; --div-p2:#2a78d6; --div-p3:#184f95;
+  --seq-1:#cde2fb; --seq-2:#9ec5f4; --seq-3:#5598e7; --seq-4:#2a78d6; --seq-5:#184f95;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --plane:#0d0d0d; --surface:#1a1a19;
+    --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --hair:rgba(255,255,255,0.10);
+    --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70;
+    --warn-wash:#231d0c;
+    --div-n3:#8f2120; --div-n2:#e66767; --div-n1:#6e3736;
+    --div-0:#383835;
+    --div-p1:#2a4f7a; --div-p2:#3987e5; --div-p3:#b7d3f6;
+    --seq-1:#184f95; --seq-2:#256abf; --seq-3:#3987e5; --seq-4:#86b6ef; --seq-5:#cde2fb;
+  }
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--plane); color:var(--ink);
+  font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+.wrap { max-width:1180px; margin:0 auto; padding:32px 20px 72px; }
+h1 { font-size:26px; line-height:1.25; margin:0 0 6px; font-weight:640; letter-spacing:-0.01em; }
+h2 { font-size:19px; margin:0 0 4px; font-weight:620; letter-spacing:-0.01em; }
+h3 { font-size:13px; margin:0 0 2px; font-weight:600; color:var(--ink); }
+p  { margin:0 0 10px; color:var(--ink2); max-width:78ch; }
+.meta { color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; }
+.meta code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:var(--ink2); }
+
+.banner {
+  margin:18px 0 34px; padding:12px 16px; border-left:3px solid var(--warning);
+  background:var(--warn-wash); border-radius:0 6px 6px 0;
+}
+.banner strong { color:var(--ink); }
+.banner p { margin:0; font-size:14px; }
+
+section { margin:0 0 42px; }
+.sechead { margin-bottom:14px; display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+.sechead .kicker { font-size:11px; letter-spacing:0.09em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+
+.card {
+  background:var(--surface); border:1px solid var(--hair); border-radius:10px;
+  padding:14px 16px 12px;
+}
+.grid { display:grid; gap:12px; }
+.g3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.g2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (max-width:880px){ .g3,.g2 { grid-template-columns:1fr; } }
+
+.tiles { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+@media (max-width:880px){ .tiles { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.tile .lbl { font-size:12px; color:var(--muted); }
+.tile .val { font-size:24px; font-weight:640; letter-spacing:-0.02em; margin-top:2px; }
+.tile .sub { font-size:12px; color:var(--ink2); font-variant-numeric:tabular-nums; }
+.mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+
+.legend { display:flex; gap:16px; align-items:center; flex-wrap:wrap; font-size:13px; color:var(--ink2); }
+.key { display:inline-flex; align-items:center; gap:6px; }
+.key i { width:14px; height:3px; border-radius:2px; display:inline-block; }
+.key.sw i { width:12px; height:12px; border-radius:3px; }
+
+.chart-title { font-size:13px; font-weight:600; margin-bottom:1px; }
+.chart-sub { font-size:12px; color:var(--muted); margin-bottom:6px; }
+svg { display:block; width:100%; height:auto; overflow:visible; }
+.gridline { stroke:var(--grid); stroke-width:1; }
+.axisline { stroke:var(--axis); stroke-width:1; }
+.tick { fill:var(--muted); font-size:10.5px; font-variant-numeric:tabular-nums; }
+.endlab { font-size:11px; font-weight:600; fill:var(--ink2); font-variant-numeric:tabular-nums; }
+.vallab { font-size:11px; fill:var(--ink2); font-variant-numeric:tabular-nums; }
+.rowlab { font-size:11.5px; fill:var(--ink2); }
+.cellnum { font-size:10px; font-variant-numeric:tabular-nums; pointer-events:none; }
+.cellnum.on-strong { fill:#ffffff; }
+.cellnum.on-weak { fill:var(--ink); }
+.hitrect { fill:transparent; }
+.crosshair { stroke:var(--axis); stroke-width:1; }
+
+table { border-collapse:collapse; width:100%; font-size:13px; font-variant-numeric:tabular-nums; }
+th,td { padding:6px 10px; border-bottom:1px solid var(--hair); text-align:right; white-space:nowrap; }
+th { color:var(--muted); font-weight:600; font-size:12px; }
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2) { text-align:left; }
+tr.ref td { background:color-mix(in srgb, var(--series-1) 8%, transparent); }
+td.flag { color:var(--critical); }
+.scroll { overflow-x:auto; }
+
+.tip {
+  position:fixed; pointer-events:none; z-index:20; opacity:0; transition:opacity .08s;
+  background:var(--surface); border:1px solid var(--hair); border-radius:7px;
+  padding:8px 10px; font-size:12px; line-height:1.5; color:var(--ink);
+  box-shadow:0 6px 22px rgba(0,0,0,.16); max-width:290px;
+}
+.tip b { font-weight:620; }
+.tip .r { color:var(--ink2); font-variant-numeric:tabular-nums; }
+.note { font-size:13px; color:var(--ink2); margin-top:10px; max-width:80ch; }
+.note b { color:var(--ink); }
+details { margin-top:10px; }
+summary { cursor:pointer; font-size:13px; color:var(--ink2); }
+footer { margin-top:48px; padding-top:18px; border-top:1px solid var(--hair); font-size:13px; color:var(--muted); }
+footer pre { background:var(--surface); border:1px solid var(--hair); border-radius:8px;
+  padding:10px 12px; overflow-x:auto; font-size:12px; color:var(--ink2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Nova.AiLab — Laborlauf</h1>
+<div class="meta" id="runmeta"></div>
+
+<div class="banner">
+  <p><strong>DIAGNOSE, kein Nachweis.</strong> Nichts auf dieser Seite wurde im laufenden Spiel
+  gesehen. Alle Zahlen stammen aus headless-Läufen derselben Quelldateien, die Unity lädt —
+  das macht sie vergleichbar, nicht wahr. Es gibt bewusst <strong>keine Rangliste</strong>:
+  die Werte stehen nebeneinander, die Auswahl trifft ein Mensch.</p>
+</div>
+
+<!-- ========== 1 MATCH ========== -->
+<section>
+  <div class="sechead">
+    <span class="kicker">Laufart 1 · match</span>
+    <h2>Die Partie: KI gegen KI</h2>
+  </div>
+  <p>Eine kanonische Partie über beide Slots, Metriken alle 50 Ticks, reine Beobachtung —
+  ein Lauf mit und ohne Trace liefert dieselbe Hash-Kette.</p>
+
+  <div class="tiles" id="matchtiles"></div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div class="legend" id="matchlegend"></div>
+  </div>
+
+  <div class="grid g3" id="matchcharts"></div>
+  <div class="note" id="matchnote"></div>
+</section>
+
+<!-- ========== 2 COMPARE ========== -->
+<section>
+  <div class="sechead">
+    <span class="kicker">Laufart 4 · compare</span>
+    <h2>Kandidatenprofile gegen die eingefrorene Referenz</h2>
+  </div>
+  <p>Jeder Kandidat spielt gegen <span class="mono">ms1-canonical</span>, in beiden
+  Fraktionsrollen — das hebt die Spawnreihenfolge auf. Die graue Linie ist die Referenz;
+  Balkenlänge ist Wert, nicht Güte. Mehr Credits ist nicht besser als weniger.</p>
+
+  <div class="grid g3" id="cmpcharts"></div>
+
+  <div class="card scroll" style="margin-top:12px">
+    <table id="cmptable"></table>
+  </div>
+  <div class="note" id="cmpnote"></div>
+</section>
+
+<!-- ========== 3 DUEL ========== -->
+<section>
+  <div class="sechead">
+    <span class="kicker">Laufart 2 · duel</span>
+    <h2>Die Gegentabelle, gemessen statt abgelesen</h2>
+  </div>
+  <p>AE-Parität statt Stückzahlparität, drei Startabstände, jede Paarung in beide Richtungen.
+  Zeile = die zuerst gespawnte Seite. Der Wert ist ihre Bilanz über die drei Abstände
+  (<span class="mono">Siege − Niederlagen</span>, Bereich −3…+3). Ein Feld anfahren zeigt die
+  Abstände einzeln.</p>
+
+  <div class="card">
+    <div class="legend" id="duellegend" style="margin-bottom:10px"></div>
+    <div class="scroll"><div id="heatmap"></div></div>
+  </div>
+  <div class="note" id="duelnote"></div>
+</section>
+
+<!-- ========== 4 SIEGE ========== -->
+<section>
+  <div class="sechead">
+    <span class="kicker">Laufart 2 · Belagerungsstaffel</span>
+    <h2>Womit reisst man eine Basis ein</h2>
+  </div>
+  <p>Gebäude schiessen nicht zurück — ausser der <span class="mono">DefensePlatform</span>.
+  Gemessen wird deshalb die Zeit bis zum Abriss, gegen das eigene Fraktionsgebäude,
+  Staffel <em>Berührung</em>.</p>
+
+  <div class="card">
+    <div class="legend" id="siegelegend" style="margin-bottom:10px"></div>
+    <div id="siegechart"></div>
+  </div>
+  <div class="note" id="siegenote"></div>
+</section>
+
+<!-- ========== 5 MOVEMENT ========== -->
+<section>
+  <div class="sechead">
+    <span class="kicker">Laufart 3 · movement</span>
+    <h2>Bewegung: vier Szenarien</h2>
+  </div>
+  <p>Hindernisse sind Daten, nicht Code: eine Fussabdruckliste, eine Gruppe, ein Befehl.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="chart-title">Überlauf im Szenario <span class="mono">standoff</span></div>
+      <div class="chart-sub">Fernkämpfer mit Angriffsbefehl — Zellen, die sie über ihre eigene Reichweite hinaus vorrücken</div>
+      <div id="standoffchart"></div>
+      <div class="note" id="standoffnote"></div>
+    </div>
+    <div class="card scroll">
+      <div class="chart-title">Alle Szenarien</div>
+      <div class="chart-sub">gemessene Rohwerte je Fraktion</div>
+      <table id="movetable"></table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p><b>Reproduktion.</b> Alle Zahlen dieser Seite stammen aus vier Kommandos:</p>
+  <pre id="repro"></pre>
+  <p id="footmeta"></p>
+</footer>
+
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script id="labdata" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('labdata').textContent);
+const NS = 'http://www.w3.org/2000/svg';
+const tip = document.getElementById('tip');
+const fmt = n => n.toLocaleString('de-DE');
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function svg(w, h, parent) {
+  const s = el('svg', {viewBox:`0 0 ${w} ${h}`, preserveAspectRatio:'xMidYMid meet'}, parent);
+  return s;
+}
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.style.opacity = 1;
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip() { tip.style.opacity = 0; }
+// Always returns ticks whose LAST value is >= max, so no mark ever escapes the
+// plot box and no end-label lands outside the card.
+function niceTicks(max, count) {
+  if (max <= 0) return [0, 1];
+  const raw = max / count, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1,2,2.5,5,10].map(m => m*mag).find(s => s >= raw) || 10*mag;
+  const out = [0];
+  while (out[out.length-1] < max - step*0.0001) out.push(out[out.length-1] + step);
+  return out.map(v => Math.round(v*1e6)/1e6);
+}
+
+/* ---------------- 1. MATCH ---------------- */
+const R = D.match.result, T = D.match.trace;
+const SLOT = [
+  {name:'Slot 0 · '+R.slots[0].faction, color:'var(--series-1)', short:'S0'},
+  {name:'Slot 1 · '+R.slots[1].faction, color:'var(--series-2)', short:'S1'}
+];
+
+document.getElementById('runmeta').innerHTML =
+  `Commit <code>${D.compare.commit.slice(0,8)}</code> · Definitionstabelle <code>${R.definitionsHash64}</code> ·
+   Seed <code>${R.seed}</code> · Tickbudget ${fmt(R.tickBudget)} · specVersion ${R.specVersion}`;
+
+document.getElementById('matchtiles').innerHTML = [
+  ['Ausgang', 'Sieg', `Slot ${R.winnerSlot} · ${R.slots[R.winnerSlot].faction} · Elimination`],
+  ['Entschieden bei Tick', fmt(R.decidedTick), `von ${fmt(R.tickBudget)} Budget`],
+  ['Rechenzeit', R.elapsedMilliseconds + ' ms', fmt(Math.round(R.finalTick/R.elapsedMilliseconds*1000)) + ' Ticks/s'],
+  ['Metrikproben', fmt(R.traceSamples), `alle ${R.traceIntervalTicks} Ticks`],
+  ['Hash-Kette', fmt(R.hashChainEntries), `alle ${R.hashIntervalTicks} Ticks`],
+  ['Endzustands-Hash', `<span class="mono" style="font-size:13px">${R.finalStateHash}</span>`,
+   `bei Tick ${fmt(R.finalTick)}`]
+].map(([l,v,s]) => `<div class="card tile"><div class="lbl">${l}</div>
+   <div class="val">${v}</div><div class="sub mono">${s}</div></div>`).join('');
+
+document.getElementById('matchlegend').innerHTML =
+  SLOT.map(s => `<span class="key"><i style="background:${s.color}"></i>${s.name}</span>`).join('') +
+  `<span style="color:var(--muted);font-size:12.5px">x-Achse: Tick 0 – ${fmt(R.finalTick)} · alle Werte ganzzahlig, kein Float verlässt die Simulation</span>`;
+
+function lineChart(host, title, sub, seriesVals, fmtVal) {
+  const W = 340, H = 176, ml = 44, mr = 50, mt = 10, mb = 22;
+  const pw = W - ml - mr, ph = H - mt - mb;
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+  wrap.innerHTML = `<div class="chart-title">${title}</div><div class="chart-sub">${sub}</div>`;
+  host.appendChild(wrap);
+  const s = svg(W, H, wrap);
+  const xs = T.ticks, n = xs.length, xmax = xs[n-1];
+  let ymax = 0; seriesVals.forEach(v => v.forEach(y => { if (y > ymax) ymax = y; }));
+  const ticks = niceTicks(ymax || 1, 3);
+  const top = ticks[ticks.length-1] || 1;
+  const X = t => ml + (t/xmax)*pw;
+  const Y = v => mt + ph - (v/top)*ph;
+
+  ticks.forEach(t => {
+    el('line', {class:'gridline', x1:ml, x2:ml+pw, y1:Y(t), y2:Y(t)}, s);
+    el('text', {class:'tick', x:ml-7, y:Y(t)+3.5, 'text-anchor':'end'}, s).textContent =
+      t >= 1000 ? (t/1000).toLocaleString('de-DE')+'k' : fmt(t);
+  });
+  el('line', {class:'axisline', x1:ml, x2:ml+pw, y1:mt+ph, y2:mt+ph}, s);
+  [0, xmax].forEach((t,i) => {
+    el('text', {class:'tick', x:X(t), y:H-5, 'text-anchor':i?'end':'start'}, s).textContent =
+      i ? fmt(t) : '0';
+  });
+
+  seriesVals.forEach((vals, i) => {
+    const d = vals.map((v,k) => `${k?'L':'M'}${X(xs[k]).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+    el('path', {d, fill:'none', stroke:SLOT[i].color, 'stroke-width':2,
+      'stroke-linejoin':'round', 'stroke-linecap':'round'}, s);
+    const last = vals[vals.length-1];
+    el('circle', {cx:X(xmax), cy:Y(last), r:4, fill:SLOT[i].color,
+      stroke:'var(--surface)', 'stroke-width':2}, s);
+    el('text', {class:'endlab', x:X(xmax)+8, y:Y(last)+3.5}, s).textContent = (fmtVal||fmt)(last);
+  });
+
+  const cross = el('line', {class:'crosshair', y1:mt, y2:mt+ph, opacity:0}, s);
+  const dots = seriesVals.map((_,i) =>
+    el('circle', {r:4.5, fill:SLOT[i].color, stroke:'var(--surface)', 'stroke-width':2, opacity:0}, s));
+  const hit = el('rect', {class:'hitrect', x:ml, y:mt, width:pw, height:ph}, s);
+  hit.addEventListener('mousemove', ev => {
+    const box = s.getBoundingClientRect();
+    const px = (ev.clientX - box.left) / box.width * W;
+    let k = Math.round((px - ml)/pw * (n-1)); k = Math.max(0, Math.min(n-1, k));
+    cross.setAttribute('x1', X(xs[k])); cross.setAttribute('x2', X(xs[k])); cross.setAttribute('opacity', 1);
+    seriesVals.forEach((v,i) => {
+      dots[i].setAttribute('cx', X(xs[k])); dots[i].setAttribute('cy', Y(v[k]));
+      dots[i].setAttribute('opacity', 1);
+    });
+    showTip(ev, `<b>Tick ${fmt(xs[k])}</b><br>` + seriesVals.map((v,i) =>
+      `<span class="r"><span style="color:${SLOT[i].color}">■</span> ${SLOT[i].name}: <b>${fmt(v[k])}</b></span>`).join('<br>'));
+  });
+  hit.addEventListener('mouseleave', () => {
+    cross.setAttribute('opacity', 0); dots.forEach(d => d.setAttribute('opacity', 0)); hideTip();
+  });
+}
+
+const mc = document.getElementById('matchcharts');
+const S0 = T.slots[0], S1 = T.slots[1];
+lineChart(mc, 'Credits', 'Kassenstand je Slot', [S0.credits, S1.credits]);
+lineChart(mc, 'Armeegrösse', 'lebende Kampfeinheiten', [S0.armySize, S1.armySize]);
+lineChart(mc, 'Verluste, kumuliert', 'verlorene Einheiten seit Tick 0', [S0.unitsLost, S1.unitsLost]);
+lineChart(mc, 'Harvester', 'Erntefahrzeuge im Feld', [S0.harvesters, S1.harvesters]);
+lineChart(mc, 'Gebäude', 'fertiggestellt, alle Rollen', [S0.buildings, S1.buildings]);
+lineChart(mc, 'Sichtbare Feindeinheiten', 'in der committed Team-Sicht', [S0.visibleEnemyUnits, S1.visibleEnemyUnits]);
+
+const rej0 = S0.intentsRejected[S0.intentsRejected.length-1];
+const rej1 = S1.intentsRejected[S1.intentsRejected.length-1];
+const sub0 = S0.intentsSubmitted[S0.intentsSubmitted.length-1];
+const sub1 = S1.intentsSubmitted[S1.intentsSubmitted.length-1];
+document.getElementById('matchnote').innerHTML =
+  `<b>Verworfene Intents:</b> ${fmt(rej0)} von ${fmt(sub0)} (Slot 0) und ${fmt(rej1)} von ${fmt(sub1)} (Slot 1).
+   Diese Spalte ist die unterschätzte — sie zeigt, wo die KI gegen Executor-Regeln anrennt, und ist
+   überall sonst stumm, weil <span class="mono">Submit()</span> das Verdikt nicht auswertet.
+   <br><b>Der Seed ändert die Partie nicht.</b> Kein Simulationssystem zieht aus dem Kernel-PRNG;
+   der Seed geht in Zustands-Hash und Snapshot, sonst nirgendwohin. Ein Sweep über 24 Seeds
+   ist <em>eine</em> Beobachtung.`;
+
+/* ---------------- 2. COMPARE ---------------- */
+const CAND = D.compare.candidates;
+const REFID = CAND[0].profileId;
+const ref = CAND[0];
+
+function barChart(host, title, sub, key, fmtVal, refVal) {
+  const rowH = 26, ml = 108, mr = 52, mt = 6, W = 340;
+  const H = mt + CAND.length*rowH + 16;
+  const pw = W - ml - mr;
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+  wrap.innerHTML = `<div class="chart-title">${title}</div><div class="chart-sub">${sub}</div>`;
+  host.appendChild(wrap);
+  const s = svg(W, H, wrap);
+  const max = Math.max(...CAND.map(c => c[key]), refVal) || 1;
+  const X = v => (v/max)*pw;
+
+  CAND.forEach((c, i) => {
+    const y = mt + i*rowH, v = c[key], bh = 13;
+    const isRef = c.profileId === REFID;
+    el('text', {class:'rowlab', x:ml-8, y:y+bh/2+4.5, 'text-anchor':'end',
+      'font-weight': isRef ? 620 : 400}, s).textContent = c.profileId;
+    const w = Math.max(X(v), v > 0 ? 3 : 0);
+    const r = el('rect', {x:ml, y:y+2, width:w, height:bh, rx:4, ry:4,
+      fill: isRef ? 'var(--muted)' : 'var(--series-1)'}, s);
+    // square the baseline end
+    if (w > 4) el('rect', {x:ml, y:y+2, width:4, height:bh, fill: isRef ? 'var(--muted)' : 'var(--series-1)'}, s);
+    el('text', {class:'vallab', x:ml+w+7, y:y+bh/2+4.5}, s).textContent = (fmtVal||fmt)(v);
+    const hit = el('rect', {class:'hitrect', x:0, y:y, width:W, height:rowH}, s);
+    const delta = refVal ? Math.round((v-refVal)/refVal*100) : null;
+    hit.addEventListener('mousemove', ev => showTip(ev,
+      `<b>${c.profileId}</b>${isRef?' <span class="r">(Referenz)</span>':''}<br>
+       <span class="r">${title}: <b>${(fmtVal||fmt)(v)}</b>${
+         (!isRef && delta !== null && isFinite(delta)) ? ` (${delta>0?'+':''}${delta}% zur Referenz)` : ''}</span><br>
+       <span class="r">geändert: ${c.changes || '—'}</span>`));
+    hit.addEventListener('mouseleave', hideTip);
+  });
+  if (refVal > 0) {
+    el('line', {x1:ml+X(refVal), x2:ml+X(refVal), y1:mt-2, y2:mt+CAND.length*rowH,
+      stroke:'var(--axis)', 'stroke-width':1, 'stroke-dasharray':'0'}, s);
+  }
+  el('line', {class:'axisline', x1:ml, x2:ml, y1:mt-2, y2:mt+CAND.length*rowH}, s);
+}
+
+const cc = document.getElementById('cmpcharts');
+barChart(cc, 'Siegquote', '2 Partien je Kandidat, beide Fraktionsrollen', 'winPercent', v => v+'%', ref.winPercent);
+barChart(cc, 'Entscheidungstick', 'wann die Partie fiel — schneller ist nicht besser', 'averageDecidedTick', fmt, ref.averageDecidedTick);
+barChart(cc, 'Credits', 'Durchschnitt am Ende', 'averageCredits', fmt, ref.averageCredits);
+barChart(cc, 'Armeegrösse', 'Durchschnitt am Ende', 'averageArmySize', fmt, ref.averageArmySize);
+barChart(cc, 'Verlorene Einheiten', 'Durchschnitt über beide Partien', 'averageUnitsLost', fmt, ref.averageUnitsLost);
+barChart(cc, 'Eingereichte Intents', 'Befehlsaufkommen der KI', 'intentsSubmitted', fmt, ref.intentsSubmitted);
+
+const th = ['Kandidat','geändert gegen Referenz','Sieg %','S/N/U','Entsch. Tick','Credits','Armee','verloren','Intents','verworfen'];
+document.getElementById('cmptable').innerHTML =
+  '<thead><tr>' + th.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>' +
+  CAND.map(c => {
+    const isRef = c.profileId === REFID;
+    const d = (v, r) => (isRef || !r) ? '' : ` <span style="color:var(--muted);font-size:11px">${v>r?'+':''}${Math.round((v-r)/r*100)}%</span>`;
+    return `<tr class="${isRef?'ref':''}"><td><b>${c.profileId}</b>${isRef?' <span style="color:var(--muted);font-weight:400">Referenz</span>':''}</td>
+      <td style="color:var(--muted);white-space:normal">${c.changes || '—'}</td>
+      <td>${c.winPercent}%</td><td>${c.wins}/${c.losses}/${c.draws}</td>
+      <td>${fmt(c.averageDecidedTick)}${d(c.averageDecidedTick, ref.averageDecidedTick)}</td>
+      <td>${fmt(c.averageCredits)}${d(c.averageCredits, ref.averageCredits)}</td>
+      <td>${c.averageArmySize}${d(c.averageArmySize, ref.averageArmySize)}</td>
+      <td>${c.averageUnitsLost}${d(c.averageUnitsLost, ref.averageUnitsLost)}</td>
+      <td>${fmt(c.intentsSubmitted)}</td><td>${c.intentsRejected}</td></tr>`;
+  }).join('') + '</tbody>';
+
+document.getElementById('cmpnote').innerHTML =
+  `<b>Was hier <em>nicht</em> steht.</b> Keine Spalte ist zu einer Note verrechnet und nichts ist
+   nach Güte sortiert. Eine einzelne Zahl belohnt zuverlässig das Falsche — eine KI, die 5 %
+   häufiger gewinnt, weil sie den Gegner mit Bauarbeitern zumüllt, ist keine bessere KI.
+   <br><b>${D.compare.seeds.length} Seed${D.compare.seeds.length>1?'s':''} je Kandidat</b> —
+   die Seed-Achse ist heute leer (siehe oben), also sind das ${CAND[0].matches} Partien je Kandidat,
+   nicht ${CAND[0].matches} unabhängige Stichproben.`;
+
+/* ---------------- 3. DUEL HEATMAP ---------------- */
+const U = D.duel.units;
+const cellOf = {};
+D.duel.cells.forEach(c => cellOf[c.a + '|' + c.b] = c);
+const RANGE_DE = {Contact:'Berührung', LongestWeapon:'Waffenreichweite', OutOfSight:'ausser Sicht'};
+const divVar = v => v === 0 ? 'var(--div-0)' : (v > 0 ? `var(--div-p${Math.min(3,v)})` : `var(--div-n${Math.min(3,-v)})`);
+
+(function heatmap() {
+  // mr carries the rotated label of the LAST column, which extends up and to the right.
+  const cs = 36, ml = 132, mt = 116, mr = 96, mb = 8;
+  const W = ml + U.length*cs + mr, H = mt + U.length*cs + mb;
+  const host = document.getElementById('heatmap');
+  host.style.minWidth = W + 'px';
+  const s = svg(W, H, host);
+
+  U.forEach((u, j) => {
+    const x = ml + j*cs + cs/2;
+    const t = el('text', {class:'rowlab', x:x, y:mt-8, 'text-anchor':'start',
+      transform:`rotate(-55 ${x} ${mt-8})`}, s);
+    t.textContent = u;
+  });
+  U.forEach((u, i) => {
+    el('text', {class:'rowlab', x:ml-9, y:mt + i*cs + cs/2 + 4, 'text-anchor':'end'}, s).textContent = u;
+  });
+
+  U.forEach((a, i) => U.forEach((b, j) => {
+    const c = cellOf[a + '|' + b];
+    const v = c.w - c.l;
+    const x = ml + j*cs, y = mt + i*cs;
+    el('rect', {x:x+1, y:y+1, width:cs-2, height:cs-2, rx:3, fill:divVar(v)}, s);
+    const txt = el('text', {class:'cellnum ' + (Math.abs(v) >= 2 ? 'on-strong' : 'on-weak'),
+      x:x+cs/2, y:y+cs/2+3.5, 'text-anchor':'middle'}, s);
+    txt.textContent = c.nc === 3 ? '·' : (v > 0 ? '+'+v : v);
+    if (c.nc > 0 && c.nc < 3) {
+      el('circle', {cx:x+cs-6, cy:y+6, r:2.5, fill:'var(--warning)'}, s);
+    }
+    const hit = el('rect', {class:'hitrect', x:x, y:y, width:cs, height:cs}, s);
+    hit.addEventListener('mousemove', ev => {
+      const rows = ['Contact','LongestWeapon','OutOfSight'].map(r => {
+        const d = c.ranges[r]; if (!d) return '';
+        const who = d.winner === 0 ? `<b>${a}</b>` : d.winner === 1 ? `<b>${b}</b>` : 'unentschieden';
+        return `<span class="r">${RANGE_DE[r]}: ${who}${d.noContact ? ' — <span style="color:var(--warning)">kein Kontakt</span>'
+          : d.winner < 0 ? ' (Tickbudget aus)' : ` nach ${fmt(d.tick)} Ticks, ${d.winner===0?d.survA:d.survB} übrig`}</span>`;
+      }).join('<br>');
+      showTip(ev, `<b>${a}</b> zuerst gespawnt<br>gegen <b>${b}</b><br>
+        <span class="r">Bilanz ${v > 0 ? '+'+v : v} · ${c.w} S / ${c.l} N / ${c.u} offen</span><br>${rows}`);
+    });
+    hit.addEventListener('mouseleave', hideTip);
+  }));
+})();
+
+document.getElementById('duellegend').innerHTML =
+  `<span style="font-size:12.5px;color:var(--ink2)">Zeile gewinnt</span>` +
+  [3,2,1,0,-1,-2,-3].map(v =>
+    `<span class="key sw" style="gap:4px"><i style="background:${divVar(v)};border:1px solid var(--hair)"></i>
+     <span style="font-size:11.5px;font-variant-numeric:tabular-nums">${v>0?'+'+v:v}</span></span>`).join('') +
+  `<span style="font-size:12.5px;color:var(--ink2)">Spalte gewinnt</span>
+   <span class="key" style="margin-left:10px"><i style="width:8px;height:8px;border-radius:50%;background:var(--warning)"></i>
+   <span style="font-size:12.5px">kein Kontakt in mindestens einem Abstand</span></span>
+   <span class="key"><span class="mono" style="font-size:13px">·</span>
+   <span style="font-size:12.5px">in keinem Abstand Kontakt</span></span>`;
+
+const dc = D.duel.counts;
+document.getElementById('duelnote').innerHTML =
+  `<b>${fmt(dc.total)} Duelle in Sekunden</b> — ${dc.decided} entschieden, ${dc.timeout} liefen ins Tickbudget.
+   Budget je Seite ${fmt(D.duel.budget)} AE, die Stückzahl folgt daraus.
+   <br><b>Der auffälligste Befund ist eine leere Zeile.</b> Artillerie gewinnt 4 von 36 (Allianz) und
+   2 von 36 (Legion) — und in 12 von 36 Duellen fällt kein einziger Schuss. Alle ${dc.noContact}
+   kontaktlosen Duelle liegen in der Staffel <em>Waffenreichweite</em>: Artillerie schiesst 20 bzw. 18
+   Tiles weit, die Standardsichtweite liegt bei 10. Ohne Aufklärung kann sie ihre Reichweite nicht
+   benutzen. Das ist ein echter Balance-Befund, kein Messfehler — <span class="mono">CombatSystem</span>
+   verlangt das Ziel als sichtbar in der committed Team-Sicht.
+   <br><b>38 Richtungsabweichungen</b> — Paarungen, bei denen A-gegen-B anders ausgeht als B-gegen-A.
+   33 davon sind Spiegelpaarungen (dieselbe Rolle gegen sich selbst): dort entscheidet die
+   dokumentierte Duell-Asymmetrie, bei gegenseitigem Kill im selben Tick gewinnt der niedrigere
+   Entity-Index. Bleiben <b>5 echte Rollenpaarungen</b>, die so knapp sind, dass die Spawnreihenfolge
+   sie kippt. Das gehört in den Bericht, nicht wegkalibriert.
+   <br><b>${dc.wobble} Paarungen</b> liessen über 10 % eines Budgets ungenutzt — dort wackelt die
+   AE-Parität selbst, ihr Ausgang ist schwaches Material.`;
+
+/* ---------------- 4. SIEGE ---------------- */
+(function siege() {
+  const BUILD = ['Power','Barracks','DefensePlatform'];
+  const BCOL = ['var(--series-1)','var(--series-2)','var(--series-3)'];
+  const rows = {};
+  D.siege.forEach(r => {
+    if (r.range !== 'Contact') return;
+    if (r.a.slice(0,3) !== r.b.slice(0,3)) return;   // eigenes Fraktionsgebäude
+    (rows[r.a] = rows[r.a] || {})[r.b.split('.')[1]] = r;
+  });
+  const atk = Object.keys(rows).sort();
+  const max = Math.max(...D.siege.filter(r => r.range==='Contact' && r.tick).map(r => r.tick));
+  const ml = 150, mr = 56, mt = 22, gh = 15, gap = 3, rowH = BUILD.length*(gh+gap) + 14;
+  const W = 1000, pw = W - ml - mr, H = mt + atk.length*rowH + 26;
+  const host = document.getElementById('siegechart');
+  host.style.minWidth = '760px';
+  const s = svg(W, H, host);
+
+  const xt = niceTicks(max, 5);
+  xt.forEach(t => {
+    const x = ml + t/max*pw;
+    el('line', {class:'gridline', x1:x, x2:x, y1:mt-6, y2:mt + atk.length*rowH}, s);
+    el('text', {class:'tick', x:x, y:mt-11, 'text-anchor':'middle'}, s).textContent = fmt(t);
+  });
+  el('text', {class:'tick', x:ml, y:H-6}, s).textContent = 'Ticks bis zum Abriss →';
+
+  atk.forEach((a, i) => {
+    const y0 = mt + i*rowH;
+    el('text', {class:'rowlab', x:ml-10, y:y0 + rowH/2 - 2, 'text-anchor':'end'}, s).textContent = a;
+    BUILD.forEach((b, k) => {
+      const r = rows[a][b]; if (!r) return;
+      const y = y0 + k*(gh+gap);
+      const w = Math.max(r.tick/max*pw, 3);
+      el('rect', {x:ml, y:y, width:w, height:gh, rx:4, fill:BCOL[k]}, s);
+      el('rect', {x:ml, y:y, width:Math.min(4,w), height:gh, fill:BCOL[k]}, s);
+      const lost = r.countA - r.survA;
+      el('text', {class:'vallab', x:ml+w+7, y:y+gh/2+4}, s).textContent =
+        fmt(r.tick) + (lost ? ` · ${lost} verloren` : '');
+      const hit = el('rect', {class:'hitrect', x:0, y:y-1, width:W, height:gh+2}, s);
+      hit.addEventListener('mousemove', ev => showTip(ev,
+        `<b>${a}</b> gegen <b>${b}</b><br>
+         <span class="r">${fmt(r.tick)} Ticks bis zum Abriss</span><br>
+         <span class="r">${r.countA} Einheiten für ${fmt(r.spentA)} AE, ${r.survA} überlebten</span>`));
+      hit.addEventListener('mouseleave', hideTip);
+    });
+  });
+  document.getElementById('siegelegend').innerHTML =
+    BUILD.map((b,k) => `<span class="key sw"><i style="background:${BCOL[k]}"></i>${b}</span>`).join('') +
+    `<span style="color:var(--muted);font-size:12.5px">Wert am Balkenende: Ticks · eigene Verluste</span>`;
+})();
+
+(function siegeNote() {
+  const contact = D.siege.filter(r => r.range === 'Contact');
+  const weapon  = D.siege.filter(r => r.range === 'LongestWeapon');
+  const wd = weapon.filter(r => r.decided).length;
+  document.getElementById('siegenote').innerHTML =
+    `<b>Diese Staffel läuft NICHT auf AE-Parität</b> — anders als die Einheitenduelle. Jeder
+     Angreifer stellt sechs Einheiten <em>seiner</em> Kosten, die Balkenlängen sind deshalb
+     untereinander nicht direkt vergleichbar: Die AE-Zahl gehört zur Tickzahl dazu.
+     <br><b>Explosiv liegt über dem Matrixwert, aber nicht um Faktor 12.</b> Die Gegenmatrix
+     lässt zwischen Kinetik (30 % gegen <span class="mono">Building</span>) und Explosiv (75 %)
+     einen Faktor 2,5 erwarten. Legion-<span class="mono">BasicInfantry</span> braucht 632 Ticks
+     für die eigene Barracks und setzt dafür 360 AE ein, die
+     <span class="mono">AntiArmorInfantry</span> 52 Ticks für 1.200 AE. Das sind 12,2× an reiner
+     Zeit — <b>je eingesetztem AE aber 3,65×</b>. Auch das liegt über der Matrix, weil
+     Nachladezeit und Gebäude-Lebenspunkte dazukommen; die 12 allein wären ein Vergleich
+     zwischen zwei verschieden grossen Geldbeuteln.
+     <br><b>Die <span class="mono">DefensePlatform</span> schiesst zurück</b> — sie ist die einzige,
+     die das tut, und sie kostet den Angreifer sichtbar Einheiten (Wert am Balkenende).
+     <br><b>Nur ${wd} von ${weapon.length} Belagerungen auf Waffenreichweite wurden entschieden</b>,
+     gegen ${contact.filter(r=>r.decided).length} von ${contact.length} auf Berührung. Dieselbe Ursache
+     wie in der Gegentabelle: ohne Sicht kein Feuer.`;
+})();
+
+/* ---------------- 5. MOVEMENT ---------------- */
+(function movement() {
+  const M = D.movement;
+  const so = M.filter(r => r.scenario === 'Standoff');
+  const W = 460, ml = 118, mr = 152, mt = 16, rowH = 42;
+  const H = mt + so.length*rowH + 8, pw = W - ml - mr;
+  const max = Math.max(...so.map(r => r.attackRangeCells));
+  const host = document.getElementById('standoffchart');
+  const s = svg(W, H, host);
+
+  so.forEach((r, i) => {
+    const y = mt + i*rowH, bh = 15;
+    el('text', {class:'rowlab', x:ml-9, y:y+bh/2+4, 'text-anchor':'end'}, s).textContent =
+      r.faction + ' ' + r.role;
+    // Drei Bänder statt zwei, weil zwei die falsche Geschichte erzählen:
+    // nominale Reichweite (hell) > nutzbare Reichweite (Feuereröffnung) >
+    // Überlauf (rot). Der Abstand zwischen Band 1 und Band 2 gehört der Sicht,
+    // nicht der Bewegung — nur Band 3 kann Verhaltensarbeit zurückholen.
+    // Die Baender sind ineinander gezeichnet, deshalb muessen sie sich in der
+    // HOEHE unterscheiden: heute ist der Ueberlauf exakt so gross wie die
+    // nutzbare Reichweite (7 == 7), ein gleich hohes Band waere vollstaendig
+    // verdeckt. 4px Rand je Seite halten es sichtbar, bis Verhaltensarbeit
+    // den roten Balken schrumpfen laesst — dann trennen sie sich von selbst.
+    el('rect', {x:ml, y:y-8, width:pw*r.attackRangeCells/max, height:bh+16, rx:5, fill:'var(--div-0)'}, s);
+    const usable = r.firstContactDistanceCells >= 0 ? r.firstContactDistanceCells : 0;
+    el('rect', {x:ml, y:y-4, width:Math.max(pw*usable/max,3), height:bh+8, rx:4, fill:'var(--seq-2)'}, s);
+    const w = pw*r.usableRangeOvershootCells/max;
+    el('rect', {x:ml, y:y, width:Math.max(w,3), height:bh, rx:4, fill:'var(--critical)'}, s);
+    el('text', {class:'vallab', x:ml+pw*r.attackRangeCells/max+8, y:y+bh/2+4}, s).textContent =
+      `${r.usableRangeOvershootCells} von ${usable} nutzbaren Zellen`;
+    el('text', {class:'tick', x:ml, y:y+bh+14}, s).textContent =
+      `Reichweite ${r.attackRangeCells} · Sicht ${r.sightRadiusCells} · Feuer ab ${usable} · ` +
+      `nächster Abstand ${r.closestApproachCells} Zellen`;
+  });
+  el('line', {class:'axisline', x1:ml, x2:ml, y1:mt-4, y2:mt+so.length*rowH-8}, s);
+
+  document.getElementById('standoffnote').innerHTML =
+    `Der helle Track ist die nominale <span class="mono">AttackRange</span>, der mittlere die
+     Entfernung, auf der tatsächlich das erste Mal Schaden fiel, der rote Balken der Teil davon,
+     den die Einheiten überrennen. <b>Nur der rote Balken ist Issue 03.</b> Der Abstand zwischen
+     hellem und mittlerem Band gehört der Aufklärung: Sicht ist 10 Zellen, die Artillerie reicht
+     20, und <span class="mono">CombatSystem</span> verlangt das Ziel als sichtbar. Ein Kontrolllauf,
+     der die Gruppe auf voller Reichweite stoppen liess, richtete über 2.000 Ticks null Schaden an —
+     „auf Reichweite stehenbleiben" wäre also keine Verbesserung, sondern eine wirkungslose Waffe.
+     <span style="color:var(--muted)">Zwei Fraktionen, zwei Balken: die Werte sind absichtlich
+     asymmetrisch (Allianz 20, Legion 18 Tiles).</span>`;
+
+  const cols = [
+    ['Szenario','scenario'],['Fraktion','faction'],['Rolle','role'],
+    ['Gruppe','groupSize'],['angekommen','arrived'],['erster/letzter','_first'],
+    ['Streuung','spreadCells'],['Weg','travelledCells'],['Luftlinie','straightLineCells'],
+    ['blockiert','_block'],['Durchlass','_gap'],['Überlauf (nutzbar)','usableRangeOvershootCells']
+  ];
+  document.getElementById('movetable').innerHTML =
+    '<thead><tr>' + cols.map(c => `<th>${c[0]}</th>`).join('') + '</tr></thead><tbody>' +
+    M.map(r => '<tr>' + cols.map(c => {
+      let v;
+      if (c[1] === '_first') v = r.arrived ? `${r.ticksToFirstArrival}/${r.ticksToLastArrival}` : '—';
+      else if (c[1] === '_block') v = r.scenario === 'Blocking'
+        ? `${r.blockedUnits} Einh. · ${r.longestSingleBlockTicks} Ticks` : '—';
+      // Der Durchlass wird aus dem CostField zurueckgemessen, nicht angenommen:
+      // eine Mauer mit einem zweiten, unbemerkten Loch macht "niemand blockiert"
+      // zu einer Eigenschaft des Aufbaus statt des Bewegungscodes.
+      else if (c[1] === '_gap') v = r.wallGapCells > 0
+        ? `${r.wallGapCells} Zellen @ y=${r.wallGapStartCell}` : '—';
+      else v = r[c[1]];
+      if (v === 0 && ['straightLineCells','usableRangeOvershootCells','travelledCells'].includes(c[1])) v = '—';
+      const flag = (c[1] === 'usableRangeOvershootCells' && r.usableRangeOvershootCells > 0)
+        || (c[1] === 'arrived' && r.arrived === 0 && r.scenario !== 'Standoff');
+      return `<td class="${flag?'flag':''}">${v}</td>`;
+    }).join('') + '</tr>').join('') + '</tbody>';
+})();
+
+/* ---------------- FOOTER ---------------- */
+document.getElementById('repro').textContent =
+`export DOTNET_ROOT="$PWD/.dotnet"; export PATH="$DOTNET_ROOT:$PATH"
+dotnet run --project tools/Nova.AiLab -c Release -- match --trace-every 50 --hash-every 500 --view-every 25 --fog --out tools/Nova.AiLab/out/match
+dotnet run --project tools/Nova.AiLab -c Release -- duel     --out tools/Nova.AiLab/out/duel
+dotnet run --project tools/Nova.AiLab -c Release -- movement --out tools/Nova.AiLab/out/movement
+dotnet run --project tools/Nova.AiLab -c Release -- compare  --out tools/Nova.AiLab/out/compare`;
+
+document.getElementById('footmeta').innerHTML =
+  `Nova.AiLab ist lokales Werkzeug, kein Beitrag — es gerät in keinen <span class="mono">feat/</span>-Branch
+   und wird nie gemergt. Ergebnismenge gebunden an Commit <span class="mono">${D.compare.commit.slice(0,8)}</span>,
+   Definitionstabelle <span class="mono">${D.compare.definitionsHash64}</span>, specVersion ${D.compare.specVersion}.
+   Nach dem nächsten Merge-Fenster des Maintainers sind diese Zahlen nicht mehr vergleichbar und werden neu vermessen.
+   <br><em>${D.compare.evidence}</em>`;
+</script>
+</body>
+</html>

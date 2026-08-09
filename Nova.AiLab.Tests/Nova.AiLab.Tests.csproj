@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Nova.AiLab.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <DefineConstants>$(DefineConstants);NOVA_FIXED_POINT</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Same checkout the lab itself measures — see Nova.AiLab.csproj for why
+       this is a property and not a fixed path. -->
+  <PropertyGroup>
+    <NovaRepo Condition="'$(NovaRepo)' == ''">$(MSBuildThisFileDirectory)..\..\Project_Nova</NovaRepo>
+    <NovaScripts>$(NovaRepo)\Assets\_Project\Scripts</NovaScripts>
+  </PropertyGroup>
+
+  <Target Name="NovaRepoExists" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(NovaScripts)')"
+           Text="NovaRepo does not point at a Project Nova checkout: '$(NovaRepo)' has no Assets/_Project/Scripts." />
+  </Target>
+
+  <ItemGroup>
+    <Compile Include="$(NovaScripts)\Core\**\*.cs" Link="Core\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(NovaScripts)\Simulation\**\*.cs" Link="Simulation\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(NovaScripts)\AI\**\*.cs" Link="AI\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(NovaScripts)\AI.Data\**\*.cs" Link="AI.Data\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The lab under test, folder by folder (Match/, Metrics/, View/, Sweep/,
+         Duel/, Movement/, Compare/). Three exclusions, all load-bearing:
+         Program.cs is the entry point and would collide with the test host,
+         Cli/ is argument plumbing around that same entry point, and obj/ holds
+         generated AssemblyInfo.cs — pulling it in fails the build with
+         duplicate assembly attributes (CS0579). -->
+    <Compile Include="..\Nova.AiLab\**\*.cs"
+             Exclude="..\Nova.AiLab\bin\**\*.cs;..\Nova.AiLab\obj\**\*.cs;..\Nova.AiLab\Program.cs;..\Nova.AiLab\Cli\**\*.cs"
+             Link="AiLab\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="4.2.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+
+</Project>
