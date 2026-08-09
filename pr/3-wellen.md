@@ -100,7 +100,6 @@ Kette, und kündigt sich die zweite Welle an.
 
 - [x] `dotnet test tools/Nova.SimRunner.Tests` lokal grün — **564/564**
 - [x] Zeile unter `[Unreleased]` in [CHANGELOG.md](../CHANGELOG.md)
-- [ ] ~~Echte Entscheidung getroffen? → D-ID~~ — keine Entscheidung dieser Art, gestrichen
 - [x] Bei Simulationsänderung: keine Determinismus-Baseline im selben PR geändert
 
 ## Externe Beiträge
