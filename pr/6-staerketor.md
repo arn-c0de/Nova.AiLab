@@ -31,7 +31,7 @@ KI: Die Welle misst Kampfstärke statt Kopfzahl (r6)
 ## Was & Warum
 
 **Problem:** Die Welle marschierte auf einer *Anzahl* gesammelter Einheiten, und eine
-Anzahl weiss nicht, was eine Einheit wert ist. Zwölf Allianz-Schützen wiegen 1200
+Anzahl weiß nicht, was eine Einheit wert ist. Zwölf Allianz-Schützen wiegen 1200
 Kampfpunkte, zwölf Legions-Rekruten 528 — dieselbe Regel, und die Legion greift mit
 44 % der Stärke an, die sie der Allianz gibt. Referenzpartie, Verlustspalte: 51 gegen 23.
 
@@ -163,9 +163,9 @@ weckt das Tor**. Eine frühere Fassung des Tests hätte genau das verschlafen.
 
 Dasselbe Binary, **ein** Profilwert Unterschied, je Zeile ist **ein** Sitz
 umgestellt. Heutige Auslieferung auf beiden Sitzen: Tick 5.773, Verluste 23 / 51,
-Austausch 221 / 45, grösste Armee 12 / 12.
+Austausch 221 / 45, größte Armee 12 / 12.
 
-| Sitz | Stellung | Tick | Sieger | eig. Verluste | Austausch | grösste Armee |
+| Sitz | Stellung | Tick | Sieger | eig. Verluste | Austausch | größte Armee |
 |---|---|---:|---|---:|---:|---:|
 | **Legion** | *(heute)* | 5.773 | Allianz | 51 | 45 | 12 |
 | **Legion** | Obergrenze 30 **allein** | 5.921 | Allianz | **64** | **34** | 16 |
