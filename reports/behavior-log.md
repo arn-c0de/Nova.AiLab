@@ -203,6 +203,11 @@ einzige zusätzlich (1/1/0, wie die Referenz).
 > Kopplung war also *eine* Ursache, nicht *die*. Was 18 von 20 unterscheidet,
 > ist unerklärt und darf im PR-Text nicht als erklärt auftauchen.
 
+> **„Kappe 20 ist die richtige Stellung."** Aus drei Stützpunkten geschlossen,
+> mit vierzehn widerlegt: 19 und 21 verlieren beide. 20 war ein Treffer, keine
+> Eigenschaft. Die tragfähige Grenze liegt bei 30 und folgt aus dem Schwellwert
+> (28 Rekruten + 2 Köpfe Bauluft), nicht aus dem Kurvenmaximum.
+
 > **„Ein Punktwert von 1200 lässt die Allianz unverändert."** Beim Schreiben
 > angenommen, im Labor gekippt: sobald die Kappe Luft lässt, zählen
 > **verwundete** Einheiten mit weniger Punkten, also braucht auch die Allianz
@@ -225,14 +230,73 @@ einzige zusätzlich (1/1/0, wie die Referenz).
 > die alte: ein Gleichheitspfad, der nicht Byte für Byte gleich ist, ist kein
 > Gleichheitspfad.
 
+### Die Kappenkurve, dicht abgetastet — und warum 30 nicht geraten ist
+
+Nachtrag desselben Tages. Drei Stützpunkte reichten nicht; hier sind vierzehn,
+alle einseitig gegen die heutige Auslieferung, je ein Sitz umgestellt.
+
+| Kappe | Legion: Tick | Sieger | eig. Verl. | Austausch | APM | Allianz: Tick | eig. Verl. | Austausch | APM |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| **12** *(heute)* | 5.773 | Allianz | 51 | 45 | 13 | 5.773 | 23 | 221 | 29 |
+| 16 | 5.958 | Allianz | 50 | 54 | 31 | 3.437 | 7 | 342 | 27 |
+| 18 | 17.908 | Allianz | 203 | 56 | 30 | 3.574 | 5 | 540 | 28 |
+| 19 | 11.021 | Allianz | 116 | 56 | 31 | 3.620 | 7 | 371 | 30 |
+| 20 | 5.599 | **Legion** | 42 | 64 | 34 | 3.677 | 7 | 357 | 32 |
+| 21 | 6.749 | Allianz | 70 | 40 | 35 | 3.761 | 7 | 371 | 34 |
+| 22 | 9.090 | **Legion** | 78 | 71 | 38 | 3.897 | 13 | 200 | 36 |
+| 24 | 17.350 | **Legion** | 178 | 69 | 35 | 3.914 | 12 | 225 | 39 |
+| 28 | 15.735 | **Legion** | 154 | 64 | 33 | 3.914 | 12 | 225 | 43 |
+| **30** | **5.005** | **Legion** | **23** | **139** | **29** | 3.914 | 12 | 225 | 46 |
+| 32 | 5.253 | **Legion** | 31 | 100 | 34 | 3.914 | 12 | 225 | 46 |
+| 34 | 8.784 | **Legion** | 75 | 86 | 41 | 3.914 | 12 | 225 | 47 |
+| 36 | 7.747 | **Legion** | 63 | 90 | 43 | 3.914 | 12 | 225 | 47 |
+| 40 / 48 | 7.747 | **Legion** | 63 | 90 | 49 / 54 | 3.914 | 12 | 225 | 47 |
+
+**20 ist eine Messerschneide, keine Stellung.** 19 verliert mit 116 eigenen
+Verlusten, 21 verliert mit 70 und einem Austausch von 40 — schlechter als heute.
+Wer aus dieser Nachbarschaft die 20 nimmt, hat eine Einzelpartie getroffen.
+
+**30 und 32 sind es nicht, und es gibt einen Grund dafür.** 1.200 Punkte sind
+**28 Legions-Rekruten** (27 sind 1.188, einer zu wenig). Unterhalb einer
+Obergrenze von 28 ist die Schwelle **unerreichbar**, der Deckel „was die
+Produktion noch liefern kann" bindet, und die Welle marschiert wieder auf
+Kopfzahl — nur auf eine grössere. Genau das sind die Zermürbungspartien bei 22,
+24 und 28 (78, 178 und 154 eigene Verluste). Bei 28 exakt bleibt kein Kopf übrig,
+um während des Sammelns weiterzubauen. **28 + 2 = 30** ist die kleinste Kappe,
+die beides freiräumt — und dort entscheidet die Legion **schneller als die
+heutige KI** (5.005 gegen 5.773) bei 23 statt 51 eigenen Verlusten und Austausch
+139 statt 45. Das ist eine Ableitung aus dem Schwellwert, keine Auswahl aus der
+Kurve.
+
+Nach oben hin steigt nur noch der Preis: die Allianz sättigt bei 23 Einheiten
+(gleiche Zahlen ab Kappe 24), aber ihre APM klettert weiter bis 47, weil der
+Produktionsschritt bei höherer Kappe unablässig nachlegt. Ab 40 ist die Kappe
+reine Intent-Erzeugung.
+
+### Der Fund, der die Obergrenze aus diesem PR heraushält
+
+> **`MatchRunner` liest `AiProfiles.Ms1Canonical` nicht.** Es konstruiert
+> `AiFactionProfile` mit vier eigenen Literalen, und `targetArmySize: 12` ist
+> eines davon (`MatchRunner.cs:252`). Der Wert in `AiProfiles` zu ändern hätte
+> das **Labor** verschoben und das **Spiel** genau so gelassen, wie es ist —
+> und den Kommentar „was MatchRunner heute ausliefert, Wert für Wert" zur Lüge
+> gemacht. Aufgefallen ist es, weil der gepinnte Endzustand nach der Änderung
+> **nicht** wanderte: `SkirmishAiTests.BuildMatch` spiegelt denselben
+> Vierzahl-Aufruf.
+>
+> `Scripts/Gameplay/Match/` ist Netzstrang und laut Arbeitsvertrag §2
+> ausdrücklich nicht anzufassen. Die Obergrenze ist damit eine **Rückfrage an
+> den Maintainer**, keine Änderung, die wir einreichen — eine Zeile in seiner
+> Datei. Die Zahlen dafür stehen oben.
+>
+> **Nebenbefund:** diese vier Zahlen können still auseinanderlaufen. Heute
+> stimmen sie mit `Ms1Canonical` überein, und nichts erzwingt das.
+
 ### Offen
 
-- **Welche Obergrenze.** Die Kurve auf dem Legionssitz ist nicht monoton
-  (16 verliert, 18 verliert schwer, 20/24/36 gewinnen), und es gibt nur einen
-  Seed — die Seed-Achse ist im Labor leer. Aus einer sprunghaften Kurve den
-  besten Punkt zu wählen ist Anpassung an eine Einzelpartie, nicht Messung.
-  Das ist eine menschliche Entscheidung und gehört in einen eigenen PR.
-- **Warum 18 einbricht.** Siehe „Widerlegt". Unerklärt.
+- **Die Obergrenze selbst.** Siehe oben — sie liegt in fremdem Terrain.
+- **Warum 18 einbricht.** Siehe „Widerlegt". Unerklärt, und 19 und 21 zeigen,
+  dass der ganze Bereich unter 22 unruhig ist.
 - **Immer noch keine gespielte Partie.** Alles hier ist Diagnose.
 - Der Punktwert kennt weder Panzerung noch Reichweite. Solange die KI reine
   Infanterie baut, ist das folgenlos; mit Fahrzeugen nicht mehr.

@@ -17,11 +17,16 @@
 Er gibt der Welle eine **Masseinheit**. Sie marschierte auf eine *Anzahl*
 gesammelter Einheiten, und eine Anzahl weiss nicht, was eine Einheit wert ist.
 
-**Mit der ausgelieferten Armeeobergrenze von 12 ändert er noch kein Verhalten.**
-Die kanonische Partie endet Byte für Byte wie bisher. Das ist keine Schwäche des
-PRs, das ist sein Zweck: **Wellengrösse und Produktionsobergrenze hängen danach
-nicht mehr an derselben Zahl** — und erst dann darf man an dieser Zahl drehen.
-Wer es umgekehrt macht, macht die Legion messbar schlechter (Zahlen unten).
+**Mit der ausgelieferten Armeeobergrenze von 12 ändert er noch kein Verhalten,
+und ein Test nagelt das fest.** Die kanonische Partie endet Byte für Byte wie
+bisher. Das ist keine Schwäche des PRs, das ist sein Zweck: **Wellengrösse und
+Produktionsobergrenze hängen danach nicht mehr an derselben Zahl** — und erst
+dann darf man an dieser Zahl drehen. Wer es umgekehrt macht, macht die Legion
+messbar schlechter (Zahlen unten).
+
+Die Obergrenze zu drehen ist allerdings **nicht unsere Zeile**: sie steht als
+Literal in `MatchRunner`. Der Vorschlag samt Messreihe steht weiter unten unter
+„Rückfrage".
 
 ## Warum — zwölf ist nicht zwölf
 
@@ -193,6 +198,11 @@ Abhängigkeit von Iterationsreihenfolge.
 5. **Der Bezeichner-Pin** hält Entscheidungstick 2.548 und Endzustand
    `0x14472B2B943ED2BB` — **unverändert**. Nur `AiBehaviorId.Value` wird
    nachgezogen, und der Kommentar daneben sagt, warum das hier richtig ist.
+6. **Ein Test nagelt fest, dass das Tor schlafend ausgeliefert wird**:
+   `TargetArmySize × 44 <= WaveStrengthPoints`, also kann der Deckel nie über
+   die Schwelle kommen. Er geht rot, sobald jemand die Obergrenze anhebt — und
+   das ist der Moment, in dem er gelesen werden soll. Die Fehlermeldung verweist
+   auf den r6-Eintrag in `AiBehaviorId`.
 
 **Keine der vier Determinismus-Baselines ist angefasst.** Sie fahren kein
 KI-System und bleiben grün.
@@ -207,11 +217,59 @@ Bei der ausgelieferten Obergrenze 12 gibt es hier auch nichts zu sehen — die
 Partie läuft nachweislich identisch. Zu sehen ist erst der PR, der die
 Obergrenze anfasst.
 
+## Rückfrage: die Armeeobergrenze liegt in eurer Datei
+
+Damit das Tor überhaupt greifen kann, muss die Armeeobergrenze über **28**
+liegen — 1.200 Punkte sind 28 Legions-Rekruten zu je 44. Sie steht aber nicht in
+`AiProfiles`, sondern als Literal in
+[`MatchRunner.cs:252`](../../Project_Nova/Assets/_Project/Scripts/Gameplay/Match/MatchRunner.cs),
+und `Scripts/Gameplay/Match/` ist Netzstrang. **Wir fassen das nicht an** und
+schlagen es stattdessen vor:
+
+```csharp
+new AiFactionProfile(_config.FactionPerSlot[aiSlot].ToString(),
+    targetPowerMargin: 0,
+    targetArmySize: 30,   // war 12
+    attackSquadThreshold: 6,
+    targetHarvesterCount: 2),
+```
+
+**Warum 30 und nicht die beste Zahl der Kurve.** 1.200 Punkte sind 28 Rekruten
+(27 sind 1.188, einer zu wenig). Unter Obergrenze 28 ist die Schwelle
+unerreichbar, der Deckel bindet, und die Welle marschiert wieder auf Kopfzahl —
+nur auf eine grössere. Bei 28 exakt bleibt kein Kopf übrig, um während des
+Sammelns weiterzubauen. **28 + 2 = 30** räumt beides frei. Das ist aus dem
+Schwellwert abgeleitet, nicht aus der Kurve gewählt — und das ist wichtig, weil
+die Kurve trügt: Obergrenze **20 gewinnt, 19 und 21 verlieren**. Wer dort das
+Maximum nimmt, trifft eine Einzelpartie.
+
+| Obergrenze | Legion: Tick | Sieger | eig. Verl. | Austausch | APM |
+|---:|---:|---|---:|---:|---:|
+| **12** *(heute)* | 5.773 | Allianz | 51 | 45 | 13 |
+| 20 | 5.599 | **Legion** | 42 | 64 | 34 |
+| 24 | 17.350 | **Legion** | 178 | 69 | 35 |
+| 28 | 15.735 | **Legion** | 154 | 64 | 33 |
+| **30** | **5.005** | **Legion** | **23** | **139** | **29** |
+| 32 | 5.253 | **Legion** | 31 | 100 | 34 |
+| 36 | 7.747 | **Legion** | 63 | 90 | 43 |
+
+Bei 30 entscheidet die Legion **schneller als die heutige KI** (5.005 gegen
+5.773) mit 23 statt 51 eigenen Verlusten. Der Allianzsitz: 3.914 statt 5.773
+Ticks, 12 statt 23 Verluste, Austausch 225 gegen 221 — und APM 46 gegen 29, das
+ist der Preis. Nach oben wird nur die APM teurer; die Allianz sättigt bei 23
+Einheiten, ab Obergrenze 40 ist die Kappe reine Intent-Erzeugung.
+
+**Ein Nebenbefund, der euch gehört:** `MatchRunner` liest `AiProfiles` nicht,
+sondern trägt vier eigene Literale. Heute stimmen sie mit `Ms1Canonical`
+überein, und nichts erzwingt das — sie können still auseinanderlaufen. Aufgefallen
+ist es hier, weil der gepinnte Endzustand nach einer Änderung an `Ms1Canonical`
+**nicht** wanderte: `SkirmishAiTests.BuildMatch` spiegelt denselben Aufruf.
+
 ## Was ausdrücklich **nicht** drin ist
 
 | Nicht drin | Warum |
 |---|---|
-| **Armeeobergrenze anheben** | Eigener PR. Die Kurve auf dem Legionssitz ist nicht monoton (16 verliert, 18 verliert schwer, 20/24/36 gewinnen) und es gibt nur einen Seed — aus einer sprunghaften Kurve den besten Punkt zu wählen wäre Anpassung an eine Einzelpartie. Das ist eine menschliche Entscheidung |
+| **Armeeobergrenze anheben** | Siehe oben — sie liegt in `MatchRunner`, also in fremdem Terrain. Der Vorschlag steht, die Änderung nicht |
 | **Nachschub-Doktrin** (nachschicken solange die Welle intakt ist, sammeln wenn sie gebrochen ist) | Zweite Verhaltensregel, eigener PR — sie braucht diese Schwelle als Bezugsgrösse. KAMPFSTAERKE.md §6 |
 | **Fahrzeugfabrik, Fahrzeuge, Kaufregel** | KAMPFSTAERKE.md §7/§8 |
 | **Schwierigkeitsgrade** | Reine Zahlen, kommen zuletzt |
