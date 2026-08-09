@@ -52,8 +52,11 @@ Determinismus-Baselines inbegriffen und **nicht angefasst**.
 
 ## Im laufenden Spiel gesehen
 
-Nichts — dieser PR ändert kein Verhalten, es gibt nichts zu sehen. Die Stufen 2
-bis 4 ändern Verhalten und sagen dort jeweils selbst, dass sie ungespielt sind.
+Nichts — dieser PR ändert kein Verhalten, es gibt nichts zu sehen.
+
+Die Stufen 3 und 4 **sind** inzwischen gespielt worden und tragen die Beobachtung
+im eigenen Text; Stufe 2 ist gemessen, aber im Spiel nicht erkennbar und sagt das
+dort auch.
 
 ## Was noch kommt
 
@@ -77,4 +80,4 @@ damit jede für sich beurteilbar bleibt.
 
 ## Externe Beiträge
 
-- [ ] I agree to the Contributor License Agreement
+- [x] I agree to the Contributor License Agreement

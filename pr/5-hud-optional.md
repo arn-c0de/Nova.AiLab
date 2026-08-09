@@ -3,6 +3,20 @@
 > Reihenfolge: 1 Datenschicht → 2 Zielwahl → 3 Wellen → 4 Rückzug → **5 HUD**.
 > Er hängt am Ende des Stapels: **wird er abgelehnt, ändert das an 1–4 nichts.**
 
+> [!NOTE]
+> **Der Diff hier ist KUMULATIV.** GitHub vergleicht gegen `main`, also
+> zeigt er auch die vorigen Stufen mit. Zu **dieser** Stufe gehören nur
+> diese Commits (328 Zeilen in 11 Dateien):
+>
+> - `27904b3 feat(hud): show the simulation identity next to the AI behaviour`
+> - `a886e85 feat(lab): reveal the map from the debug panel to watch the AI`
+> - `98c127c feat(lab): fast-forward the match from the debug panel`
+> - `4964daf docs: die drei Beobachtungswerkzeuge als Vorschlag kennzeichnen`
+>
+> Der saubere Diff ist `feat/ai-retreat...` gegen diesen Branch. Am einfachsten
+> von unten nach oben lesen: erst die vorige Stufe mergen, dann zeigt
+> GitHub hier von selbst nur noch das Neue.
+
 > [!IMPORTANT]
 > **Dieser PR fasst Dateien ausserhalb meiner Schreibhoheit an.** Das ist keine
 > Unachtsamkeit, sondern der Grund, warum er getrennt und optional ist:
@@ -76,4 +90,4 @@ behauptet.
 
 ## Externe Beiträge
 
-- [ ] I agree to the Contributor License Agreement
+- [x] I agree to the Contributor License Agreement

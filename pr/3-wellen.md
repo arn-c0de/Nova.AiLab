@@ -3,6 +3,20 @@
 > **Setzt Stufe 2 voraus** (der Verhaltensbezeichner entsteht dort und wird hier
 > auf `r3` gebumpt).
 
+> [!NOTE]
+> **Der Diff hier ist KUMULATIV.** GitHub vergleicht gegen `main`, also
+> zeigt er auch die vorigen Stufen mit. Zu **dieser** Stufe gehören nur
+> diese Commits (785 Zeilen in 8 Dateien):
+>
+> - `50d54bb refactor(ai): one intent per unit instead of one order for the army`
+> - `9967ae3 feat(ai): attack in waves instead of trickling in one by one`
+> - `0094bad docs(ai): the determinism baselines never run the skirmish AI`
+> - `83d1116 docs(changelog): Eintrag zum Wellenangriff`
+>
+> Der saubere Diff ist `feat/ai-score-targeting...` gegen diesen Branch. Am einfachsten
+> von unten nach oben lesen: erst die vorige Stufe mergen, dann zeigt
+> GitHub hier von selbst nur noch das Neue.
+
 ## Was der Spieler bisher sah
 
 Kein Angriff, sondern ein Förderband: Soldat läuft los, stirbt, nächster Soldat
@@ -93,8 +107,21 @@ eingeordnet ist. Die Tick-Reihenfolge ist nicht angefasst, `MatchRunner` nicht.
 
 ## Im laufenden Spiel gesehen
 
-**Nicht geprüft.** Was man sehen müsste: kommt die Armee als Welle oder als
-Kette, und kündigt sich die zweite Welle an.
+**Gespielt und bestätigt.** Wörtlich: *„Kam in Welle."*
+
+Damit ist das Förderband weg, an dem die Regel gebaut wurde — und zwar an der
+Stelle, an der es zählt: nicht als Laborkurve, sondern als das, was man sieht.
+Kein Fall, in dem etwas kaputt aussah; kein Hängenbleiben, kein zu langes Warten.
+
+**Fortsetzung, vom Spieler selbst benannt:** *„Automatischer Wechsel zu Tröpfeln,
+wenn die Armee bereits auf dem Angriffsweg ist, als Unterstützung."* Das ist
+genau die situationsabhängige Entscheidung, die oben als Ziel steht, und sie
+kommt in einem eigenen PR. Der Profilwert bleibt dafür als Aus-Stellung
+erhalten.
+
+Gespielt wurde der Stand mit allen fünf Stufen, nicht diese allein — eine Aussage
+darüber, wie sich Wellen **ohne** den Rückzug anfühlen, ist damit nicht
+getroffen.
 
 ## Checkliste
 
@@ -104,4 +131,4 @@ Kette, und kündigt sich die zweite Welle an.
 
 ## Externe Beiträge
 
-- [ ] I agree to the Contributor License Agreement
+- [x] I agree to the Contributor License Agreement

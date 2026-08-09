@@ -3,6 +3,20 @@
 > **Setzt Stufe 1 voraus** (die Zielgewichte sind Profilfelder). Der Branch
 > zweigt von Stufe 1 ab und rebased sich von selbst, sobald die gemergt ist.
 
+> [!NOTE]
+> **Der Diff hier ist KUMULATIV.** GitHub vergleicht gegen `main`, also
+> zeigt er auch die vorigen Stufen mit. Zu **dieser** Stufe gehören nur
+> diese Commits (489 Zeilen in 11 Dateien):
+>
+> - `dc48034 feat(ai): pick attack targets by score, not by list order`
+> - `050aa9f fix(hud): reference Nova.AI.Data from the UI assembly`
+> - `b376796 fix(ai): den Bezeichner dorthin legen, wo er benutzt wird`
+> - `a452d80 docs(changelog): Eintrag zur Zielwahl nach Score`
+>
+> Der saubere Diff ist `refactor/ai-profile-data-layer...` gegen diesen Branch. Am einfachsten
+> von unten nach oben lesen: erst die vorige Stufe mergen, dann zeigt
+> GitHub hier von selbst nur noch das Neue.
+
 ## Was & Warum
 
 Die Zielwahl lautete „HQ, sonst das **erste** sichtbare Gebäude, sonst die
@@ -81,8 +95,17 @@ mit keiner Zeile und fahren kein KI-System. Die Trennungsregel gilt trotzdem.
 
 ## Im laufenden Spiel gesehen
 
-**Nicht geprüft.** Alle Zahlen oben stammen aus headless-Läufen und sind
-Diagnose, kein Nachweis.
+**Gespielt — und die Regel war dabei nicht erkennbar.** Wörtlich: *„Zielwahl
+nicht eindeutig erkennbar bis dato."*
+
+Das ist kein Widerspruch zu den Zahlen und kein Defekt: Wer in einer Schlacht mit
+zwölf Einheiten auf welches Ziel schiesst, ist mit blossem Auge kaum
+auseinanderzuhalten. Es heisst, dass diese Regel **gemessen und getestet, aber
+nicht gesehen** ist — im Unterschied zu den Stufen 3 und 4, wo die Beobachtung
+die Messung bestätigt. Wer sie ablehnen will, hat mit diesem Satz das Argument
+dafür in der Hand.
+
+Nichts sah dabei kaputt aus: kein Hängenbleiben, kein sinnloses Zurücklaufen.
 
 ## Checkliste
 
@@ -92,4 +115,4 @@ Diagnose, kein Nachweis.
 
 ## Externe Beiträge
 
-- [ ] I agree to the Contributor License Agreement
+- [x] I agree to the Contributor License Agreement
