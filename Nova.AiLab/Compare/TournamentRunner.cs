@@ -111,39 +111,25 @@ namespace Nova.AiLab
             return result;
         }
 
-        /// <summary>The kept run additionally records view frames; the numbers come from the plain run.</summary>
+        /// <summary>
+        /// The kept run additionally records view frames; the numbers come from
+        /// the plain run.
+        /// <para>
+        /// A COPY OF THE MEASURED SPEC, then two intervals turned on. It used
+        /// to be a hand-rolled constructor that listed eleven of the thirteen
+        /// spec fields and silently dropped the other two, so the sample run a
+        /// report links into could differ from the run the numbers came from in
+        /// a way nothing printed. The track interval is carried, not defaulted:
+        /// the sample is what somebody opens when a candidate looks wrong, and
+        /// that is the whole point of keeping it.
+        /// </para>
+        /// </summary>
         private static MatchSpec CloneForSample(MatchSpec spec)
         {
-            var slots = new SlotSpec[spec.Slots.Length];
-            for (int i = 0; i < slots.Length; i++)
-            {
-                slots[i] = new SlotSpec
-                {
-                    Slot = spec.Slots[i].Slot,
-                    Faction = spec.Slots[i].Faction,
-                    Controller = spec.Slots[i].Controller,
-                    Profile = spec.Slots[i].Profile,
-                    ProfileId = spec.Slots[i].ProfileId,
-                };
-            }
-
-            return new MatchSpec
-            {
-                Seed = spec.Seed,
-                TickBudget = spec.TickBudget,
-                MapWidth = spec.MapWidth,
-                MapHeight = spec.MapHeight,
-                EntityCapacity = spec.EntityCapacity,
-                StartingCreditsAE = spec.StartingCreditsAE,
-                TraceIntervalTicks = spec.TraceIntervalTicks,
-                ViewIntervalTicks = 50,
-                // The sample run a comparison links into is the one somebody
-                // opens when a candidate looks wrong, so it carries the track
-                // and the events too — that is the whole point of keeping it.
-                TrackIntervalTicks = spec.TrackIntervalTicks,
-                HashIntervalTicks = 500,
-                Slots = slots,
-            };
+            MatchSpec sample = spec.Clone();
+            sample.ViewIntervalTicks = 50;
+            sample.HashIntervalTicks = 500;
+            return sample;
         }
 
         private static void Accumulate(CandidateResult result, MatchRunResult run, byte candidateSlot)

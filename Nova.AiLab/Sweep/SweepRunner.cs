@@ -78,7 +78,7 @@ namespace Nova.AiLab
 
             Parallel.For(0, seeds.Length, options, index =>
             {
-                MatchSpec spec = CloneWithSeed(template, seeds[index]);
+                MatchSpec spec = template.WithSeed(seeds[index]);
                 MatchRunResult run = MatchRun.Execute(spec);
                 result.Runs[index] = run;
 
@@ -90,7 +90,7 @@ namespace Nova.AiLab
 
                 if (index % DoubleCheckEveryNthRun != 0) return;
 
-                MatchRunResult second = MatchRun.Execute(CloneWithSeed(template, seeds[index]));
+                MatchRunResult second = MatchRun.Execute(template.WithSeed(seeds[index]));
                 string difference = Compare(run, second);
                 if (difference != null)
                 {
@@ -113,40 +113,6 @@ namespace Nova.AiLab
             result.DistinctDecisions = decisions.Count;
 
             return result;
-        }
-
-        private static MatchSpec CloneWithSeed(MatchSpec template, ulong seed)
-        {
-            var slots = new SlotSpec[template.Slots.Length];
-            for (int i = 0; i < slots.Length; i++)
-            {
-                SlotSpec source = template.Slots[i];
-                slots[i] = new SlotSpec
-                {
-                    Slot = source.Slot,
-                    Faction = source.Faction,
-                    Controller = source.Controller,
-                    Profile = source.Profile,
-                    ProfileId = source.ProfileId,
-                };
-            }
-
-            return new MatchSpec
-            {
-                Seed = seed,
-                TickBudget = template.TickBudget,
-                MapWidth = template.MapWidth,
-                MapHeight = template.MapHeight,
-                EntityCapacity = template.EntityCapacity,
-                StartingCreditsAE = template.StartingCreditsAE,
-                HashIntervalTicks = template.HashIntervalTicks,
-                TraceIntervalTicks = template.TraceIntervalTicks,
-                ViewIntervalTicks = template.ViewIntervalTicks,
-                TrackIntervalTicks = template.TrackIntervalTicks,
-                RecordFog = template.RecordFog,
-                CountIntents = template.CountIntents,
-                Slots = slots,
-            };
         }
 
         /// <summary>

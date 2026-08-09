@@ -75,6 +75,20 @@ namespace Nova.AiLab
                 targetArmySize: 12,
                 attackSquadThreshold: 6,
                 targetHarvesterCount: 2);
+
+        /// <summary>
+        /// A field-for-field copy. <see cref="Profile"/> is shared rather than
+        /// duplicated — it is read-only configuration, and the hand-rolled
+        /// copies this replaces shared it too.
+        /// </summary>
+        public SlotSpec Clone() => new SlotSpec
+        {
+            Slot = Slot,
+            Faction = Faction,
+            Controller = Controller,
+            Profile = Profile,
+            ProfileId = ProfileId,
+        };
     }
 
     /// <summary>
@@ -154,6 +168,54 @@ namespace Nova.AiLab
         public bool NeedsIntentCounting => CountIntents ?? (TraceIntervalTicks > 0);
 
         public SlotSpec[] Slots = DefaultSlots(2);
+
+        /// <summary>
+        /// A field-for-field copy, slots included.
+        /// <para>
+        /// ONE place, because three hand-rolled copies had already drifted:
+        /// the tournament's sample clone carried eleven of the thirteen fields
+        /// and dropped <see cref="RecordFog"/> and <see cref="CountIntents"/>,
+        /// the sweep's carried all of them, and nothing connected the two. A
+        /// field added here would have been dropped silently in both — and a
+        /// sweep running with settings its own spec does not name is exactly
+        /// the number nobody can reproduce.
+        /// </para>
+        /// <para>
+        /// <c>MatchSpecCloneTests</c> walks the fields by reflection and fails
+        /// when a new one is not carried, so the next field cannot go missing
+        /// quietly the way these two did.
+        /// </para>
+        /// </summary>
+        public MatchSpec Clone()
+        {
+            var slots = new SlotSpec[Slots.Length];
+            for (int i = 0; i < slots.Length; i++) slots[i] = Slots[i].Clone();
+
+            return new MatchSpec
+            {
+                Seed = Seed,
+                TickBudget = TickBudget,
+                MapWidth = MapWidth,
+                MapHeight = MapHeight,
+                EntityCapacity = EntityCapacity,
+                StartingCreditsAE = StartingCreditsAE,
+                HashIntervalTicks = HashIntervalTicks,
+                TraceIntervalTicks = TraceIntervalTicks,
+                ViewIntervalTicks = ViewIntervalTicks,
+                TrackIntervalTicks = TrackIntervalTicks,
+                RecordFog = RecordFog,
+                CountIntents = CountIntents,
+                Slots = slots,
+            };
+        }
+
+        /// <summary>The same spec under a different seed — the one axis a sweep varies.</summary>
+        public MatchSpec WithSeed(ulong seed)
+        {
+            MatchSpec copy = Clone();
+            copy.Seed = seed;
+            return copy;
+        }
 
         /// <summary>
         /// The canonical seating: slot 0 Alliance, slot 1 Legion — the pairing
