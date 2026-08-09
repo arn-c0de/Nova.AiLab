@@ -5,6 +5,7 @@ using Nova.Core;
 using Nova.Simulation.Combat;
 using Nova.Simulation.CommandsV1;
 using Nova.Simulation.Definitions;
+using Nova.Simulation.Economy;
 using Nova.Simulation.Pathfinding;
 using Nova.Simulation.State;
 
@@ -137,6 +138,10 @@ namespace Nova.AiLab
             {
                 case DebugEventKind.Spawn:
                     Field(json, "x", A); Field(json, "y", B); Field(json, "hp", C);
+                    // The ceiling travels with the birth, so a reader can turn
+                    // every later health value into a percentage without
+                    // waiting for the next view frame to tell it the maximum.
+                    Field(json, "hpMax", D);
                     break;
                 case DebugEventKind.Death:
                     Field(json, "x", A); Field(json, "y", B); Field(json, "hp", C);
@@ -169,7 +174,10 @@ namespace Nova.AiLab
                     break;
                 case DebugEventKind.HarvestStart:
                 case DebugEventKind.HarvestStop:
+                    // The field's cell rides along: without it a reader knows
+                    // WHICH field but not where to draw the line to.
                     json.Append(",\"field\":").Append(Ref);
+                    Field(json, "x", A); Field(json, "y", B);
                     break;
                 case DebugEventKind.CargoFull:
                 case DebugEventKind.CargoDelivered:
@@ -430,6 +438,7 @@ namespace Nova.AiLab
                 A = u.Transform.PositionX.RawValue,
                 B = u.Transform.PositionY.RawValue,
                 C = u.CurrentHealth,
+                D = u.MaxHealth,
             });
 
             if (!isSite) return;
@@ -591,11 +600,15 @@ namespace Nova.AiLab
             // ---- harvesting and cargo -----------------------------------
             if (u.HarvestFieldId != _field[i])
             {
+                ushort fieldId = u.HarvestFieldId != 0 ? u.HarvestFieldId : _field[i];
+                bool known = _host.Economy.TryGetField(fieldId, out AetheriumField field);
                 Add(new DebugEvent
                 {
                     Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
                     Kind = u.HarvestFieldId != 0 ? DebugEventKind.HarvestStart : DebugEventKind.HarvestStop,
-                    Ref = u.HarvestFieldId != 0 ? u.HarvestFieldId : _field[i],
+                    Ref = fieldId,
+                    A = known ? SimFixed.FromInt(field.GridPos.X).RawValue : DebugEvent.Absent,
+                    B = known ? SimFixed.FromInt(field.GridPos.Y).RawValue : DebugEvent.Absent,
                 });
             }
             if (u.IsReturningCargo != _returning[i])
