@@ -17,55 +17,81 @@ KI: Die Welle misst Kampfstärke statt Kopfzahl (r6)
 > [!IMPORTANT]
 > **Die Beschreibung muss ersetzt werden.** GitHub füllt sie beim Öffnen mit
 > dem Rumpf der Commit-Nachricht vor; der ist zwar deutsch, folgt aber nicht der
-> PR-Vorlage. Alles ab „Was & Warum" hier einsetzen. Der Titel oben ist kürzer
-> als die Commit-Zeile und passt besser in eine PR-Liste.
+> PR-Vorlage. Alles ab „Was & Warum" hier einsetzen.
 
 > [!NOTE]
 > **Warum die Commit-Nachricht deutsch ist, obwohl `CLAUDE.md` §6 Englisch
-> vorsieht.** §6 teilt die Sprachen auf — Deutsch für Projektinhalte und
-> PR-Texte, Englisch für Code, Identifier, Pfade und Commit-Messages. Hier ist
-> das auf ausdrückliche Entscheidung des Beitragenden anders. Der Branchname
-> bleibt englisch, weil er ein Identifier ist.
->
-> Der ältere Branch `feat/ai-strength-wave-gate` (`308d8cf`) liegt mit
-> englischer Nachricht noch im Fork und trägt **denselben Baum, byteweise**.
-> Er ist gegenstandslos, sobald dieser hier verwendet wird.
+> vorsieht.** Auf ausdrückliche Entscheidung des Beitragenden. Der Branchname
+> bleibt englisch, weil er ein Identifier ist. Der ältere Branch
+> `feat/ai-strength-wave-gate` (`308d8cf`) liegt mit englischer Nachricht noch
+> im Fork und trägt **denselben Baum, byteweise** — er ist gegenstandslos.
 
 ---
 
 ## Was & Warum
 
-Die Welle marschierte auf einer **Anzahl** gesammelter Einheiten, und eine Anzahl
-weiss nicht, was eine Einheit wert ist: zwölf Allianz-Schützen wiegen 1.200
-Kampfpunkte, zwölf Legions-Rekruten 528 — dieselbe Regel nennt beides „volle
-Welle", und die Legion greift mit 44 % der Angriffsstärke an, die sie der
-Allianz gibt (Verluste 51 gegen 23). Das Tor summiert jetzt Kampfpunkte statt
-Köpfe.
+**Problem:** Die Welle marschierte auf einer *Anzahl* gesammelter Einheiten, und eine
+Anzahl weiss nicht, was eine Einheit wert ist. Zwölf Allianz-Schützen wiegen 1200
+Kampfpunkte, zwölf Legions-Rekruten 528 — dieselbe Regel, und die Legion greift mit
+44 % der Stärke an, die sie der Allianz gibt. Referenzpartie, Verlustspalte: 51 gegen 23.
 
-**Ausgeliefert ändert das noch kein Verhalten, und ein Test nagelt das fest:**
-die Punktschwelle kann erst greifen, wenn die Armeeobergrenze höher liegt als
-heute, und die liegt in `MatchRunner` — also nicht bei uns. Der Endzustands-Pin
-steht unverändert bei Tick 2.548 / `0x14472B2B943ED2BB`. Was der Schritt bringt,
-ist die **Entkopplung**: die Wellenschwelle hängt nicht mehr an der
-Produktionsobergrenze, und das ist die Voraussetzung dafür, an dieser Zahl
-überhaupt drehen zu dürfen.
+**Änderung:**
 
-**Im laufenden Spiel gesehen: nichts.** Alle Zahlen unten sind Labormessung —
-Diagnose, kein Nachweis.
+- `CombatStrength` bewertet eine Einheit als Schaden \* Leben / Feuerintervall:
+  ganzzahlig, eine Division, festgeschriebene Abschneidung; unbewaffnete Rollen fallen
+  ohne Sonderfall auf 0.
+- Neues Profilfeld `waveStrengthPoints` (ausgeliefert 1200, 0 schaltet bitgenau ab)
+  summiert diese Punkte über den Sammelring, statt zu zählen.
+- `WaveStrengthGate` hält die Arithmetik als reine Funktion in eigenem Typ — prüfbar an
+  Zuständen, die eine Partie nicht auf Bestellung erzeugt (mehr Einheiten als die Kappe
+  erlaubt, zerstörte Kaserne, bindende Schwelle). Grund ist eine Mutationsprobe: im
+  System vergraben blieb die Suite grün, sowohl ohne Negativ-Clamp als auch mit ganz
+  ignoriertem `waveStrengthPoints`.
+- Die r5-Regel wandert in Punkten mit: gekappt gegen das, was die Produktion noch
+  liefern kann. Ein freier Kopf zählt nur, solange eine Kaserne hineinbauen kann — sonst
+  wartet die Welle auf Verstärkung, die niemand bauen kann. Kredite gehen bewusst nicht
+  ein: pleite ist vorübergehend, und ein Tor, das mit der Kasse flackert, ordnet die
+  Armee jede Kadenz neu (Journal V002).
+
+**Ausgeliefert ist die Regel schlafend, und ein Test nagelt das fest.** Die Punktklausel
+entscheidet nur bei freiem Kopf der Armeeobergrenze — elf Schützen, 1100 Punkte, gegen
+Schwelle 1200 — das Tor entscheidet also exakt wie die Kopfzahl. Kanonische Partie
+byteidentisch (Pin unverändert Tick 2548 / `0x14472B2B943ED2BB`; KI-gegen-KI 5773 /
+`0x2B34B4E194257940`, nur der Bezeichner bewegt sich). Die Reserve von neun Punkten pro
+Schütze rechnet der Test aus `CombatStrength` statt aus einer abgeschriebenen Zahl:
+Waffenwerte sind der Auftrag dieses Strangs, ein Schadenspunkt mehr weckt das Tor.
+
+**Warum jetzt:** Der Schwellwert ist keine an die Produktionsobergrenze gekoppelte
+Kopfzahl mehr — Voraussetzung dafür, diese Obergrenze überhaupt zu bewegen. Bewegen ist
+nicht Sache dieses Strangs: `MatchRunner` überschreibt vier Profilwerte mit Literalen,
+`targetArmySize` darunter, und die Datei gehört dem Netzstrang. Ein neuer Test liest
+`MatchRunner`s Quelltext und wird rot bei Abweichung von `AiProfiles` — das hat vorher
+nichts geprüft, beide bestehenden Wächter sehen von je einer Seite an der Lücke vorbei.
+
+**Messung (Labor, einseitig):** Obergrenze *allein* anheben macht die Legion schlechter
+(Verluste 51 -> 64, Austausch 45 -> 34); mit Tor und Obergrenze 30 entscheidet derselbe
+Sitz schneller als heute (5005 gegen 5773 Ticks) bei 23 Verlusten, Austausch 139.
+Rückfrage und vollständige Kurve unten — samt Warnung, dass eine Abbruchregel davor
+gehört.
+
+Im laufenden Spiel ungesehen. Eine Labormessung ist Diagnose, kein Nachweis.
+
+Tests 649/649, Determinismus Exit 0, keine Baseline angefasst.
 
 ## Checkliste
 
-- [x] `dotnet test tools/Nova.SimRunner.Tests` lokal grün — **649/649**
+- [x] `dotnet test tools/Nova.SimRunner.Tests` lokal grün — 649/649
 - [x] Zeile unter `[Unreleased]` in [CHANGELOG.md](../CHANGELOG.md)
-- [ ] ~~Echte Entscheidung getroffen? → D-ID im DecisionLog~~ — **gestrichen:**
-      hier wurde keine Inhaberentscheidung getroffen. Die eine Frage, die eine
-      wäre (Armeeobergrenze), steht unten als Rückfrage und **nicht** als
-      Änderung.
+- [x] ~~Echte Entscheidung getroffen? → D-ID im [DecisionLog](../docs/production/DecisionLog.md)~~ —
+      **gestrichen, wie die Vorlage es vorsieht.** Hier wurde keine
+      Inhaberentscheidung getroffen: die beiden Fragen, die welche wären
+      (Armeeobergrenze in `MatchRunner`, Fingerprint-Relevanz eines KI-Profils),
+      stehen ausdrücklich als Rückfrage und **nicht** als Änderung.
 - [x] Bei Simulationsänderung: keine Determinismus-Baseline im selben PR geändert
 
 ## Externe Beiträge
 
-- [ ] I agree to the Contributor License Agreement
+- [x] I agree to the Contributor License Agreement
 
 ---
 
