@@ -37,6 +37,16 @@
              Link="AiLab\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- The UI kit, same as in Nova.AiLab.csproj. This project COMPILES the lab
+       rather than referencing it, so it also has to carry the lab's resources —
+       HtmlPlayer reads them out of the assembly it happens to live in, and
+       without this every test that generates a page fails on a missing
+       resource rather than on anything it meant to check. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Nova.AiLab\report\uikit\tokens.css" LogicalName="uikit.tokens.css" />
+    <EmbeddedResource Include="..\Nova.AiLab\report\uikit\icons.js" LogicalName="uikit.icons.js" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="NUnit" Version="4.2.2" />

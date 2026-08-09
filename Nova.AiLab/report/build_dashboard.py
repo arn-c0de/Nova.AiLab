@@ -40,11 +40,21 @@ collect_duels = lab_data.collect_duels
 def build(root, out_path=None):
     data = lab_data.collect(root)
 
-    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dashboard.tpl.html')
+    here = os.path.dirname(os.path.abspath(__file__))
+    template_path = os.path.join(here, 'dashboard.tpl.html')
     with open(template_path, encoding='utf-8') as handle:
         template = handle.read()
     if '__DATA__' not in template:
         raise SystemExit(f'{template_path}: Platzhalter __DATA__ fehlt')
+
+    # Das UI-Kit — dieselben Tokens und Symbole, die Player und Steuerseite
+    # tragen. Eingesetzt und nicht verlinkt: die Seite soll ohne Server, ohne
+    # Netz und aus jedem Verzeichnis heraus aufgehen.
+    for placeholder, name in (('__UIKIT_CSS__', 'tokens.css'), ('__UIKIT_JS__', 'icons.js')):
+        if placeholder not in template:
+            raise SystemExit(f'{template_path}: Platzhalter {placeholder} fehlt')
+        with open(os.path.join(here, 'uikit', name), encoding='utf-8') as handle:
+            template = template.replace(placeholder, handle.read())
 
     # `</script>` im Datenblock wuerde den umgebenden Script-Tag schliessen.
     payload = json.dumps(data, separators=(',', ':')).replace('</script>', r'<\/script>')

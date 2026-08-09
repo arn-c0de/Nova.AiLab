@@ -1,126 +1,179 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="dark">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nova AI Lab — Steuerseite</title>
+<style>__UIKIT_CSS__</style>
 <style>
   /* EIN FENSTER, KEIN DOKUMENT.
      Vorher wuchs die Seite nach unten und die Karte lag als Rahmen darin —
      zwei Bildlaufleisten übereinander, und die Karte sprang weg, sobald das
      Protokoll mitlief. Jetzt füllt der Reiter den Rest des Fensters, und nur
-     der Reiterinhalt selbst rollt. */
-  :root { color-scheme: dark; }
+     der Reiterinhalt selbst rollt.
+
+     Was beim zweiten Durchgang dazukam: die Reiter hatten je ein Element mit
+     id="left" und id="right" — vier Elemente, zwei IDs, im selben Dokument.
+     Das ist jetzt eine Klasse, und die Reiter kommen mit dem Fenster zurecht,
+     statt eine Mindestbreite zu verlangen, die ein halbes Fenster nicht hat. */
   html, body { height:100%; }
-  body { margin:0; background:#0d1117; color:#c9d1d9; overflow:hidden;
-         display:flex; flex-direction:column;
-         font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
-  header { padding:6px 14px; border-bottom:1px solid #21262d; flex:0 0 auto;
-           display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; }
-  h1 { font-size:13px; margin:0; font-weight:600; }
-  h2 { font-size:13px; margin:0 0 8px; font-weight:600; }
-  .sub { color:#8b949e; font-size:12px; }
-  .warn { color:#d29922; }
-  .bad { color:#f85149; }
-  .ok { color:#3fb950; }
-  nav { display:flex; gap:4px; padding:6px 14px 0; flex:0 0 auto; }
-  nav button { border-radius:4px 4px 0 0; }
-  nav button.on { background:#1f6feb2e; border-color:#1f6feb; color:#e6edf3; }
-  main { flex:1 1 auto; min-height:0; display:flex; padding:6px 14px 12px; }
-  .view { flex:1 1 auto; min-height:0; display:none; gap:14px; }
+  body { margin:0; background:var(--plane); color:var(--ink); overflow:hidden;
+         display:flex; flex-direction:column; font:13px/1.55 var(--mono); }
+
+  .appbar { display:flex; align-items:center; gap:var(--sp-3); flex:0 0 auto;
+            padding:6px 12px; border-bottom:1px solid var(--line);
+            flex-wrap:nowrap; overflow:hidden; }
+  .mark { font-weight:600; font-size:var(--fs-s); white-space:nowrap; }
+  .spacer { flex:1 1 auto; }
+  #repoLine { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  nav.tabs { padding:7px 12px 0; flex:0 0 auto; }
+  main { flex:1 1 auto; min-height:0; display:flex; padding:0 12px 12px; }
+
+  .view { flex:1 1 auto; min-height:0; display:none; }
   .view.on { display:flex; }
-  .view.scrollable { overflow:auto; align-items:flex-start; flex-wrap:wrap; }
-  section { border:1px solid #21262d; border-radius:5px; padding:10px 12px; }
-  #left { flex:1 1 420px; min-width:380px; max-width:560px; display:flex; flex-direction:column; gap:14px; }
-  #right { flex:2 1 640px; min-width:420px; display:flex; flex-direction:column; gap:14px; }
-  label.f { display:flex; gap:8px; align-items:center; margin:3px 0; }
-  label.f > span { color:#8b949e; width:130px; flex:0 0 130px; }
-  input, select, button { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
-           border-radius:4px; padding:4px 8px; font:inherit; }
-  input, select { flex:1; min-width:0; }
-  button { cursor:pointer; }
-  button:hover:not(:disabled) { background:#30363d; }
-  button:disabled { opacity:0.45; cursor:default; }
-  button.go { background:#1f6feb; border-color:#1f6feb; color:#fff; }
-  button.go:hover:not(:disabled) { background:#388bfd; }
-  table { border-collapse:collapse; width:100%; font-size:12px; }
-  th,td { text-align:right; padding:3px 7px; border-bottom:1px solid #21262d; white-space:nowrap; }
-  /* Die Kennung darf umbrechen. Bliebe sie in einer Zeile, schöbe sie die
-     Spalten rechts aus der Tafel — und die Zahl, die man sucht, wäre die, die
-     abgeschnitten ist. */
+  .view.pad { overflow:auto; align-items:flex-start; gap:var(--sp-5); flex-wrap:wrap; }
+
+  .card { border-radius:0 var(--r-3) var(--r-3) var(--r-3); }
+  .col { display:flex; flex-direction:column; gap:var(--sp-4); min-width:0; }
+  .col.narrow { flex:1 1 460px; max-width:640px; }
+  .col.wide { flex:1 1 100%; }
+
+  h2 { font-size:var(--fs-m); margin:0 0 var(--sp-3); font-weight:600;
+       display:flex; align-items:center; gap:6px; }
+  h2 .sub { font-weight:400; }
+
+  /* ---- Formular: Gruppen statt acht gleich aussehender Zeilen ---------- */
+  fieldset { border:0; border-top:1px solid var(--line); margin:0 0 var(--sp-4);
+             padding:var(--sp-3) 0 0; min-width:0; }
+  fieldset:first-of-type { border-top:0; padding-top:0; }
+  legend { padding:0 6px 0 0; font-size:var(--fs-xs); color:var(--muted);
+           text-transform:uppercase; letter-spacing:.07em; font-weight:600; }
+  .why { font-size:var(--fs-xs); color:var(--muted); margin:0 0 var(--sp-3); }
+  .grid { display:grid; gap:var(--sp-3) var(--sp-4); grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .grid.one { grid-template-columns:1fr; }
+  @media (max-width: 760px) { .grid { grid-template-columns:1fr; } }
+
+  .actions { display:flex; align-items:center; gap:var(--sp-3); margin-top:var(--sp-2); }
+  pre#log { background:#080a0c; border:1px solid var(--line); border-radius:var(--r-2);
+            margin:var(--sp-3) 0 0; padding:8px 10px; height:230px; overflow:auto;
+            font-size:var(--fs-xs); white-space:pre-wrap; color:var(--ink2); }
+
+  /* ---- Tabellen -------------------------------------------------------- */
+  table { border-collapse:collapse; width:100%; font-size:var(--fs-s); }
+  th, td { text-align:right; padding:4px 8px; border-bottom:1px solid var(--hair);
+           white-space:nowrap; }
   th:first-child, td:first-child { text-align:left; white-space:normal; }
-  th { color:#8b949e; font-weight:400; }
-  tr.pick:hover td { background:#161b22; cursor:pointer; }
-  tr.a td { box-shadow:inset 2px 0 0 #58a6ff; }
-  tr.b td { box-shadow:inset 2px 0 0 #d29922; }
-  .scroll { max-height:290px; overflow:auto; }
-  pre#log { background:#010409; border:1px solid #21262d; border-radius:4px; margin:8px 0 0;
-            padding:8px; max-height:220px; overflow:auto; font-size:11px; white-space:pre-wrap; }
-  .pill { display:inline-block; border:1px solid #30363d; border-radius:10px;
-          padding:0 7px; font-size:11px; color:#8b949e; }
-  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .diff { color:#d29922; }
-  .same { color:#6e7681; }
-  footer { padding:4px 16px 24px; color:#8b949e; font-size:12px; }
-  a { color:#58a6ff; }
+  th { color:var(--muted); font-weight:600; font-size:var(--fs-xs);
+       position:sticky; top:0; background:var(--surface); }
+  tr.pick:hover td { background:var(--raised); cursor:pointer; }
+  tr.a td { box-shadow:inset 2px 0 0 var(--series-1); }
+  tr.b td { box-shadow:inset 2px 0 0 var(--warning); }
+  td.num { font-variant-numeric:tabular-nums; }
+  .tablebox { max-height:min(58vh, 520px); overflow:auto; border:1px solid var(--hair);
+              border-radius:var(--r-2); }
+
+  .row { display:flex; gap:var(--sp-3); align-items:center; flex-wrap:wrap; }
+  .diff { color:var(--warning); }
+  .same { color:var(--muted); }
+  a { color:var(--accent); }
+  iframe.map { flex:1 1 auto; border:1px solid var(--line); border-radius:var(--r-2);
+               background:var(--plane); min-height:0; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Nova AI Lab</h1>
+
+<header class="appbar">
+  <span class="mark">Nova AI Lab</span>
+  <span class="chip">Steuerseite</span>
   <span class="sub" id="repoLine">…</span>
-  <span style="flex:1"></span>
-  <span class="sub" id="mapWhich">—</span>
-  <button id="mapTab" disabled>Karte in eigenem Tab</button>
+  <span class="spacer"></span>
+  <span class="chip" id="mapWhich">kein Lauf offen</span>
+  <button class="btn" id="mapTab" data-icon="map" disabled>eigener Tab</button>
 </header>
 
-<nav>
-  <button data-view="map" class="on">Karte</button>
-  <button data-view="run">Neuer Lauf</button>
-  <button data-view="runs">Läufe</button>
-  <button data-view="history">Historie</button>
-  <button data-view="compare">Vergleich</button>
+<nav class="tabs">
+  <button class="btn on" data-view="map" data-icon="map">Karte</button>
+  <button class="btn" data-view="run" data-icon="plus">Neuer Lauf</button>
+  <button class="btn" data-view="runs" data-icon="list">Läufe</button>
+  <button class="btn" data-view="history" data-icon="history">Historie</button>
+  <button class="btn" data-view="compare" data-icon="compare">Vergleich</button>
 </nav>
 
 <main>
   <div class="view on" id="view-map">
-    <iframe id="mapFrame" title="Player"
-            style="flex:1 1 auto; border:1px solid #21262d; border-radius:5px; background:#0d1117"></iframe>
+    <iframe id="mapFrame" class="map" title="Player"></iframe>
   </div>
 
-  <div class="view scrollable" id="view-run">
-  <div id="left">
-    <section>
-      <h2>Neuer Lauf</h2>
-      <label class="f"><span>Branch</span><select id="branch"></select></label>
-      <label class="f"><span>Seed</span><input id="seed" value="0xA17E57DE57"></label>
-      <label class="f"><span>Ticks</span><input id="ticks" type="number" value="27000"></label>
-      <label class="f"><span>Sichtframe alle</span><input id="viewEvery" type="number" value="25"></label>
-      <label class="f"><span>Spur alle</span><input id="trackEvery" type="number" value="1"></label>
-      <label class="f"><span>Profil Slot 0</span><input id="profile0" placeholder="leer = ms1-canonical"></label>
-      <label class="f"><span>Profil Slot 1</span><input id="profile1" placeholder="leer = ms1-canonical"></label>
-      <label class="f"><span>Notiz</span><input id="label" placeholder="wozu dieser Lauf"></label>
-      <label class="f"><span>Nebel</span><input id="fog" type="checkbox" checked style="flex:0"></label>
-      <div class="row" style="margin-top:8px">
-        <button class="go" id="start">messen</button>
-        <span class="sub" id="jobState">bereit</span>
-      </div>
-      <pre id="log">—</pre>
-      <div class="sub" style="margin-top:6px">
-        Ein anderer Branch wird nie im Arbeitscheckout ausgecheckt — dafür entsteht ein
-        <span class="pill">git worktree</span> unter <code>.worktrees/</code>. Der Checkout,
-        in dem du arbeitest, bleibt stehen.
-      </div>
-    </section>
-  </div>
+  <div class="view pad" id="view-run">
+    <div class="col narrow">
+      <section class="card">
+        <h2>Neuer Lauf</h2>
+
+        <fieldset>
+          <legend>Was gemessen wird</legend>
+          <div class="grid">
+            <label class="field"><span>Branch</span><select id="branch"></select></label>
+            <label class="field"><span>Seed</span><input id="seed" value="0xA17E57DE57"></label>
+            <label class="field"><span>Ticks</span><input id="ticks" type="number" value="27000"></label>
+            <label class="field"><span>Notiz — wozu dieser Lauf</span>
+              <input id="label" placeholder="frei"></label>
+          </div>
+          <p class="why" style="margin-top:6px">Ein anderer Branch wird nie im Arbeitscheckout
+            ausgecheckt — dafür entsteht ein <span class="chip">git worktree</span> unter
+            <code>.worktrees/</code>. Der Checkout, in dem du arbeitest, bleibt stehen.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Wie dicht aufgezeichnet wird</legend>
+          <p class="why">Dichter heisst grössere Artefakte, nicht genauere Zahlen: die Spur trägt
+            jeden Tick, die Sichtframes tragen Nebel und die Kopfzeile.</p>
+          <div class="grid">
+            <label class="field"><span>Sichtframe alle … Ticks</span>
+              <input id="viewEvery" type="number" value="25"></label>
+            <label class="field"><span>Spur alle … Ticks</span>
+              <input id="trackEvery" type="number" value="1"></label>
+            <label class="field check"><input type="checkbox" id="fog" checked>
+              <span>Nebel aufzeichnen</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Profile</legend>
+          <p class="why">Leer heisst <code>ms1-canonical</code> — die eingefrorene Referenz.</p>
+          <div class="grid">
+            <label class="field"><span>Slot 0</span>
+              <input id="profile0" placeholder="ms1-canonical"></label>
+            <label class="field"><span>Slot 1</span>
+              <input id="profile1" placeholder="ms1-canonical"></label>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button class="btn primary" id="start" data-icon="play">messen</button>
+          <span class="chip" id="jobState">bereit</span>
+        </div>
+      </section>
+    </div>
+
+    <div class="col narrow">
+      <section class="card">
+        <h2>Protokoll <span class="sub">— was der Lauf gerade sagt</span></h2>
+        <pre id="log">—</pre>
+        <p class="why" style="margin-top:8px">Exit 2 heisst <b>nicht deterministisch</b>: dann
+          zählt keine Zahl aus diesem Lauf, auch keine, die plausibel aussieht.</p>
+      </section>
+    </div>
   </div>
 
-  <div class="view scrollable" id="view-runs">
-    <div id="right">
-      <section>
+  <div class="view pad" id="view-runs">
+    <div class="col wide">
+      <section class="card">
         <h2>Läufe dieser Steuerseite</h2>
-        <div class="scroll">
+        <div class="tablebox">
           <table id="runTable"><thead><tr>
-            <th>Lauf</th><th>Branch</th><th>Ausgang</th><th>Entschieden</th><th>Ende</th><th>A / B</th><th></th>
+            <th>Lauf</th><th>Branch</th><th>Ausgang</th><th>Entschieden</th><th>Ende</th>
+            <th>A / B</th><th>Player</th>
           </tr></thead><tbody></tbody></table>
         </div>
         <div class="sub" style="margin-top:6px" id="runNote">—</div>
@@ -128,16 +181,21 @@
     </div>
   </div>
 
-  <div class="view scrollable" id="view-history">
-    <div id="left">
-      <section>
+  <div class="view pad" id="view-history">
+    <div class="col narrow">
+      <section class="card">
         <h2>Historie <span class="sub">— archivierte Messblöcke</span></h2>
-        <div class="scroll">
+        <div class="tablebox">
           <table id="historyTable"><thead><tr>
             <th>Datum</th><th>Commit</th><th>Verhalten</th><th>Ausgang</th><th>Tick</th>
           </tr></thead><tbody></tbody></table>
         </div>
-        <div id="snapshot" class="sub" style="margin-top:8px">
+      </section>
+    </div>
+    <div class="col narrow">
+      <section class="card">
+        <h2>Messblock</h2>
+        <div id="snapshot" class="sub">
           Eine Zeile anklicken, um den Messblock zu öffnen. Die Historie trägt keine Rohartefakte
           (<code>out/</code> ist bewusst nicht versioniert), also gibt es dazu keinen Player.
         </div>
@@ -145,16 +203,16 @@
     </div>
   </div>
 
-  <div class="view scrollable" id="view-compare">
-    <div id="right">
-      <section>
+  <div class="view pad" id="view-compare">
+    <div class="col wide">
+      <section class="card">
         <h2>Vergleich</h2>
         <div class="row">
-          <span class="sub">A</span> <span class="pill" id="pickA">—</span>
-          <span class="sub">B</span> <span class="pill" id="pickB">—</span>
-          <button id="doCompare" disabled>nebeneinanderlegen</button>
+          <span class="sub">A</span> <span class="chip" id="pickA">—</span>
+          <span class="sub">B</span> <span class="chip" id="pickB">—</span>
+          <button class="btn" id="doCompare" data-icon="compare" disabled>nebeneinanderlegen</button>
         </div>
-        <div id="compareOut" class="sub" style="margin-top:8px">
+        <div id="compareOut" class="sub" style="margin-top:10px">
           Zwei Läufe im Reiter <b>Läufe</b> als A und B wählen. Verglichen wird nichts verrechnet —
           die Zahlen stehen nebeneinander, wie überall in diesem Labor.
         </div>
@@ -163,11 +221,16 @@
   </div>
 </main>
 
+<script>__UIKIT_JS__</script>
 <script>
 let state = { runs: [], history: [], branches: [] };
 let pickA = null, pickB = null, poll = null;
 
 const $ = id => document.getElementById(id);
+
+for (const element of document.querySelectorAll('[data-icon]')) {
+  element.insertAdjacentHTML('afterbegin', iconSvg(element.dataset.icon, 15));
+}
 
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -178,14 +241,17 @@ async function api(path, options) {
 
 async function refresh() {
   state = await api('/api/state');
-  $('repoLine').innerHTML = 'misst <b>' + state.repo + '</b> · Arbeitsbranch <b>' +
-    state.currentBranch + '</b> @ ' + state.currentCommit;
+  const short = state.repo.replace(/\/+$/, '').split('/').pop() || state.repo;
+  $('repoLine').title = 'misst ' + state.repo;
+  $('repoLine').innerHTML = 'misst <b>' + escapeHtml(short) + '</b> · Branch <b>' +
+    escapeHtml(state.currentBranch) + '</b> @ ' + escapeHtml(state.currentCommit);
 
   const chosen = $('branch').value;
   $('branch').innerHTML =
-    '<option value="current">' + state.currentBranch + ' (Arbeitscheckout, wird nicht angefasst)</option>' +
+    '<option value="current">' + escapeHtml(state.currentBranch) +
+      ' (Arbeitscheckout, wird nicht angefasst)</option>' +
     state.branches.filter(b => b !== state.currentBranch)
-      .map(b => '<option value="' + b + '">' + b + '</option>').join('');
+      .map(b => '<option value="' + escapeHtml(b) + '">' + escapeHtml(b) + '</option>').join('');
   if (chosen) $('branch').value = chosen;
 
   renderRuns();
@@ -198,19 +264,23 @@ function renderRuns() {
   const body = $('runTable').querySelector('tbody');
   body.innerHTML = state.runs.map(r => {
     const mark = (r.id === pickA ? 'a' : '') + (r.id === pickB ? ' b' : '');
-    return '<tr class="pick ' + mark + '" data-id="' + r.id + '">' +
-      '<td title="' + r.id + '">' + r.id.slice(9, 15).replace(/(..)(..)(..)/, '$1:$2:$3') +
-        (r.label ? ' <span class="sub">' + escape(r.label) + '</span>' : '') + '</td>' +
-      '<td>' + r.branch + ' <span class="sub">' + r.commit + '</span></td>' +
-      '<td>' + (r.outcome ||
-        (r.state === 'fehlgeschlagen'
-          ? '<span class="bad">fehlgeschlagen (Exit ' + r.exitCode + ')</span>'
-          : '<span class="warn">läuft…</span>')) + '</td>' +
-      '<td>' + (r.decidedTick ?? '—') + '</td>' +
-      '<td>' + (r.finalTick ?? '—') + '</td>' +
-      '<td><button data-pick="a">A</button> <button data-pick="b">B</button></td>' +
+    const outcome = r.outcome
+      ? escapeHtml(r.outcome)
+      : r.state === 'fehlgeschlagen'
+        ? '<span class="chip bad">fehlgeschlagen · Exit ' + r.exitCode + '</span>'
+        : '<span class="chip warn">läuft…</span>';
+    return '<tr class="pick ' + mark + '" data-id="' + escapeHtml(r.id) + '">' +
+      '<td title="' + escapeHtml(r.id) + '">' + r.id.slice(9, 15).replace(/(..)(..)(..)/, '$1:$2:$3') +
+        (r.label ? ' <span class="sub">' + escapeHtml(r.label) + '</span>' : '') + '</td>' +
+      '<td>' + escapeHtml(r.branch) + ' <span class="sub">' + escapeHtml(r.commit) + '</span></td>' +
+      '<td>' + outcome + '</td>' +
+      '<td class="num">' + (r.decidedTick ?? '—') + '</td>' +
+      '<td class="num">' + (r.finalTick ?? '—') + '</td>' +
+      '<td><button class="btn" data-pick="a">A</button> ' +
+          '<button class="btn" data-pick="b">B</button></td>' +
       '<td>' + (r.hasPlayer
-        ? '<a href="/runs/' + r.id + '/player.html" target="_blank">Player</a>' : '<span class="sub">—</span>') +
+        ? '<a href="/runs/' + encodeURIComponent(r.id) + '/player.html" target="_blank">öffnen</a>'
+        : '<span class="sub">—</span>') +
       '</td></tr>';
   }).join('') || '<tr><td class="sub" colspan="7">noch kein Lauf über diese Seite — im Reiter ' +
     '<b>Neuer Lauf</b> auf messen drücken</td></tr>';
@@ -229,9 +299,9 @@ function renderRuns() {
 $('runTable').addEventListener('click', event => {
   const row = event.target.closest('tr[data-id]');
   if (!row) return;
-  const which = event.target.dataset.pick;
-  if (which === 'a') pickA = row.dataset.id;
-  else if (which === 'b') pickB = row.dataset.id;
+  const which = event.target.closest('[data-pick]');
+  if (which && which.dataset.pick === 'a') pickA = row.dataset.id;
+  else if (which && which.dataset.pick === 'b') pickB = row.dataset.id;
   else { pickA = row.dataset.id; showMap(row.dataset.id, true); }  // Klick in die Zeile: A und Karte
   $('pickA').textContent = pickA || '—';
   $('pickB').textContent = pickB || '—';
@@ -247,17 +317,26 @@ $('runTable').addEventListener('click', event => {
 // zwei Bildlaufleisten übereinander. Ein Reiter kann nur eins von beidem sein.
 let mapRun = null;
 
+const VIEWS = ['map', 'run', 'runs', 'history', 'compare'];
+
 function showView(name) {
   for (const view of document.querySelectorAll('.view')) {
     view.classList.toggle('on', view.id === 'view-' + name);
   }
-  for (const button of document.querySelectorAll('nav button')) {
+  for (const button of document.querySelectorAll('nav .btn')) {
     button.classList.toggle('on', button.dataset.view === name);
   }
+  try { localStorage.setItem('novaLab.guiView', name); } catch (ignored) {}
 }
-for (const button of document.querySelectorAll('nav button')) {
+for (const button of document.querySelectorAll('nav .btn')) {
   button.addEventListener('click', () => showView(button.dataset.view));
 }
+
+// 1–5 wie im Player, damit man nicht zwei Tastaturen im Kopf haben muss.
+addEventListener('keydown', event => {
+  if (event.target.matches('input, select, textarea')) return;
+  if (event.key >= '1' && event.key <= '5') showView(VIEWS[+event.key - 1]);
+});
 
 function showMap(id, jump) {
   if (!id) return;
@@ -279,10 +358,11 @@ $('mapTab').addEventListener('click', () => {
 function renderHistory() {
   const body = $('historyTable').querySelector('tbody');
   body.innerHTML = state.history.map(h =>
-    '<tr class="pick" data-id="' + h.id + '">' +
-    '<td title="' + h.id + '">' + h.id.slice(4, 13) + '</td>' +
-    '<td>' + h.commit + '</td><td>' + h.aiBehaviorId + '</td>' +
-    '<td>' + (h.outcome || '—') + '</td><td>' + (h.decidedTick ?? '—') + '</td></tr>'
+    '<tr class="pick" data-id="' + escapeHtml(h.id) + '">' +
+    '<td title="' + escapeHtml(h.id) + '">' + h.id.slice(4, 13) + '</td>' +
+    '<td>' + escapeHtml(h.commit) + '</td><td>' + escapeHtml(h.aiBehaviorId) + '</td>' +
+    '<td>' + escapeHtml(h.outcome || '—') + '</td><td class="num">' + (h.decidedTick ?? '—') +
+    '</td></tr>'
   ).join('') || '<tr><td class="sub" colspan="5">keine archivierten Blöcke</td></tr>';
 }
 
@@ -293,20 +373,22 @@ $('historyTable').addEventListener('click', async event => {
   const run = block.run || {}, result = (block.match || {}).result || {};
   const feel = result.feel || [];
   $('snapshot').innerHTML =
-    '<b>' + run.id + '</b> · ' + (run.timestamp || '') + '<br>' +
-    'Commit ' + (run.commit || '?') + ' · Verhalten ' + (run.aiBehaviorId || '?') + '<br>' +
-    'Definitionen ' + (run.definitionsHash64 || '?') + ' · Zustand ' + (run.finalStateHash || '?') + '<br>' +
-    'Ausgang ' + (result.outcome || '?') + ', Sieger Slot ' + (result.winnerSlot ?? '?') +
+    '<b>' + escapeHtml(run.id) + '</b> · ' + escapeHtml(run.timestamp || '') + '<br>' +
+    'Commit ' + escapeHtml(run.commit || '?') + ' · Verhalten ' + escapeHtml(run.aiBehaviorId || '?') + '<br>' +
+    'Definitionen ' + escapeHtml(run.definitionsHash64 || '?') + ' · Zustand ' +
+      escapeHtml(run.finalStateHash || '?') + '<br>' +
+    'Ausgang ' + escapeHtml(result.outcome || '?') + ', Sieger Slot ' + (result.winnerSlot ?? '?') +
     ', entschieden bei Tick ' + (result.decidedTick ?? '?') + '<br>' +
     (feel.length
-      ? '<table style="margin-top:6px"><thead><tr><th>Slot</th><th>Tausch %</th>' +
+      ? '<table style="margin-top:8px"><thead><tr><th>Slot</th><th>Tausch %</th>' +
         '<th>Kampfintervalle</th><th>grösster Verlust</th><th>Reaktion Ticks</th><th>APM</th></tr></thead><tbody>' +
-        feel.map(f => '<tr><td>' + f.slot + '</td><td>' + f.exchangeRatioPercent + '</td><td>' +
-          f.combatIntervals + '</td><td>' + f.largestLossJump + '</td><td>' +
-          f.meanReactionLatencyTicks + '</td><td>' + f.actionsPerMinute + '</td></tr>').join('') +
+        feel.map(f => '<tr><td>' + f.slot + '</td><td class="num">' + f.exchangeRatioPercent +
+          '</td><td class="num">' + f.combatIntervals + '</td><td class="num">' + f.largestLossJump +
+          '</td><td class="num">' + f.meanReactionLatencyTicks + '</td><td class="num">' +
+          f.actionsPerMinute + '</td></tr>').join('') +
         '</tbody></table>'
       : '') +
-    '<div class="sub" style="margin-top:6px">Archivierter Block — keine Rohartefakte, also kein Player. ' +
+    '<div class="sub" style="margin-top:8px">Archivierter Block — keine Rohartefakte, also kein Player. ' +
     'Für Laufrouten denselben Commit über „Neuer Lauf" nachmessen.</div>';
 });
 
@@ -314,7 +396,7 @@ $('historyTable').addEventListener('click', async event => {
 
 $('start').addEventListener('click', async () => {
   $('start').disabled = true;
-  $('jobState').textContent = 'startet…';
+  setState('warn', 'spinner', 'startet…');
   $('log').textContent = '';
   try {
     const job = await api('/api/run', {
@@ -329,10 +411,17 @@ $('start').addEventListener('click', async () => {
     });
     watch(job.jobId);
   } catch (error) {
-    $('jobState').innerHTML = '<span class="bad">' + escape(error.message) + '</span>';
+    setState('bad', 'fail', error.message);
     $('start').disabled = false;
   }
 });
+
+/** Der Zustandschip — Zeichen und Farbe sagen dasselbe wie der Text. */
+function setState(kind, icon, text) {
+  const chip = $('jobState');
+  chip.className = 'chip' + (kind ? ' ' + kind : '');
+  chip.innerHTML = iconSvg(icon, 12) + '<span>' + escapeHtml(text) + '</span>';
+}
 
 function watch(jobId) {
   clearInterval(poll);
@@ -340,15 +429,16 @@ function watch(jobId) {
     const job = await api('/api/job?id=' + encodeURIComponent(jobId));
     $('log').textContent = (job.log || []).join('\n');
     $('log').scrollTop = $('log').scrollHeight;
-    if (job.running) { $('jobState').textContent = 'läuft…'; return; }
+    if (job.running) { setState('warn', 'spinner', 'läuft…'); return; }
 
     clearInterval(poll);
+    poll = null;
     $('start').disabled = false;
-    $('jobState').innerHTML = job.exitCode === 0
-      ? '<span class="ok">fertig</span>'
-      : job.exitCode === 2
-        ? '<span class="bad">Exit 2 — NICHT DETERMINISTISCH, keine Zahl aus diesem Lauf zählt</span>'
-        : '<span class="bad">Exit ' + job.exitCode + '</span>';
+    if (job.exitCode === 0) setState('ok', 'ok', 'fertig');
+    else if (job.exitCode === 2) {
+      setState('bad', 'fail', 'Exit 2 — NICHT DETERMINISTISCH, keine Zahl aus diesem Lauf zählt');
+    } else setState('bad', 'fail', 'Exit ' + job.exitCode);
+
     pickB = pickA; pickA = job.runId;          // der frische Lauf ist A, der vorige rutscht auf B
     $('pickA').textContent = pickA; $('pickB').textContent = pickB || '—';
     $('doCompare').disabled = !(pickA && pickB);
@@ -362,30 +452,40 @@ function watch(jobId) {
 $('doCompare').addEventListener('click', async () => {
   const data = await api('/api/compare?a=' + encodeURIComponent(pickA) + '&b=' + encodeURIComponent(pickB));
   $('compareOut').innerHTML =
-    (data.warnings || []).map(w => '<div class="warn">' + escape(w) + '</div>').join('') +
-    '<table style="margin-top:6px"><thead><tr><th></th>' +
-    '<th>A · ' + data.a.branch + '</th><th>B · ' + data.b.branch + '</th><th>B − A</th></tr></thead><tbody>' +
+    (data.warnings || []).map(w =>
+      '<div class="chip warn" style="margin-bottom:4px">' + escapeHtml(w) + '</div>').join('') +
+    '<div class="tablebox" style="margin-top:6px"><table><thead><tr><th></th>' +
+    '<th>A · ' + escapeHtml(data.a.branch) + '</th><th>B · ' + escapeHtml(data.b.branch) +
+    '</th><th>B − A</th></tr></thead><tbody>' +
     data.rows.map(r =>
-      '<tr><td>' + r.name + '</td>' +
-      '<td class="' + (r.same ? 'same' : '') + '">' + fmt(r.a) + '</td>' +
-      '<td class="' + (r.same ? 'same' : 'diff') + '">' + fmt(r.b) + '</td>' +
-      '<td class="' + (r.delta ? 'diff' : 'same') + '">' +
+      '<tr><td>' + escapeHtml(r.name) + '</td>' +
+      '<td class="num ' + (r.same ? 'same' : '') + '">' + fmt(r.a) + '</td>' +
+      '<td class="num ' + (r.same ? 'same' : 'diff') + '">' + fmt(r.b) + '</td>' +
+      '<td class="num ' + (r.delta ? 'diff' : 'same') + '">' +
         (r.delta === null || r.delta === undefined ? '' : (r.delta > 0 ? '+' : '') + r.delta) +
       '</td></tr>').join('') +
-    '</tbody></table>' +
-    '<div class="sub" style="margin-top:6px">Nichts davon ist verrechnet oder gewichtet. ' +
+    '</tbody></table></div>' +
+    '<div class="sub" style="margin-top:8px">Nichts davon ist verrechnet oder gewichtet. ' +
     'Zwei Läufe mit gleichem Seed und gleichem Verhalten müssen denselben Zustands-Hash tragen — ' +
     'tun sie es nicht, ist die Änderung nicht deterministisch und alles andere hier egal.</div>';
 });
 
 function fmt(value) {
-  return value === null || value === undefined ? '—' : escape(String(value));
+  return value === null || value === undefined ? '—' : escapeHtml(String(value));
 }
 
-function escape(text) {
+/** Hiess einmal escape() und überdeckte damit die gleichnamige globale. */
+function escapeHtml(text) {
   return String(text).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 }
 
+(function restoreView() {
+  let name = null;
+  try { name = localStorage.getItem('novaLab.guiView'); } catch (ignored) {}
+  if (VIEWS.indexOf(name) >= 0) showView(name);
+})();
+
+setState('', 'ok', 'bereit');
 refresh();
 setInterval(() => { if (!poll) refresh(); }, 15000);
 </script>

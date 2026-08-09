@@ -1,0 +1,188 @@
+/* Nova.AiLab — gemeinsame Oberflaechensprache fuer alle drei Flaechen.
+ *
+ * EINE QUELLE, DREI VERBRAUCHER. Diese Datei wird woertlich in die Seiten
+ * eingebettet, nie verlinkt: der Player muss eine einzelne kopierbare Datei
+ * bleiben (Begruendung in HtmlPlayer.cs, "The page is one string on purpose").
+ *
+ *   HtmlPlayer.cs      liest sie als EmbeddedResource und ersetzt __UIKIT_CSS__
+ *   gui_server.py      ersetzt denselben Platzhalter beim Ausliefern
+ *   build_dashboard.py ersetzt ihn beim Bauen
+ *
+ * Die Palette stammt aus dashboard.tpl.html — sie war dort schon richtig, sie
+ * stand nur an einer Stelle, an der die anderen zwei Seiten nicht hinkamen.
+ *
+ * HELL IST DIE VORGABE, DUNKEL FOLGT DEM SYSTEM. Player und Steuerseite sind
+ * Werkzeugfenster und setzen data-theme="dark" fest; das Dashboard ist ein
+ * Bericht und laesst dem Leser die Wahl. Der Dunkelblock steht deshalb zweimal
+ * da — einmal fuer die Systemwahl, einmal fuer die feste Wahl. CSS kennt kein
+ * Mixin, und eine Indirektion ueber Hilfsvariablen waere mehr Kunststueck als
+ * Ersparnis.
+ */
+
+:root {
+  color-scheme: light;
+  --plane:#f9f9f7; --surface:#fcfcfb; --raised:#ffffff;
+  --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --hair:rgba(11,11,11,0.10);
+  --line:#e1e0d9;
+  --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a;
+  --warning:#fab219; --critical:#d03b3b; --good:#0ca30c;
+  --warn-wash:#fdf6e3;
+  --accent:#2a78d6; --accent-ink:#ffffff; --accent-wash:rgba(42,120,214,0.12);
+  --div-n3:#a02523; --div-n2:#e34948; --div-n1:#f3b5b4;
+  --div-0:#f0efec;
+  --div-p1:#9ec5f4; --div-p2:#2a78d6; --div-p3:#184f95;
+  --seq-1:#cde2fb; --seq-2:#9ec5f4; --seq-3:#5598e7; --seq-4:#2a78d6; --seq-5:#184f95;
+
+  /* DIE SITZFARBEN. Frueher war Slot 1 #f85149 — genau das Rot, mit dem die
+     Karte Schaden und Tod zeichnet, sodass ein roter Punkt entweder eine
+     Legionseinheit oder ein Treffer war. Rot ist jetzt fuer Schaden
+     reserviert, und die Sitze nehmen die Serienfarben des Berichts: Slot 0
+     und Slot 1 bedeuten auf Karte und Dashboard dasselbe. */
+  --slot-0:#2a78d6; --slot-1:#eb6834; --slot-2:#1baf7a; --slot-3:#fab219;
+  --slot-4:#8b5cf6; --slot-5:#0e9ab0; --slot-6:#d6489b; --slot-7:#7a7873;
+
+  --sp-1:4px; --sp-2:6px; --sp-3:8px; --sp-4:12px; --sp-5:16px; --sp-6:24px;
+  --r-1:4px; --r-2:6px; --r-3:10px; --r-pill:999px;
+  --fs-xs:11px; --fs-s:12px; --fs-m:13px; --fs-l:15px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --shadow:0 6px 22px rgba(0,0,0,.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plane:#0d0d0d; --surface:#1a1a19; --raised:#232322;
+    --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --hair:rgba(255,255,255,0.10);
+    --line:#2c2c2a;
+    --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70;
+    --warn-wash:#231d0c;
+    --accent:#3987e5; --accent-ink:#ffffff; --accent-wash:rgba(57,135,229,0.18);
+    --critical:#e66767; --good:#3fb950;
+    --div-n3:#8f2120; --div-n2:#e66767; --div-n1:#6e3736;
+    --div-0:#383835;
+    --div-p1:#2a4f7a; --div-p2:#3987e5; --div-p3:#b7d3f6;
+    --seq-1:#184f95; --seq-2:#256abf; --seq-3:#3987e5; --seq-4:#86b6ef; --seq-5:#cde2fb;
+    --slot-0:#3987e5; --slot-1:#e07a3f; --slot-2:#2bbd8a; --slot-3:#e0b13a;
+    --slot-4:#a78bfa; --slot-5:#22b8cf; --slot-6:#ef6bb0; --slot-7:#9a9891;
+    --shadow:0 6px 22px rgba(0,0,0,.45);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane:#0d0d0d; --surface:#1a1a19; --raised:#232322;
+  --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --hair:rgba(255,255,255,0.10);
+  --line:#2c2c2a;
+  --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70;
+  --warn-wash:#231d0c;
+  --accent:#3987e5; --accent-ink:#ffffff; --accent-wash:rgba(57,135,229,0.18);
+  --critical:#e66767; --good:#3fb950;
+  --div-n3:#8f2120; --div-n2:#e66767; --div-n1:#6e3736;
+  --div-0:#383835;
+  --div-p1:#2a4f7a; --div-p2:#3987e5; --div-p3:#b7d3f6;
+  --seq-1:#184f95; --seq-2:#256abf; --seq-3:#3987e5; --seq-4:#86b6ef; --seq-5:#cde2fb;
+  --slot-0:#3987e5; --slot-1:#e07a3f; --slot-2:#2bbd8a; --slot-3:#e0b13a;
+  --slot-4:#a78bfa; --slot-5:#22b8cf; --slot-6:#ef6bb0; --slot-7:#9a9891;
+  --shadow:0 6px 22px rgba(0,0,0,.45);
+}
+
+/* ------------------------------------------------------------ Grundlagen */
+
+* { box-sizing:border-box; }
+
+:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:1px;
+}
+
+/* --------------------------------------------------------------- Symbole */
+
+/* Die Groesse steht als Attribut am <svg> — hier keine setzen, sonst
+   ueberstimmt die Regel jeden Aufruf und alles ist 1em gross. Auch kein
+   non-scaling-stroke: der Strich soll mitschrumpfen, sonst traegt ein
+   14-px-Symbol denselben Strich wie ein 40-px-Symbol und wird zum Klumpen. */
+.i { flex:0 0 auto; display:inline-block; vertical-align:-0.14em; }
+.i.em { width:1em; height:1em; }
+
+/* -------------------------------------------------------------- Bausteine
+ *
+ * Nur was auf mehr als einer Flaeche gebraucht wird. Alles Seitenweise steht
+ * weiter in der Seite — ein Kit, das jede Besonderheit aufsaugt, ist keins.
+ */
+
+.btn {
+  display:inline-flex; align-items:center; gap:var(--sp-2);
+  background:var(--surface); color:var(--ink2);
+  border:1px solid var(--line); border-radius:var(--r-1);
+  padding:5px 9px; font:inherit; font-size:var(--fs-s); line-height:1.2;
+  cursor:pointer; white-space:nowrap;
+}
+.btn:hover:not(:disabled) { background:var(--raised); color:var(--ink); }
+.btn:disabled { opacity:.42; cursor:default; }
+.btn.on { background:var(--accent-wash); border-color:var(--accent); color:var(--ink); }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.btn.primary:hover:not(:disabled) { filter:brightness(1.12); }
+.btn.icon { padding:5px; }
+.btn.icon .i { width:16px; height:16px; }
+
+/* Eine Gruppe zusammengehoeriger Knoepfe sieht auch wie eine aus. */
+.group {
+  display:inline-flex; align-items:center; gap:2px;
+  padding:2px; border:1px solid var(--line); border-radius:var(--r-2);
+  background:var(--plane);
+}
+.group .btn { border:0; background:transparent; }
+.group .btn:hover:not(:disabled) { background:var(--surface); }
+.sep { width:1px; align-self:stretch; background:var(--line); margin:0 var(--sp-2); }
+
+.chip {
+  display:inline-flex; align-items:center; gap:5px;
+  border:1px solid var(--line); border-radius:var(--r-pill);
+  padding:1px 8px; font-size:var(--fs-xs); color:var(--ink2);
+  background:var(--surface); white-space:nowrap;
+}
+.chip .i { width:12px; height:12px; }
+.chip.ok { color:var(--good); border-color:color-mix(in srgb, var(--good) 40%, var(--line)); }
+.chip.warn { color:var(--warning); border-color:color-mix(in srgb, var(--warning) 40%, var(--line)); }
+.chip.bad { color:var(--critical); border-color:color-mix(in srgb, var(--critical) 40%, var(--line)); }
+
+.card {
+  background:var(--surface); border:1px solid var(--hair);
+  border-radius:var(--r-3); padding:var(--sp-4);
+}
+
+.tabs { display:flex; gap:var(--sp-1); align-items:stretch; }
+.tabs .btn { border-radius:var(--r-2) var(--r-2) 0 0; }
+
+.field { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.field > span { font-size:var(--fs-xs); color:var(--muted); }
+.field input, .field select, input.ctl, select.ctl {
+  background:var(--plane); color:var(--ink);
+  border:1px solid var(--line); border-radius:var(--r-1);
+  padding:5px 8px; font:inherit; font-size:var(--fs-s); min-width:0;
+}
+.field.check { flex-direction:row; align-items:center; gap:var(--sp-2); }
+
+.muted { color:var(--muted); }
+.sub { color:var(--muted); font-size:var(--fs-s); }
+.ok { color:var(--good); }
+.warn { color:var(--warning); }
+.bad { color:var(--critical); }
+/* Was die Seite selbst ausgerechnet hat und die Aufzeichnung nicht hergibt. */
+.derived { color:var(--warning); font-style:italic; }
+
+.num { font-variant-numeric:tabular-nums; }
+
+/* Ein Balken statt einer Prozentzahl: 40 Zeilen Prozent liest niemand. */
+.bar { height:4px; border-radius:2px; background:var(--grid); overflow:hidden; }
+.bar > i { display:block; height:100%; border-radius:2px; }
+
+.scroll { overflow:auto; min-height:0; }
+.scroll-x { overflow-x:auto; }
+
+/* Schmale, unaufdringliche Bildlaufleisten — die Flaechen hier sind eng. */
+.scroll, .scroll-x, .panel, body { scrollbar-width:thin; }

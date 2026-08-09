@@ -44,6 +44,19 @@
     <Compile Include="$(NovaScripts)\AI.Data\**\*.cs" Link="AI.Data\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- THE SHARED UI KIT, CARRIED IN THE BINARY.
+       Tokens and the icon set live under report/uikit/ because the Python
+       side reads them from there too — one source for all three surfaces.
+       The player has to stay ONE copyable file, so it cannot link them; it
+       bakes them in at generation time and needs them at runtime, not as
+       files next to the exe. LogicalName pins the lookup key: without it the
+       name is derived from RootNamespace plus folder and changes whenever the
+       folder does. -->
+  <ItemGroup>
+    <EmbeddedResource Include="report\uikit\tokens.css" LogicalName="uikit.tokens.css" />
+    <EmbeddedResource Include="report\uikit\icons.js" LogicalName="uikit.icons.js" />
+  </ItemGroup>
+
   <!-- PROVENANCE, BAKED IN AT BUILD TIME.
        A result set is bound to the commit it was measured at and the report
        refuses to compare across that boundary. Before the lab moved out, the

@@ -4,35 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nova.AiLab — Laborlauf</title>
+<style>__UIKIT_CSS__</style>
 <style>
-:root {
-  color-scheme: light;
-  --plane:#f9f9f7; --surface:#fcfcfb;
-  --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
-  --grid:#e1e0d9; --axis:#c3c2b7; --hair:rgba(11,11,11,0.10);
-  --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a;
-  --warning:#fab219; --critical:#d03b3b; --good:#0ca30c;
-  --warn-wash:#fdf6e3;
-  --div-n3:#a02523; --div-n2:#e34948; --div-n1:#f3b5b4;
-  --div-0:#f0efec;
-  --div-p1:#9ec5f4; --div-p2:#2a78d6; --div-p3:#184f95;
-  --seq-1:#cde2fb; --seq-2:#9ec5f4; --seq-3:#5598e7; --seq-4:#2a78d6; --seq-5:#184f95;
-}
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) {
-    color-scheme: dark;
-    --plane:#0d0d0d; --surface:#1a1a19;
-    --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
-    --grid:#2c2c2a; --axis:#383835; --hair:rgba(255,255,255,0.10);
-    --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70;
-    --warn-wash:#231d0c;
-    --div-n3:#8f2120; --div-n2:#e66767; --div-n1:#6e3736;
-    --div-0:#383835;
-    --div-p1:#2a4f7a; --div-p2:#3987e5; --div-p3:#b7d3f6;
-    --seq-1:#184f95; --seq-2:#256abf; --seq-3:#3987e5; --seq-4:#86b6ef; --seq-5:#cde2fb;
-  }
-}
-* { box-sizing:border-box; }
 body {
   margin:0; background:var(--plane); color:var(--ink);
   font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -112,6 +85,29 @@ td.flag { color:var(--critical); }
 .note b { color:var(--ink); }
 details { margin-top:10px; }
 summary { cursor:pointer; font-size:13px; color:var(--ink2); }
+/* MITLAUFENDE ABSCHNITTSNAVIGATION. Die Seite traegt fuenf Laufarten
+   untereinander; ohne sie findet die letzte niemand, der nicht schon weiss,
+   dass es sie gibt. */
+.secnav {
+  position:sticky; top:0; z-index:10; display:flex; gap:6px; flex-wrap:wrap;
+  margin:0 0 30px; padding:8px 0;
+  background:color-mix(in srgb, var(--plane) 92%, transparent);
+  backdrop-filter:blur(6px); border-bottom:1px solid var(--hair);
+}
+.secnav a {
+  display:inline-flex; align-items:center; gap:6px; text-decoration:none;
+  border:1px solid var(--line); border-radius:var(--r-pill); padding:3px 11px;
+  font-size:12px; color:var(--ink2); background:var(--surface); white-space:nowrap;
+}
+.secnav a:hover { color:var(--ink); border-color:var(--axis); }
+.secnav a.on { color:var(--ink); border-color:var(--accent); background:var(--accent-wash); }
+.secnav .i { width:13px; height:13px; }
+section { scroll-margin-top:64px; }
+
+/* Sechs Kacheln nebeneinander sind auf einem Laptop sechs schmale Streifen —
+   dazwischen fehlte eine Stufe. */
+@media (max-width:1180px){ .tiles { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
 footer { margin-top:48px; padding-top:18px; border-top:1px solid var(--hair); font-size:13px; color:var(--muted); }
 footer pre { background:var(--surface); border:1px solid var(--hair); border-radius:8px;
   padding:10px 12px; overflow-x:auto; font-size:12px; color:var(--ink2); }
@@ -130,8 +126,10 @@ footer pre { background:var(--surface); border:1px solid var(--hair); border-rad
   die Werte stehen nebeneinander, die Auswahl trifft ein Mensch.</p>
 </div>
 
+<nav class="secnav" id="secnav" aria-label="Abschnitte"></nav>
+
 <!-- ========== 1 MATCH ========== -->
-<section>
+<section id="match">
   <div class="sechead">
     <span class="kicker">Laufart 1 · match</span>
     <h2>Die Partie: KI gegen KI</h2>
@@ -150,7 +148,7 @@ footer pre { background:var(--surface); border:1px solid var(--hair); border-rad
 </section>
 
 <!-- ========== 2 COMPARE ========== -->
-<section>
+<section id="compare">
   <div class="sechead">
     <span class="kicker">Laufart 4 · compare</span>
     <h2>Kandidatenprofile gegen die eingefrorene Referenz</h2>
@@ -168,7 +166,7 @@ footer pre { background:var(--surface); border:1px solid var(--hair); border-rad
 </section>
 
 <!-- ========== 3 DUEL ========== -->
-<section>
+<section id="duel">
   <div class="sechead">
     <span class="kicker">Laufart 2 · duel</span>
     <h2>Die Gegentabelle, gemessen statt abgelesen</h2>
@@ -186,7 +184,7 @@ footer pre { background:var(--surface); border:1px solid var(--hair); border-rad
 </section>
 
 <!-- ========== 4 SIEGE ========== -->
-<section>
+<section id="siege">
   <div class="sechead">
     <span class="kicker">Laufart 2 · Belagerungsstaffel</span>
     <h2>Womit reisst man eine Basis ein</h2>
@@ -203,7 +201,7 @@ footer pre { background:var(--surface); border:1px solid var(--hair); border-rad
 </section>
 
 <!-- ========== 5 MOVEMENT ========== -->
-<section>
+<section id="movement">
   <div class="sechead">
     <span class="kicker">Laufart 3 · movement</span>
     <h2>Bewegung: vier Szenarien</h2>
@@ -235,9 +233,41 @@ footer pre { background:var(--surface); border:1px solid var(--hair); border-rad
 
 <div class="tip" id="tip"></div>
 
+<script>__UIKIT_JS__</script>
 <script id="labdata" type="application/json">__DATA__</script>
 <script>
 const D = JSON.parse(document.getElementById('labdata').textContent);
+
+(function sectionNav() {
+  // Kurze Namen, nicht die Überschriften: „Kandidatenprofile gegen die
+  // eingefrorene Referenz" ist eine gute Überschrift und ein schlechter Reiter.
+  const marks = {
+    match:    ['gauge',    'Partie'],
+    compare:  ['compare',  'Kandidaten'],
+    duel:     ['layers',   'Gegentabelle'],
+    siege:    ['role.hq',  'Belagerung'],
+    movement: ['act.move', 'Bewegung'],
+  };
+  const nav = document.getElementById('secnav');
+  const sections = [...document.querySelectorAll('section[id]')];
+  nav.innerHTML = sections.map(section => {
+    const [icon, label] = marks[section.id] || ['chevron', section.id];
+    return '<a href="#' + section.id + '" title="' +
+           section.querySelector('h2').textContent.replace(/"/g, '') + '">' +
+           iconSvg(icon, 13) + '<span>' + label + '</span></a>';
+  }).join('');
+
+  // Welcher Abschnitt gerade dran ist, ohne Scroll-Handler und ohne Rechnen.
+  const links = [...nav.querySelectorAll('a')];
+  const spy = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const index = sections.indexOf(entry.target);
+      links.forEach((a, i) => a.classList.toggle('on', i === index));
+    }
+  }, { rootMargin: '-64px 0px -70% 0px' });
+  sections.forEach(section => spy.observe(section));
+})();
 const NS = 'http://www.w3.org/2000/svg';
 const tip = document.getElementById('tip');
 const fmt = n => n.toLocaleString('de-DE');

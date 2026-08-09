@@ -1,5 +1,7 @@
 using System;
 using System.Globalization;
+using System.IO;
+using System.Reflection;
 using System.Text;
 using Nova.AI;
 using Nova.Simulation.Combat;
@@ -77,8 +79,43 @@ namespace Nova.AiLab
                 .Replace("__VIEW_FILE__", RunArtifacts.ViewFileName)
                 .Replace("__TRACKS_FILE__", RunArtifacts.TracksFileName)
                 .Replace("__EVENTS_FILE__", RunArtifacts.EventsFileName)
-                .Replace("__UNITS_FILE__", RunArtifacts.UnitsFileName));
+                .Replace("__UNITS_FILE__", RunArtifacts.UnitsFileName)
+                .Replace("__UIKIT_CSS__", Kit("uikit.tokens.css"))
+                .Replace("__UIKIT_JS__", Kit("uikit.icons.js")));
             return html.ToString();
+        }
+
+        /// <summary>
+        /// A file of the shared UI kit, read out of the assembly.
+        /// <para>
+        /// Tokens and icons are one source for the player, the control page and
+        /// the dashboard — see <c>report/uikit/</c>. They are read here and
+        /// written INTO the page rather than linked, because an artifact
+        /// directory has to stay copyable as a unit; a player that needs two
+        /// files beside it is not one file.
+        /// </para>
+        /// <para>
+        /// A missing resource throws instead of writing a page without style:
+        /// a viewer that silently loses its icons looks like a broken run, and
+        /// the run is not what broke.
+        /// </para>
+        /// </summary>
+        private static string Kit(string name)
+        {
+            Assembly assembly = typeof(HtmlPlayer).Assembly;
+            using (Stream stream = assembly.GetManifestResourceStream(name))
+            {
+                if (stream == null)
+                {
+                    throw new InvalidOperationException(
+                        "the UI kit resource '" + name + "' is not in the assembly — " +
+                        "report/uikit/ is embedded by Nova.AiLab.csproj, check the EmbeddedResource item");
+                }
+                using (var reader = new StreamReader(stream))
+                {
+                    return reader.ReadToEnd();
+                }
+            }
         }
 
         /// <summary>
@@ -209,10 +246,11 @@ namespace Nova.AiLab
         // The page is one string on purpose: an artifact directory should be
         // copyable as a unit, and a player split across files is not.
         private const string Template = @"<!doctype html>
-<html lang=""en"">
+<html lang=""en"" data-theme=""dark"">
 <head>
 <meta charset=""utf-8"">
 <title>Nova AI Lab — view player (seed __SEED__)</title>
+<style>__UIKIT_CSS__</style>
 <style>
   /* AN APP SHELL, NOT A DOCUMENT.
      The page used to be a document that grew downwards: the map sat in the
@@ -220,165 +258,245 @@ namespace Nova.AiLab
      is the whole point of opening the page that is exactly backwards — the
      thing one looks at scrolled away while the panels stayed. Now the body is
      the window: nothing scrolls except a panel's own contents, the map takes
-     the room that is left, and the side panel folds out of the way. */
-  :root { color-scheme: dark; }
-  html, body { height:100%; }
-  body { margin:0; background:#0d1117; color:#c9d1d9; overflow:hidden;
-         display:flex; flex-direction:column;
-         font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
-  header { padding:6px 12px; border-bottom:1px solid #21262d; flex:0 0 auto;
-           display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
-  h1 { font-size:13px; margin:0; font-weight:600; }
-  .sub { color:#8b949e; font-size:12px; }
-  .warn { color:#d29922; }
-  .ok { color:#3fb950; }
-  .derived { color:#d29922; font-style:italic; }
+     the room that is left, and the side panel folds out of the way.
 
-  .bar { display:flex; gap:6px; align-items:center; padding:6px 12px 4px; flex:0 0 auto; }
-  #bandWrap { padding:0 12px 6px; flex:0 0 auto; }
-  main { flex:1 1 auto; display:flex; gap:10px; padding:0 12px 10px; min-height:0; }
+     WHAT CHANGED THE SECOND TIME. The map was a SQUARE inscribed in its
+     column: on a wide window a third of the room lay unused to the left and
+     right of it, while the map itself was starved by everything stacked above
+     it — a fifteen-column table, a share bar, two note lines. Now the canvas
+     takes the whole column and the scoreboard moved INTO the width that was
+     going to waste, as a rail beside the map. Vertical room is what a square
+     map is short of; horizontal room is what this window has spare. */
+  html, body { height:100%; }
+  body { margin:0; background:var(--plane); color:var(--ink); overflow:hidden;
+         display:flex; flex-direction:column;
+         font:13px/1.5 var(--mono); }
+
+  /* EINE ZEILE, IMMER. Die Kopfzeile darf nicht umbrechen — jede zweite Zeile
+     hier ist eine Zeile weniger Karte. Wird es eng, verschwinden erst die
+     Angaben, die auch im Dateinamen stehen, und zuletzt der Warnhinweis auf
+     sein Zeichen. */
+  .appbar { display:flex; align-items:center; gap:var(--sp-3); flex:0 0 auto;
+            padding:5px 10px; border-bottom:1px solid var(--line);
+            flex-wrap:nowrap; overflow:hidden; }
+  .mark { font-weight:600; font-size:var(--fs-s); letter-spacing:.02em; white-space:nowrap; }
+  #status { overflow:hidden; text-overflow:ellipsis; }
+  .spacer { flex:1 1 auto; }
+  #diag .t { overflow:hidden; text-overflow:ellipsis; max-width:44vw; }
+  @media (max-width: 1100px) { #diag .t { display:none; } }
+  @media (max-width: 1240px) { .appbar .chip.run { display:none; } }
+  @media (max-width: 1000px) { #bandLabel { display:none; } }
+
+  .toolbar { display:flex; align-items:center; gap:var(--sp-3); flex:0 0 auto; padding:6px 10px 4px; }
+  .toolbar input[type=range] { flex:1 1 auto; min-width:120px; accent-color:var(--accent); }
+  #tickLabel { font-size:var(--fs-s); color:var(--ink2); white-space:nowrap; }
+  #zoomLabel { font-size:var(--fs-xs); color:var(--muted); min-width:34px; text-align:center; }
+
+  .bandrow { display:flex; align-items:center; gap:var(--sp-3); padding:0 10px 6px; flex:0 0 auto; }
+  canvas#band { flex:1 1 auto; min-width:0; height:24px; display:block; background:#080a0c;
+                border:1px solid var(--line); border-radius:var(--r-1); cursor:pointer; }
+  #bandLabel { font-size:var(--fs-xs); color:var(--muted); white-space:nowrap;
+               max-width:38%; overflow:hidden; text-overflow:ellipsis; }
+
+  main { flex:1 1 auto; min-height:0; display:flex; padding:0 10px 10px; }
 
   /* flex-basis 0, not auto: with auto the column measures itself against the
      canvas inside it, the canvas is then sized from the column, and the two
      chase each other a pixel at a time on every redraw. */
-  .mapcol { flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column;
-            align-items:center; justify-content:flex-start; }
+  .mapwrap { flex:1 1 0; min-width:0; min-height:0; display:flex; gap:var(--sp-3); }
+  body.rail-top .mapwrap { flex-direction:column; }
 
-  /* The scoreboard over the map. flex:0 0 auto and a measured height: the
-     canvas is sized from what is LEFT in the column, so a bar that grows by a
-     row must shrink the map instead of pushing it out of the window. */
-  /* Thirteen columns in a column that can be folded narrow: the bar scrolls
-     sideways on its own rather than widening the page under the map. */
-  #topbar { flex:0 0 auto; align-self:stretch; margin-bottom:6px; overflow-x:auto; }
-  #topbar table { font-size:11px; }
-  #topbar th, #topbar td { padding:2px 6px; white-space:nowrap; }
-  #topbar th { color:#8b949e; font-weight:400; }
-  #topbar td.num { font-variant-numeric:tabular-nums; }
-  #topNote { margin-top:2px; font-size:11px; }
-  /* One bar, one glance: how the fighting strength is split right now. */
-  #shareBar { display:flex; height:8px; border-radius:4px; overflow:hidden;
-              background:#161b22; margin-bottom:4px; }
-  #shareBar div { height:100%; }
-  canvas#map { background:#010409; border:1px solid #21262d; border-radius:4px;
-           image-rendering:pixelated; display:block; cursor:crosshair; flex:0 0 auto; }
-  aside#side { flex:0 0 430px; width:430px; min-height:0; display:flex; flex-direction:column; }
+  .mapcol { flex:1 1 auto; min-width:0; min-height:0; position:relative; }
+  /* Kein Rahmen: die Leinwand traegt den Seitengrund und die Karte darin ihr
+     eigenes Bett, also wuerde ein Rahmen die Leere mitrahmen. */
+  canvas#map { position:absolute; inset:0; width:100%; height:100%; display:block;
+               background:var(--plane); cursor:crosshair; }
+  /* Die Notiz lag als eigene Zeile unter der Karte und kostete Kartenhoehe.
+     Jetzt liegt sie in der Ecke, in der ohnehin nichts steht. */
+  .mapchip { position:absolute; left:8px; bottom:8px; pointer-events:none;
+             font-size:var(--fs-xs); color:var(--muted);
+             background:color-mix(in srgb, var(--plane) 78%, transparent);
+             border:1px solid var(--line); border-radius:var(--r-1); padding:2px 7px;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ---- die Anzeigetafel als Rail, eine Karte je Sitz ------------------- */
+  .seats { flex:0 0 auto; display:flex; gap:var(--sp-3); min-height:0; }
+  body.rail-side .seats { flex-direction:column; width:252px; overflow:auto; }
+  body.rail-top .seats { flex-direction:row; flex-wrap:wrap; }
+  body.rail-top .seat { flex:1 1 300px; }
+  .seat { border:1px solid var(--line); border-radius:var(--r-2); background:var(--surface);
+          padding:6px 9px 7px; }
+  .seat .head { display:flex; align-items:center; gap:6px; font-size:var(--fs-s); }
+  .seat .dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .seat .name { font-weight:600; }
+  .seat .pct { margin-left:auto; font-variant-numeric:tabular-nums; color:var(--ink2); }
+  .seat .share { height:5px; border-radius:3px; background:var(--grid); overflow:hidden; margin:5px 0 6px; }
+  .seat .share > i { display:block; height:100%; }
+  .seat dl { display:grid; grid-template-columns:auto 1fr; gap:1px var(--sp-3);
+             margin:0; font-size:var(--fs-xs); }
+  .seat dt { color:var(--muted); }
+  .seat dd { margin:0; font-variant-numeric:tabular-nums; }
+  .seat .kv { display:flex; flex-wrap:wrap; gap:2px 9px; font-size:var(--fs-xs);
+              color:var(--ink2); font-variant-numeric:tabular-nums; }
+  .seat .kv b { font-weight:600; color:var(--ink); }
+  .seat .kv .i { color:var(--muted); }
+  body.seats-tight .seat .body { display:none; }
+  #topNote { font-size:var(--fs-xs); color:var(--muted); }
+  body.rail-side #topNote { margin-top:2px; }
+
+  /* ---- Ziehgriff und Seitenpanel -------------------------------------- */
+  #splitter { flex:0 0 9px; cursor:col-resize; display:flex; align-items:center;
+              justify-content:center; color:var(--grid); }
+  #splitter:hover { color:var(--accent); }
+  body.collapsed #splitter { display:none; }
+  aside#side { flex:0 0 auto; width:420px; min-width:0; min-height:0;
+               display:flex; flex-direction:column; container-type:inline-size; }
   body.collapsed aside#side { display:none; }
+  @container (max-width: 330px) { .tabs .btn .t { display:none; } }
 
-  .tabs { display:flex; gap:4px; flex:0 0 auto; margin-bottom:6px; }
-  .tabs button { border-radius:4px 4px 0 0; }
-  .tabs button.on { background:#1f6feb2e; border-color:#1f6feb; color:#e6edf3; }
-  .panel { flex:1 1 auto; min-height:0; border:1px solid #21262d; border-radius:5px;
-           padding:8px 10px; display:flex; flex-direction:column; overflow:hidden; }
+  .panel { flex:1 1 auto; min-height:0; border:1px solid var(--line);
+           border-radius:0 var(--r-2) var(--r-2) var(--r-2); background:var(--surface);
+           padding:8px 9px; display:flex; flex-direction:column; overflow:hidden; }
   .panel[hidden] { display:none; }
   .panel > .scroll { flex:1 1 auto; min-height:0; overflow:auto; }
-
-  input[type=range] { flex:1; min-width:200px; }
-  button, label.file, select { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
-           border-radius:4px; padding:4px 9px; cursor:pointer; font:inherit; }
-  button:hover, label.file:hover { background:#30363d; }
-  button.wide { min-width:48px; }
-  table { border-collapse:collapse; width:100%; font-size:12px; }
-  th,td { text-align:right; padding:3px 7px; border-bottom:1px solid #21262d; }
-  th:first-child, td:first-child { text-align:left; }
-  .layers { display:flex; flex-direction:column; gap:3px; font-size:12px; margin-top:10px; }
-  .legend { color:#8b949e; font-size:12px; line-height:1.8; }
-  .sw { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; }
-  canvas#band { width:100%; height:26px; display:block; background:#010409;
-                border:1px solid #21262d; border-radius:4px; cursor:pointer; }
-  #unitList tr { cursor:pointer; }
-  #unitList tr:hover td { background:#161b22; }
-  #unitList tr.sel td { background:#1f6feb33; }
-  #unitList tr.dead td { opacity:0.45; }
-  #detail { flex:0 0 auto; margin-top:8px; border-top:1px solid #21262d; padding-top:8px;
-            font-size:12px; max-height:44%; overflow:auto; }
-  #detail h2 { font-size:12px; margin:0 0 6px; font-weight:600; }
-  #detail dl { display:grid; grid-template-columns:auto 1fr; gap:1px 10px; margin:0; }
-  #detail dt { color:#8b949e; }
-  #detail dd { margin:0; }
-  #logBox { font-size:11px; }
-  #logBox div.row { white-space:nowrap; padding:0 4px; cursor:pointer; }
-  #logBox div.row:hover { background:#161b22; }
-  #logBox div.past { color:#6e7681; }
-  #logBox div.now { background:#1f6feb26; color:#e6edf3; }
-  #logBox div.future { color:#484f58; }
-  #logBox div.sel { border-left:2px solid #ffffff; padding-left:2px; }
-  #logBox b.id { color:#8b949e; font-weight:400; }
   .filters { display:flex; gap:5px; align-items:center; margin-bottom:6px; flex:0 0 auto;
-             flex-wrap:wrap; font-size:12px; }
-  .hint { color:#8b949e; font-size:11px; margin-top:4px; flex:0 0 auto; }
+             flex-wrap:wrap; font-size:var(--fs-s); }
+  .filters label { display:inline-flex; align-items:center; gap:4px; color:var(--ink2); }
+  .hint { color:var(--muted); font-size:var(--fs-xs); margin-top:4px; flex:0 0 auto; }
+
+  /* ---- Einheitenliste --------------------------------------------------- */
+  #unitList table { border-collapse:collapse; width:100%; font-size:var(--fs-s); }
+  #unitList td { padding:2px 5px; border-bottom:1px solid var(--hair); }
+  #unitList tr { cursor:pointer; }
+  #unitList tr:hover td { background:var(--raised); }
+  #unitList tr.sel td { background:var(--accent-wash); }
+  #unitList tr.dead td { opacity:0.45; }
+  #unitList td.ic { width:18px; padding-right:0; }
+  #unitList td.hp { width:52px; }
+  #unitList td.act { width:18px; text-align:right; color:var(--muted); }
+  #unitList .who { display:flex; align-items:baseline; gap:5px; }
+  #unitList .role { color:var(--ink2); }
+
+  /* ---- Detail ----------------------------------------------------------- */
+  #detail { flex:0 0 auto; margin-top:8px; border-top:1px solid var(--line); padding-top:7px;
+            font-size:var(--fs-s); max-height:46%; overflow:auto; }
+  #detail .dhead { display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+  #detail .dhead .nm { font-weight:600; }
+  #detail .block { margin-top:6px; }
+  #detail .block > h3 { font-size:var(--fs-xs); font-weight:600; color:var(--muted);
+                        text-transform:uppercase; letter-spacing:.07em; margin:0 0 2px; }
+  #detail dl { display:grid; grid-template-columns:auto 1fr; gap:1px var(--sp-4); margin:0; }
+  #detail dt { color:var(--muted); }
+  #detail dd { margin:0; }
+
+  /* ---- Protokoll -------------------------------------------------------- */
+  #logBox { font-size:var(--fs-xs); }
+  #logBox div.row { white-space:nowrap; padding:0 4px; cursor:pointer; }
+  #logBox div.row:hover { background:var(--raised); }
+  #logBox div.past { color:var(--ink2); }
+  #logBox div.now { background:var(--accent-wash); color:var(--ink); }
+  #logBox div.future { color:var(--muted); opacity:.75; }
+  #logBox div.sel { border-left:2px solid var(--ink); padding-left:2px; }
+  #logBox b.id { font-weight:400; }
+
+  /* ---- Ebenen und Legende ----------------------------------------------- */
+  .layers h3, .legend h3 { font-size:var(--fs-xs); font-weight:600; color:var(--muted);
+                           text-transform:uppercase; letter-spacing:.07em; margin:10px 0 3px; }
+  .layers h3:first-child, .legend h3:first-child { margin-top:0; }
+  .layers label { display:flex; align-items:center; gap:6px; font-size:var(--fs-s);
+                  color:var(--ink2); padding:1px 0; }
+  .layers select { margin-left:auto; }
+  .legend { color:var(--ink2); font-size:var(--fs-s); }
+  .legend p { margin:0 0 7px; }
+  .roleGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(122px,1fr)); gap:2px 8px; }
+  .roleGrid span { display:flex; align-items:center; gap:6px; font-size:var(--fs-xs); }
+  .keys { display:grid; grid-template-columns:auto 1fr; gap:1px 10px; font-size:var(--fs-xs); }
+  .keys b { font-weight:600; color:var(--ink); }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; }
 </style>
 </head>
-<body>
-<header>
-  <h1>Nova AI Lab</h1>
-  <span class=""sub"">seed __SEED__ · __MAP_WIDTH__×__MAP_HEIGHT__ · __SLOT_COUNT__ slots</span>
-  <label class=""file"">open the run's files<input type=""file"" id=""file"" multiple
-    accept="".ndjson,.json,.txt"" hidden></label>
-  <span class=""sub"" id=""status"">loading…</span>
-  <span style=""flex:1""></span>
-  <span class=""warn"" style=""font-size:12px"">diagnosis, never proof — what was not seen in the running game is unseen</span>
+<body class=""rail-side"">
+<header class=""appbar"">
+  <span class=""mark"">Nova AI Lab</span>
+  <span class=""chip run"" title=""the seed this run was measured with"">seed __SEED__</span>
+  <span class=""chip run"">__MAP_WIDTH__×__MAP_HEIGHT__</span>
+  <span class=""chip run"">__SLOT_COUNT__ slots</span>
+  <label class=""btn icon"" data-icon=""file"" title=""open the run's files"" aria-label=""open the run's files""
+    ><input type=""file"" id=""file"" multiple accept="".ndjson,.json,.txt"" hidden></label>
+  <span class=""chip"" id=""status"">loading…</span>
+  <span class=""spacer""></span>
+  <span class=""chip warn"" id=""diag"" data-icon=""warn""
+        title=""diagnosis, never proof — what was not seen in the running game is unseen""
+    ><span class=""t"">diagnosis, never proof — what was not seen in the running game is unseen</span></span>
 </header>
 
-<div class=""bar"">
-  <button id=""first"" title=""tick 0"">⏮</button>
-  <button id=""back25"" class=""wide"" title=""25 ticks back"">◀◀</button>
-  <button id=""back1"" class=""wide"" title=""one tick back"">◀</button>
-  <button id=""play"" class=""wide"">play</button>
-  <button id=""fwd1"" class=""wide"" title=""one tick on"">▶</button>
-  <button id=""fwd25"" class=""wide"" title=""25 ticks on"">▶▶</button>
-  <button id=""last"" title=""last tick"">⏭</button>
-  <select id=""speed"" title=""ticks per playback step"">
+<div class=""toolbar"">
+  <div class=""group"">
+    <button class=""btn icon"" id=""first"" data-icon=""first"" title=""tick 0 (Home)"" aria-label=""tick 0""></button>
+    <button class=""btn icon"" id=""back25"" data-icon=""jumpBack"" title=""25 ticks back (shift+←)"" aria-label=""25 ticks back""></button>
+    <button class=""btn icon"" id=""back1"" data-icon=""stepBack"" title=""one tick back (←)"" aria-label=""one tick back""></button>
+    <button class=""btn icon"" id=""play"" data-icon=""play"" title=""play (space)"" aria-label=""play""></button>
+    <button class=""btn icon"" id=""fwd1"" data-icon=""stepFwd"" title=""one tick on (→)"" aria-label=""one tick on""></button>
+    <button class=""btn icon"" id=""fwd25"" data-icon=""jumpFwd"" title=""25 ticks on (shift+→)"" aria-label=""25 ticks on""></button>
+    <button class=""btn icon"" id=""last"" data-icon=""last"" title=""last tick (End)"" aria-label=""last tick""></button>
+  </div>
+  <select id=""speed"" class=""ctl"" title=""ticks per playback step"">
     <option value=""1"">1 tick/step</option>
     <option value=""5"" selected>5 ticks/step</option>
     <option value=""25"">25 ticks/step</option>
     <option value=""100"">100 ticks/step</option>
   </select>
-  <input type=""range"" id=""scrub"" min=""0"" max=""0"" value=""0"" step=""1"">
-  <span id=""tickLabel"" class=""sub"">—</span>
-  <button id=""zoomOut"" title=""zoom out (-)"">−</button>
-  <span id=""zoomLabel"" class=""sub"">1.0×</span>
-  <button id=""zoomIn"" title=""zoom in (+)"">+</button>
-  <button id=""fit"" title=""whole map (0, or double-click)"">fit</button>
-  <button id=""focus"" title=""centre the selected unit (f)"">focus</button>
-  <button id=""sideToggle"" title=""fold the side panel away (s)"">»</button>
+  <input type=""range"" id=""scrub"" min=""0"" max=""0"" value=""0"" step=""1"" aria-label=""tick"">
+  <span id=""tickLabel"" class=""num"">—</span>
+  <div class=""group"">
+    <button class=""btn icon"" id=""zoomOut"" data-icon=""zoomOut"" title=""zoom out (-)"" aria-label=""zoom out""></button>
+    <span id=""zoomLabel"" class=""num"">1.0×</span>
+    <button class=""btn icon"" id=""zoomIn"" data-icon=""zoomIn"" title=""zoom in (+)"" aria-label=""zoom in""></button>
+    <button class=""btn icon"" id=""fit"" data-icon=""fit"" title=""whole map (0, or double-click)"" aria-label=""fit the whole map""></button>
+    <button class=""btn icon"" id=""focus"" data-icon=""focus"" title=""centre the selected unit (f)"" aria-label=""centre the selection""></button>
+  </div>
+  <button class=""btn icon"" id=""seatsToggle"" data-icon=""collapse"" title=""fold the scoreboard down to the share bars""
+          aria-label=""fold the scoreboard""></button>
+  <button class=""btn icon"" id=""sideToggle"" data-icon=""panel"" title=""fold the side panel away (s)""
+          aria-label=""fold the side panel away""></button>
 </div>
 
-<div id=""bandWrap"">
-  <canvas id=""band"" width=""2000"" height=""30""></canvas>
-  <div class=""sub"" id=""bandLabel"">event band — every event of the match faintly, the selected unit's
-    brightly (<b>n</b> / <b>p</b> jump between them, <b>N</b> / <b>P</b> through all of them)</div>
+<div class=""bandrow"">
+  <canvas id=""band"" width=""2000"" height=""24""></canvas>
+  <span id=""bandLabel"">event band — n / p the selection, N / P everything</span>
 </div>
 
 <main>
-  <div class=""mapcol"">
-    <!-- THE SCOREBOARD. Everything that used to need the layers tab, a count
-         by hand, or a guess: who is stronger, who has the army, who has the
-         money, who is losing units right now. -->
-    <div id=""topbar"">
-      <div id=""shareBar""></div>
-      <table id=""top""><thead><tr>
-        <th>slot</th><th>strength</th><th>share</th><th>gathered</th><th>wave</th>
-        <th>army</th><th>workers</th><th>buildings</th><th>health</th><th>AE</th>
-        <th>power</th><th>sees</th><th>spawned</th><th>lost</th><th>damage taken</th>
-      </tr></thead><tbody></tbody></table>
-      <div class=""sub"" id=""topNote"">—</div>
+  <div class=""mapwrap"">
+    <!-- THE SCOREBOARD, MOVED INTO THE ROOM THAT WAS GOING TO WASTE.
+         It used to be a fifteen-column table stacked ABOVE the map, which is
+         the one direction a square map cannot spare. Beside the map it costs
+         nothing: that width was empty. Fifteen columns are also not a reading
+         aid — one card per seat, grouped, is. -->
+    <aside class=""seats"" id=""seats"">
+      <div id=""topNote"">—</div>
+    </aside>
+
+    <div class=""mapcol"">
+      <canvas id=""map"" width=""700"" height=""700""></canvas>
+      <div class=""mapchip"" id=""mapNote"">—</div>
     </div>
-    <canvas id=""map"" width=""700"" height=""700""></canvas>
-    <div class=""hint"" id=""mapNote"">—</div>
   </div>
+
+  <div id=""splitter"" data-icon=""grip"" title=""drag to resize the side panel""></div>
 
   <aside id=""side"">
     <div class=""tabs"">
-      <button data-tab=""units"" class=""on"">units</button>
-      <button data-tab=""log"">log</button>
-      <button data-tab=""layers"">layers</button>
-      <button data-tab=""legend"">legend</button>
+      <button class=""btn on"" data-tab=""units"" data-icon=""list""><span class=""t"">units</span></button>
+      <button class=""btn"" data-tab=""log"" data-icon=""history""><span class=""t"">log</span></button>
+      <button class=""btn"" data-tab=""layers"" data-icon=""layers""><span class=""t"">layers</span></button>
+      <button class=""btn"" data-tab=""legend"" data-icon=""legend""><span class=""t"">legend</span></button>
     </div>
 
     <div class=""panel"" id=""tab-units"">
       <div class=""filters"">
-        <select id=""filterSlot""><option value=""-1"">every slot</option></select>
-        <select id=""filterShape"">
+        <select id=""filterSlot"" class=""ctl""><option value=""-1"">every slot</option></select>
+        <select id=""filterShape"" class=""ctl"">
           <option value=""-1"">every shape</option>
           <option value=""4"">combat</option>
           <option value=""3"">harvester</option>
@@ -394,8 +512,8 @@ namespace Nova.AiLab
 
     <div class=""panel"" id=""tab-log"" hidden>
       <div class=""filters"">
-        <select id=""logSlot""><option value=""-1"">every slot</option></select>
-        <select id=""logKind"">
+        <select id=""logSlot"" class=""ctl""><option value=""-1"">every slot</option></select>
+        <select id=""logKind"" class=""ctl"">
           <option value=""all"">everything</option>
           <option value=""combat"">combat</option>
           <option value=""movement"">movement</option>
@@ -412,68 +530,47 @@ namespace Nova.AiLab
     <div class=""panel"" id=""tab-layers"" hidden>
       <div class=""scroll"">
         <div class=""layers"">
+          <h3>map</h3>
+          <label><input type=""checkbox"" id=""layerIcons"" checked> role icons instead of plain shapes</label>
           <label><input type=""checkbox"" id=""layerLines"" checked> order lines</label>
           <label><input type=""checkbox"" id=""layerHealth"" checked> health as brightness</label>
+          <h3>trails</h3>
           <label><input type=""checkbox"" id=""layerTrail"" checked> trail of the selected unit</label>
-          <label><input type=""checkbox"" id=""layerAllTrails""> trails of every unit of slot
-            <select id=""trailSlot""></select></label>
-          <label><input type=""checkbox"" id=""layerFog""> fog of war of slot
-            <select id=""fogSlot""></select></label>
+          <label><input type=""checkbox"" id=""layerAllTrails""> every unit of slot
+            <select id=""trailSlot"" class=""ctl""></select></label>
           <label>trail length
-            <select id=""trailSpan"">
+            <select id=""trailSpan"" class=""ctl"">
               <option value=""200"">200 ticks</option>
               <option value=""600"" selected>600 ticks</option>
               <option value=""2000"">2000 ticks</option>
               <option value=""0"">the whole run</option>
             </select></label>
+          <h3>sight</h3>
+          <label><input type=""checkbox"" id=""layerFog""> fog of war of slot
+            <select id=""fogSlot"" class=""ctl""></select></label>
         </div>
       </div>
     </div>
 
     <div class=""panel"" id=""tab-legend"" hidden>
-      <div class=""scroll legend"">
-        <b>shape</b> ▣ building · ▢ site · ✚ builder · ● harvester · ▲ combat<br>
-        <b>line</b> <span class=""sw"" style=""background:#f85149""></span> attack ·
-        <span class=""sw"" style=""background:#3fb950""></span> harvest ·
-        <span class=""sw"" style=""background:#58a6ff""></span> move<br>
-        <b>event</b> <span class=""sw"" style=""background:#f85149""></span> damage/death ·
-        <span class=""sw"" style=""background:#ff9e64""></span> attack ·
-        <span class=""sw"" style=""background:#58a6ff""></span> order/goal ·
-        <span class=""sw"" style=""background:#d29922""></span> stuck ·
-        <span class=""sw"" style=""background:#3fb950""></span> harvest/cargo ·
-        <span class=""sw"" style=""background:#bc8cff""></span> spawn/site<br>
-        <b>scoreboard</b> strength is the AI's own measure —
-        damage × health ÷ firing interval, summed over the combat units, so twelve recruits
-        and twelve riflemen are not the same wave. <b>gathered</b> is only what stands in the
-        staging ring around the own HQ; everything outside it marched with an earlier wave and
-        is never called back. <b>wave</b> is that strength against the gate's threshold —
-        recomputed here, not recorded, and the AI decides on its own cadence. AE, power and
-        ""sees"" are as old as the newest frame; everything else on the bar is exact for the tick.<br>
-        <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold ·
-        <b>yellow rim</b> stuck · <b>red circles</b> hits landing ·
-        <b>fading cross</b> died just now<br><br>
-        <b>map</b><br>
-        wheel zooms on the pointer · drag moves · double-click fits<br>
-        + − zoom · 0 fits · f centres the selection<br><br>
-        <b>keys</b><br>
-        ← → one tick · shift for 25 · space plays<br>
-        n / p the selection's events · N / P every event<br>
-        s the side panel · 1–4 the tabs · Esc clears the selection · Home / End<br><br>
-        <span class=""warn"">fog is the most common reason an AI ""did not react"" — check it
-        before blaming the logic.</span><br><br>
-        <span class=""derived"">who fired is DERIVED from state and is never reported by the
-        simulation — see notes/schadensquelle.md.</span>
-      </div>
+      <div class=""scroll legend"" id=""legendBox""></div>
     </div>
   </aside>
 </main>
 
+<script>__UIKIT_JS__</script>
 <script>
 const MAP_W = __MAP_WIDTH__, MAP_H = __MAP_HEIGHT__;
 const ONE = 65536;                       // Q16.16: positions arrive as raw integers
-const SLOT_COLOURS = ['#58a6ff','#f85149','#3fb950','#d29922','#bc8cff','#39c5cf','#ff9e64','#8b949e'];
+
+/** A token of the shared kit, read once the stylesheet is in. */
+const token = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// THE SEAT COLOURS COME FROM THE KIT, NOT FROM HERE. Slot 1 used to be
+// #f85149 — the same red the map paints damage and death with, so a red dot
+// was either a Legion unit or a hit landing. Red belongs to damage now.
+const SLOT_COLOURS = Array.from({ length: 8 }, (unused, i) => token('--slot-' + i) || '#8b949e');
 const LINE_COLOURS = [null,'#f85149','#3fb950','#58a6ff'];
-const SHAPE_GLYPH = ['▣','▢','✚','●','▲'];
 const ROLE_NAME = ['unit','builder','harvester','HQ','refinery','power','storage','barracks',
                    'vehicleFactory','researchLab','radar','defensePlatform','basicInfantry',
                    'antiArmorInfantry','scoutVehicle','lightTank','battleTank','artillery'];
@@ -830,14 +927,28 @@ function frameAt(atTick) {
 const view = { zoom: 1, cx: MAP_W / 2, cy: MAP_H / 2 };
 const MIN_ZOOM = 0.5, MAX_ZOOM = 40;
 
-const pxPerCell = () => (canvas.width / MAP_W) * view.zoom;
-const px = raw => (raw / ONE - view.cx) * pxPerCell() + canvas.width / 2;
-const py = raw => canvas.height / 2 - (raw / ONE - view.cy) * pxPerCell();
+// EVERYTHING BELOW COUNTS IN CSS PIXELS, not in backing-store pixels. The
+// canvas carries a devicePixelRatio-sized buffer so the picture is sharp, and
+// draw() scales the context by that ratio once. If the drawing code counted
+// in buffer pixels instead, every marker radius and line width in this file
+// would silently halve on a HiDPI screen.
+let pixelRatio = 1;
+const boardW = () => canvas.width / pixelRatio;
+const boardH = () => canvas.height / pixelRatio;
+
+// THE SMALLER OF THE TWO, not the width. The canvas is no longer a square
+// inscribed in its column — it takes the whole column, and the map is fitted
+// INSIDE the canvas. On a wide window that turns the strip that used to sit
+// empty beside a square canvas into room the map can actually use, and on a
+// tall one it stops the map from being cut off at the bottom.
+const pxPerCell = () => Math.min(boardW() / MAP_W, boardH() / MAP_H) * view.zoom;
+const px = raw => (raw / ONE - view.cx) * pxPerCell() + boardW() / 2;
+const py = raw => boardH() / 2 - (raw / ONE - view.cy) * pxPerCell();
 
 /** Screen back to map cells — for the wheel, the drag and picking a unit. */
 function toCell(sx, sy) {
   const scale = pxPerCell();
-  return [(sx - canvas.width / 2) / scale + view.cx, view.cy - (sy - canvas.height / 2) / scale];
+  return [(sx - boardW() / 2) / scale + view.cx, view.cy - (sy - boardH() / 2) / scale];
 }
 
 function fitMap() {
@@ -857,8 +968,8 @@ function focusSelected() {
 canvas.addEventListener('wheel', event => {
   event.preventDefault();
   const rect = canvas.getBoundingClientRect();
-  const sx = (event.clientX - rect.left) * (canvas.width / rect.width);
-  const sy = (event.clientY - rect.top) * (canvas.height / rect.height);
+  const sx = (event.clientX - rect.left) * (boardW() / rect.width);
+  const sy = (event.clientY - rect.top) * (boardH() / rect.height);
 
   // The cell under the pointer stays under the pointer — anything else and
   // zooming into a corner walks the map out from under you.
@@ -881,8 +992,7 @@ canvas.addEventListener('pointerdown', event => {
 
 canvas.addEventListener('pointermove', event => {
   if (!dragFrom) return;
-  const rect = canvas.getBoundingClientRect();
-  const scale = pxPerCell() * (rect.width / canvas.width);
+  const scale = pxPerCell();                 // schon in CSS-Pixeln, wie die Zeigerkoordinaten
   const dx = event.clientX - dragFrom[0], dy = event.clientY - dragFrom[1];
   dragged = Math.max(dragged, Math.abs(dx) + Math.abs(dy));
   view.cx = dragFrom[2] - dx / scale;
@@ -896,7 +1006,23 @@ for (const kind of ['pointerup', 'pointercancel', 'pointerleave']) {
 
 canvas.addEventListener('dblclick', fitMap);
 
-const markerScale = () => Math.min(3, Math.max(1, Math.sqrt(view.zoom)));
+/**
+ * How big a marker is drawn, relative to its base size.
+ * <p>
+ * IT FOLLOWS THE CELL, NOT ONLY THE ZOOM. It used to be a function of
+ * `view.zoom` alone, which meant a map given half the window and a map given
+ * all of it drew the same three-pixel dots — the extra room went to the empty
+ * space between units and not to the units. The reference is the cell size the
+ * old fixed 700-pixel canvas produced; from there markers grow with the room
+ * the map actually has, and still slower than the zoom, so a building does not
+ * fill the screen at zoom 20.
+ */
+const CELL_REFERENCE = 700 / 128;
+const markerScale = () =>
+  Math.min(3.4, Math.max(1, Math.sqrt(view.zoom) * Math.min(1.7, pxPerCell() / view.zoom / CELL_REFERENCE)));
+
+/** Ob Rollen-Symbole gezeichnet werden — der Schalter im Reiter ""layers"". */
+let useIcons = true;
 
 function drawFog(frame) {
   if (!frame || !frame.fog) return;
@@ -991,42 +1117,104 @@ function drawTrails() {
   }
 }
 
+/** Breite der Sitzleiste plus Abstand, wenn sie neben der Karte steht. */
+const RAIL_WIDTH = 252 + 8;
+
 /**
- * The canvas takes whatever room the map column has. It is a square because
- * the map is one — a stretched canvas would put the distances out of true,
- * and distances are the whole point of drawing this at all.
+ * How much better the other arrangement has to be before the rail moves.
+ * <p>
+ * The two candidates are within a few pixels of each other around a certain
+ * window shape, and the estimate below is only an estimate. Without a dead
+ * band the rail would jump from side to top and back between two redraws,
+ * sixteen times a second while the match plays.
+ */
+const RAIL_HYSTERESIS = 24;
+
+/**
+ * WHERE THE SCOREBOARD SITS — decided by which arrangement leaves the bigger
+ * map, not by a rule of thumb about the window.
+ * <p>
+ * The first attempt compared the aspect of the area against a fixed ratio, and
+ * it was WRONG in the middle: at 1440×900 it put the rail on top, which cost
+ * the map more height than the rail would have cost it width, and the map came
+ * out SMALLER than the old fixed square. So both candidates are computed and
+ * the larger one wins.
+ * <p>
+ * A square map is short of height and has width to spare, so the rail beside
+ * the map is usually free — but only usually, and that was the bug.
+ */
+function placeSeats() {
+  clampSide();
+  const wrap = document.querySelector('.mapwrap');
+  const width = wrap.clientWidth, height = wrap.clientHeight;
+
+  // Wie hoch die Leiste oben stünde. Die Karte selbst ist so hoch wie ihr
+  // Inhalt, egal in welcher Anordnung — nur die Notiz darunter bricht in der
+  // schmalen Spalte anders um, und dafür reicht ein Zuschlag.
+  const card = document.querySelector('.seat');
+  const stacked = (card ? card.offsetHeight : 120) + 34;
+
+  const beside = Math.min(width - RAIL_WIDTH, height);
+  const above = Math.min(width, height - stacked);
+
+  const wasSide = document.body.classList.contains('rail-side');
+  const wide = wasSide
+    ? beside + RAIL_HYSTERESIS >= above
+    : beside > above + RAIL_HYSTERESIS;
+
+  document.body.classList.toggle('rail-side', wide);
+  document.body.classList.toggle('rail-top', !wide);
+}
+
+/**
+ * The canvas takes the whole map column — width AND height. It used to be a
+ * square inscribed in the column, which on a 16:9 window left a third of the
+ * room unused beside it. The map inside it stays true to scale: `pxPerCell`
+ * fits it by the smaller of the two, so distances are not stretched.
+ * <p>
+ * The backing store follows devicePixelRatio while the CSS size stays the
+ * layout size — same area, drawn sharp instead of scaled up afterwards.
  */
 function fitCanvas() {
   const column = document.querySelector('.mapcol');
-  // The column is a flex item with a real height now, so the room it has is
-  // its own — no arithmetic against window.innerHeight that goes wrong the
-  // moment anything above the map changes height.
-  // …minus what stands above and below it. The scoreboard grows with the seat
-  // count, so the room for the map is measured, never assumed.
-  const chrome = document.getElementById('topbar').offsetHeight +
-                 document.getElementById('mapNote').offsetHeight + 10;
-  const size = Math.round(Math.max(320,
-    Math.min(column.clientWidth, column.clientHeight - chrome, 1800)));
-  if (canvas.width !== size) { canvas.width = size; canvas.height = size; }
+  pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+  const cssW = Math.max(200, column.clientWidth);
+  const cssH = Math.max(200, column.clientHeight);
+  const w = Math.round(cssW * pixelRatio), h = Math.round(cssH * pixelRatio);
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
 }
 
 function draw() {
+  placeSeats();
   fitCanvas();
+  // Einmal skalieren, danach rechnet alles in CSS-Pixeln weiter.
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   if (!loaded.events || !loaded.tracks) { drawEmpty(); return; }
   world = stateAt(tick);
 
-  ctx.fillStyle = '#010409';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // ZWEI GRÜNDE, ZWEI FARBEN. Die Leinwand ist grösser als die Karte — sie
+  // hat den Platz zum Schieben, und ein quadratisches Feld passt nie genau in
+  // ein 16:9-Fenster. Wäre alles gleich dunkel, sähe die Seite aus wie ein
+  // grosser leerer Kasten mit etwas darin. Also trägt der Überstand den
+  // Seitengrund und nur die Karte selbst ihr eigenes Bett.
+  ctx.fillStyle = token('--plane') || '#0d0d0d';
+  ctx.fillRect(0, 0, boardW(), boardH());
+
+  const bedX = px(0), bedY = py(MAP_H * ONE);
+  const bedW = MAP_W * pxPerCell(), bedH = MAP_H * pxPerCell();
+  ctx.fillStyle = '#080a0c';
+  ctx.fillRect(bedX, bedY, bedW, bedH);
 
   // Wo die Karte aufhört. Sobald man hineinzoomt, ist der leere Rand sonst
   // nicht vom unerkundeten Gelände zu unterscheiden.
   ctx.save();
-  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
-  ctx.strokeRect(px(0), py(MAP_H * ONE), MAP_W * pxPerCell(), MAP_H * pxPerCell());
+  ctx.strokeStyle = token('--grid') || '#2c2c2a'; ctx.lineWidth = 1;
+  ctx.strokeRect(bedX, bedY, bedW, bedH);
   ctx.restore();
 
   const showLines = document.getElementById('layerLines').checked;
   const showHealth = document.getElementById('layerHealth').checked;
+  useIcons = document.getElementById('layerIcons').checked;
 
   drawTrails();
 
@@ -1062,7 +1250,18 @@ function draw() {
   if (document.getElementById('layerFog').checked) drawFog(frame);
   markDeath();
 
-  renderTopBar(frame);
+  renderSeats(frame);
+
+  // Die Notiz gehört zur Karte, nicht zur Leinwand: sie sitzt unter dem
+  // Kartenbett, nicht am Rand des Schiebebereichs — sonst schwebt sie neben
+  // der Karte im Leeren.
+  const chip = document.getElementById('mapNote');
+  const left = Math.max(8, Math.min(bedX, boardW() - 40));
+  const under = boardH() - (bedY + bedH);
+  chip.style.left = left + 'px';
+  chip.style.width = Math.max(120, Math.min(bedW, boardW() - left - 8)) + 'px';
+  chip.style.bottom = Math.max(8, Math.min(under + 8, boardH() - 30)) + 'px';
+
   document.getElementById('mapNote').innerHTML =
     'positions, health, orders and flags are rebuilt for tick <b>' + tick + '</b> exactly · ' +
     'fog and the header row come from frame t=' + (frame ? frame.t : '—') +
@@ -1079,18 +1278,36 @@ function draw() {
 }
 
 function drawEmpty() {
-  ctx.fillStyle = '#010409';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#8b949e';
+  ctx.fillStyle = '#080a0c';
+  ctx.fillRect(0, 0, boardW(), boardH());
+  ctx.fillStyle = token('--muted') || '#898781';
   ctx.font = '13px ui-monospace, monospace';
   ctx.fillText('waiting for tracks.ndjson and events.ndjson', 20, 30);
 }
+
+/**
+ * From how many pixels on, a marker is drawn as the ROLE it is rather than as
+ * one of five shapes.
+ * <p>
+ * Below this a role icon is a smudge and five plain shapes carry more: at a
+ * whole 128-cell map in one screen a unit is three pixels across, and there
+ * the question is where the mass is, not which chassis it has. The switch is
+ * on the drawn size, so it follows the zoom by itself.
+ */
+const ICON_FROM_PX = 10;
+
+/** Wie viel grösser das Symbol gezeichnet wird als der Radius der alten Form. */
+const ICON_OVER_MARKER = 2.5;
 
 /**
  * One marker. Shared by the living and the dying, so a unit does not change
  * its shape in the moment it is most worth looking at.
  * `healthDims` 1 lets health darken the marker, 0 keeps it flat;
  * `fade` scales everything for the units that are on their way out.
+ * <p>
+ * THE FLAGS ARE UNTOUCHED BY THE ICONS. Hollow for cargo, white rim under the
+ * retreat mark, yellow rim for stuck — they sit on the icon exactly as they
+ * sat on the shape, because the legend that explains them is the same legend.
  */
 function paintUnit(u, cx, cy, hp, flags, healthDims, fade) {
   const shape = shapeOf(u);
@@ -1104,22 +1321,29 @@ function paintUnit(u, cx, cy, hp, flags, healthDims, fade) {
   // Markers grow with the scale, but slower than it: a building drawn at true
   // size fills the screen at zoom 20, and one drawn at a fixed size stops
   // telling a bunker from a soldier.
-  const r = (shape === 0 ? 5 : shape === 1 ? 4.5 : 3.2) * markerScale();
+  const r = (shape === 0 ? 5 : shape === 1 ? 4.5 : 3.6) * markerScale();
 
-  ctx.beginPath();
-  if (shape === 0 || shape === 1) {
-    ctx.rect(cx - r, cy - r, r * 2, r * 2);
-  } else if (shape === 2) {
-    ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
-    ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
-    ctx.stroke(); ctx.globalAlpha = 1;
-    return;
-  } else if (shape === 3) {
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  // Gemessen wird das SYMBOL, nicht der Punkt, den es ersetzt — es wird
+  // etwas grösser gezeichnet als die Form, und das ist die Grösse, bei der
+  // sich entscheidet, ob man es lesen kann.
+  if (useIcons && r * ICON_OVER_MARKER >= ICON_FROM_PX) {
+    paintRoleIcon(u, cx, cy, r, shape, hollow, base);
   } else {
-    ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r, cy + r); ctx.lineTo(cx - r, cy + r); ctx.closePath();
+    ctx.beginPath();
+    if (shape === 0 || shape === 1) {
+      ctx.rect(cx - r, cy - r, r * 2, r * 2);
+    } else if (shape === 2) {
+      ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
+      ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
+      ctx.stroke(); ctx.globalAlpha = 1;
+      return;
+    } else if (shape === 3) {
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    } else {
+      ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r, cy + r); ctx.lineTo(cx - r, cy + r); ctx.closePath();
+    }
+    if (hollow || shape === 1) ctx.stroke(); else ctx.fill();
   }
-  if (hollow || shape === 1) ctx.stroke(); else ctx.fill();
 
   if (weak) {
     ctx.globalAlpha = fade; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
@@ -1130,6 +1354,53 @@ function paintUnit(u, cx, cy, hp, flags, healthDims, fade) {
     ctx.beginPath(); ctx.arc(cx, cy, r + 4.5, 0, Math.PI * 2); ctx.stroke();
   }
   ctx.globalAlpha = 1;
+}
+
+/**
+ * The role as a silhouette from the shared icon set — the same paths the side
+ * panel and the legend draw, so the picture and the words beside it cannot
+ * drift apart.
+ * <p>
+ * THE SHAPE SURVIVES AS THE BACKING. A building keeps a filled plate under its
+ * icon and a construction site a dashed one; a mobile unit gets the bare
+ * silhouette. Whoever reads the map by ""square is a building"" still can.
+ */
+function paintRoleIcon(u, cx, cy, r, shape, hollow, base) {
+  const size = r * ICON_OVER_MARKER;
+  const half = size / 2;
+
+  if (shape === 0 || shape === 1) {
+    const plate = r * 1.5;
+    ctx.save();
+    ctx.globalAlpha *= shape === 1 ? 0.35 : 0.22;
+    ctx.beginPath();
+    ctx.rect(cx - plate, cy - plate, plate * 2, plate * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.lineWidth = 1;
+    if (shape === 1) ctx.setLineDash([3, 2.4]);
+    ctx.strokeRect(cx - plate, cy - plate, plate * 2, plate * 2);
+    ctx.restore();
+  }
+
+  const name = roleIconName(u.role, u.site);
+  const path = iconPath2D(name);
+  if (!path) return;
+
+  ctx.save();
+  ctx.translate(cx - half, cy - half);
+  ctx.scale(size / 24, size / 24);
+  // Fracht wird hohl gezeichnet, wie bisher — nur eben als Umriss des Symbols.
+  if (hollow) {
+    ctx.lineWidth = 24 / size * 1.6;
+    ctx.strokeStyle = base;
+    ctx.stroke(path);
+  } else {
+    ctx.fillStyle = base;
+    ctx.fill(path, iconEvenOdd(name) ? 'evenodd' : 'nonzero');
+  }
+  ctx.restore();
 }
 
 /** The recently dead, fading where they fell, with a cross that fades with them. */
@@ -1356,72 +1627,121 @@ function waveCell(wave) {
   return '<span class=""derived"">' + wave.have + ' / ' + wave.need + unit + '</span> ' + verdict;
 }
 
-function renderTopBar(frame) {
+/**
+ * ONE CARD PER SEAT instead of fifteen columns.
+ * <p>
+ * The numbers are the same numbers and they come out of the same
+ * <c>slotStats</c>; what changed is that they are GROUPED. Fifteen headings in
+ * a row is a table one reads by counting across with a finger — ""strength and
+ * share"", ""what the wave gate wants"", ""what is standing"", ""what it costs""
+ * are four questions, and each gets its own line.
+ * <p>
+ * The cards also moved out of the map's way: beside it, in the width a square
+ * map leaves empty, rather than above it, in the height it is short of.
+ */
+function renderSeats(frame) {
   const stats = slotStats(frame);
   const total = stats.reduce((sum, s) => sum + s.strength, 0);
   const colour = s => SLOT_COLOURS[s.seat.slot % SLOT_COLOURS.length];
   const num = v => v === null ? '<span class=""sub"">—</span>' : v;
+  const seats = document.getElementById('seats');
+  const note = document.getElementById('topNote');
 
-  document.getElementById('shareBar').innerHTML = total === 0
-    ? '<div style=""flex:1;background:#161b22""></div>'
-    : stats.map(s => '<div style=""flex:' + s.strength + ';background:' + colour(s) + '"" title=""slot ' +
-        s.seat.slot + ': ' + s.strength + ' strength""></div>').join('');
+  const cards = stats.map(s => {
+    const share = total ? Math.round(s.strength * 100 / total) : 0;
+    const health = s.hpMax ? Math.round(s.hp * 100 / s.hpMax) : 0;
+    return '<div class=""seat"">' +
+      '<div class=""head"" title=""profile ' + s.seat.profile + '"">' +
+        '<i class=""dot"" style=""background:' + colour(s) + '""></i>' +
+        '<span class=""name"">slot ' + s.seat.slot + '</span>' +
+        '<span class=""sub"">' + s.seat.faction + '</span>' +
+        '<span class=""pct"">' + (total ? share + '%' : '—') + '</span>' +
+      '</div>' +
+      '<div class=""share""><i style=""width:' + share + '%;background:' + colour(s) + '""></i></div>' +
+      '<div class=""body"">' +
+        '<dl>' +
+          '<dt>strength</dt><dd>' + s.strength + '</dd>' +
+          '<dt>gathered</dt><dd>' + gatheredCell(s.wave) + '</dd>' +
+          '<dt>wave</dt><dd>' + waveCell(s.wave) + '</dd>' +
+        '</dl>' +
+        '<div class=""kv"" style=""margin-top:4px"">' +
+          '<span title=""combat units"">' + iconSvg('role.basicInfantry', 11) + ' <b>' + s.army + '</b></span>' +
+          '<span title=""workers"">' + iconSvg('role.harvester', 11) + ' <b>' + s.workers + '</b></span>' +
+          '<span title=""buildings, plus sites under construction"">' + iconSvg('role.hq', 11) +
+            ' <b>' + s.buildings + '</b>' + (s.sites ? ' +' + s.sites : '') + '</span>' +
+          '<span title=""health over everything this seat owns"">' + iconSvg('act.harvest', 11) +
+            ' <b>' + (s.hpMax ? health + '%' : '—') + '</b></span>' +
+        '</div>' +
+        '<div class=""kv"">' +
+          '<span title=""credits"">AE <b>' + num(s.credits) + '</b></span>' +
+          '<span title=""power"">' + iconSvg('role.power', 11) + ' <b>' + num(s.power) + '</b></span>' +
+          '<span title=""cells this seat can see"">sees <b>' + num(s.sees) + '</b></span>' +
+        '</div>' +
+        '<div class=""kv"">' +
+          '<span title=""units and buildings spawned"">built <b>' + s.built + '</b></span>' +
+          '<span title=""units and buildings lost"">lost <b>' + s.lost + '</b></span>' +
+          '<span title=""damage taken"">dmg <b>' + s.damageTaken + '</b></span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 
-  document.querySelector('#top tbody').innerHTML = stats.map(s =>
-    '<tr>' +
-    '<td style=""color:' + colour(s) + '"" title=""profile ' + s.seat.profile + '"">slot ' +
-      s.seat.slot + ' · ' + s.seat.faction + '</td>' +
-    '<td class=""num"">' + s.strength + '</td>' +
-    '<td class=""num"">' + (total ? Math.round(s.strength * 100 / total) + '%' : '—') + '</td>' +
-    '<td class=""num"">' + gatheredCell(s.wave) + '</td>' +
-    '<td class=""num"">' + waveCell(s.wave) + '</td>' +
-    '<td class=""num"">' + s.army + '</td>' +
-    '<td class=""num"">' + s.workers + '</td>' +
-    '<td class=""num"">' + s.buildings + (s.sites ? ' +' + s.sites + '&nbsp;site' : '') + '</td>' +
-    '<td class=""num"">' + (s.hpMax ? Math.round(s.hp * 100 / s.hpMax) + '%' : '—') + '</td>' +
-    '<td class=""num"">' + num(s.credits) + '</td>' +
-    '<td class=""num"">' + num(s.power) + '</td>' +
-    '<td class=""num"">' + num(s.sees) + '</td>' +
-    '<td class=""num"">' + s.built + '</td>' +
-    '<td class=""num"">' + s.lost + '</td>' +
-    '<td class=""num"">' + s.damageTaken + '</td>' +
-    '</tr>').join('');
-
+  // Kurz in der Leiste, vollstaendig im Tooltip: die Einschraenkung muss
+  // dastehen, aber sie darf in einer 250 Pixel breiten Spalte nicht elf
+  // Zeilen kosten, die der Karte fehlen.
   const cadence = stats.length && stats[0].wave ? stats[0].wave.cadence : 0;
-  document.getElementById('topNote').innerHTML =
-    'army strength, counts, health, spawned, lost and damage are exact for tick <b>' + tick + '</b> · ' +
-    'AE, power and ""sees"" come from frame t=' + (frame ? frame.t : '—') +
-    ' · <span class=""derived"">gathered/wave is the gate recomputed here' +
-    (cadence ? ', while the AI decides every ' + cadence + ' ticks' : '') + '</span>' +
-    (WEAPONS.length ? '' : ' · <span class=""warn"">no weapon table in this player — strength is 0</span>');
+  note.title =
+    'Strength, counts, health, built, lost and damage are exact for tick ' + tick + '. ' +
+    'AE, power and ""sees"" exist only in the frames and are as old as frame t=' +
+    (frame ? frame.t : '—') + '. gathered/wave is the AI\'s gate recomputed on this page, not a ' +
+    'recorded verdict' + (cadence ? '; the AI itself decides every ' + cadence + ' ticks' : '') + '.';
+  note.innerHTML =
+    'exact for tick <b>' + tick + '</b> · AE/power/sees from frame t=' + (frame ? frame.t : '—') +
+    ' · <span class=""derived"">gathered/wave derived</span>' +
+    (WEAPONS.length ? '' : ' · <span class=""warn"">no weapon table — strength is 0</span>');
+
+  // Die Notiz bleibt das letzte Kind, damit sie unter den Karten steht.
+  seats.innerHTML = cards;
+  seats.appendChild(note);
 }
 
 // -------------------------------------------------------------- the band
 
 function drawBand() {
-  bctx.clearRect(0, 0, band.width, band.height);
-  bctx.fillStyle = '#010409';
-  bctx.fillRect(0, 0, band.width, band.height);
+  // Das Band wurde mit 2000 festen Pixeln gezeichnet und per CSS auf die
+  // Zeilenbreite gezerrt — jeder Strich darin war entsprechend verzogen.
+  // Jetzt misst es sich selbst aus, mit demselben Massstab wie die Karte.
+  const rect = band.getBoundingClientRect();
+  const ratio = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(rect.width * ratio));
+  const h = Math.max(1, Math.round(rect.height * ratio));
+  if (band.width !== w || band.height !== h) { band.width = w; band.height = h; }
+  bctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  const bw = rect.width, bh = rect.height;
+  bctx.clearRect(0, 0, bw, bh);
+  bctx.fillStyle = '#080a0c';
+  bctx.fillRect(0, 0, bw, bh);
   if (!events.length) return;
 
-  const at = t => (t / Math.max(1, lastTick)) * (band.width - 2) + 1;
+  const at = t => (t / Math.max(1, lastTick)) * (bw - 2) + 1;
 
   // Every event of the match, faintly — the shape of the whole run.
   bctx.globalAlpha = 0.35;
-  bctx.fillStyle = '#484f58';
-  for (const e of events) bctx.fillRect(at(e.t), 21, 1, 6);
+  bctx.fillStyle = token('--axis') || '#484f58';
+  for (const e of events) bctx.fillRect(at(e.t), bh - 6, 1, 5);
   bctx.globalAlpha = 1;
 
   const list = selected === null ? null : eventsById.get(selected);
   if (list) {
     for (const e of list) {
       bctx.fillStyle = EVENT_COLOUR[e.k] || '#8b949e';
-      bctx.fillRect(at(e.t) - 1, 3, 2, 15);
+      bctx.fillRect(at(e.t) - 1, 2, 2, bh - 9);
     }
   }
 
   bctx.fillStyle = '#ffffff';
-  bctx.fillRect(at(tick) - 1, 0, 2, band.height);
+  bctx.fillRect(at(tick) - 1, 0, 2, bh);
 
   document.getElementById('bandLabel').innerHTML = selected === null
     ? 'event band — every event of the match faintly (<b>N</b> / <b>P</b> step through them); ' +
@@ -1461,25 +1781,35 @@ function renderUnits() {
 
   body.innerHTML = rows.map(r => {
     const colour = SLOT_COLOURS[r.slot % SLOT_COLOURS.length];
-    const glyph = r.shape >= 0 ? SHAPE_GLYPH[r.shape] : '✖';
-    // The ROLE, not the shape: the glyph already says ▲ combat, and ""combat""
-    // spelled out next to it says nothing a reader could look for in the game.
-    // ""basicInfantry"" is the thing that stands on the map.
+    // The ROLE, not the shape: ""combat"" says nothing a reader could look for
+    // in the game, ""basicInfantry"" is the thing that stands on the map. The
+    // icon is the same silhouette the map draws, so list and picture agree.
     const name = roleNameOf(r.id);
-    // Short words, not pictograms: the monospace stacks this page runs in fall
-    // back to a replacement box for half the symbol block, and a box says
-    // nothing at all.
+    const icon = r.dead
+      ? iconSvg('fail', 13)
+      : iconSvg(roleIconName(r.u ? r.u.role : r.role, r.u ? r.u.site : false), 13);
+
     let mark = '';
     if (r.u) {
-      if (r.u.attack) mark = 'atk';
-      else if (r.u.field) mark = 'hrv';
-      else if (r.u.moving) mark = 'mov';
-      if (r.u.stuck) mark = '<span class=""warn"">stuck</span>';
+      if (r.u.stuck) mark = '<span class=""warn"" title=""stuck — moving, not moving"">' + iconSvg('act.stuck', 12) + '</span>';
+      else if (r.u.attack) mark = '<span title=""attacking"">' + iconSvg('act.attack', 12) + '</span>';
+      else if (r.u.field) mark = '<span title=""harvesting"">' + iconSvg('act.harvest', 12) + '</span>';
+      else if (r.u.moving) mark = '<span title=""on the move"">' + iconSvg('act.move', 12) + '</span>';
     }
+
+    // Ein Balken statt einer Prozentzahl: vierzig Zeilen ""37%"" liest niemand,
+    // eine Reihe kurzer Balken sieht man an.
+    const hp = r.dead
+      ? '<span class=""sub"" title=""dead"">†</span>'
+      : '<div class=""bar"" title=""' + r.hp + '%""><i style=""width:' + r.hp + '%;background:' + colour + '""></i></div>';
+
     return '<tr data-id=""' + r.id + '"" class=""' + (r.id === selected ? 'sel ' : '') + (r.dead ? 'dead' : '') + '"">' +
-      '<td style=""color:' + colour + '"">' + glyph + ' #' + r.id + ' ' + name + '</td>' +
-      '<td>' + (r.dead ? '†' : r.hp + '%') + '</td><td>' + mark + '</td></tr>';
-  }).join('') || '<tr><td class=""sub"">nothing matches the filter</td></tr>';
+      '<td class=""ic"" style=""color:' + colour + '"">' + icon + '</td>' +
+      '<td><span class=""who""><span style=""color:' + colour + '"">#' + r.id + '</span>' +
+        '<span class=""role"">' + name + '</span></span></td>' +
+      '<td class=""hp"">' + hp + '</td>' +
+      '<td class=""act"">' + mark + '</td></tr>';
+  }).join('') || '<tr><td class=""sub"" colspan=""4"">nothing matches the filter</td></tr>';
 }
 
 // Delegation, not a listener per row: both lists are rebuilt on every redraw,
@@ -1688,6 +2018,14 @@ function behaviourOf(u) {
   return main + (marks.length ? ' · ' + marks.join(' · ') : '');
 }
 
+/**
+ * THE PANEL READS IN BLOCKS, not as fifteen rows in one list.
+ * <p>
+ * Every line that was there is still there and says the same thing; they are
+ * sorted into the questions one actually asks — what is it, how is it, what is
+ * it doing, who is shooting at it, how did it get here. A flat list of fifteen
+ * makes the reader do that sorting on every selection.
+ */
 function renderDetail() {
   const detail = document.getElementById('detail');
   if (selected === null) {
@@ -1697,50 +2035,79 @@ function renderDetail() {
 
   const live = world.get(selected);
   const unit = units.get(selected);
-  const rows = [];
+  const slot = slotOf(selected);
+  const colour = slot >= 0 ? SLOT_COLOURS[slot % SLOT_COLOURS.length] : token('--ink2');
+  const blocks = [];
 
-  rows.push(['unit', (live || unit)
-    ? SHAPE_GLYPH[shapeOf(live || { site:false, role:unit.role })] + ' ' + unitLabel(selected)
-    : '#' + selected + ' <span class=""sub"">(not in this run)</span>']);
-  if (unit) {
-    rows.push(['life', 'tick ' + unit.firstTick + '…' + unit.lastTick + (unit.died ? ' · died' : '')]);
-  }
+  const block = (title, rows) => {
+    const kept = rows.filter(Boolean);
+    if (!kept.length) return;
+    blocks.push('<div class=""block""><h3>' + title + '</h3><dl>' +
+      kept.map(r => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl></div>');
+  };
+
   if (live) {
     const p = posAt(selected, tick);
-    rows.push(['health', live.hp + '/' + live.hpMax + '  (' + healthPercentOf(live) + '%)']);
-    rows.push(['cell', p ? Math.floor(p[0] / ONE) + ',' + Math.floor(p[1] / ONE) : '—']);
-    rows.push(['doing', behaviourOf(live)]);
-    rows.push(['goal', cell(live.goalX, live.goalY)]);
-    rows.push(['order', cell(live.orderX, live.orderY)]);
-    rows.push(['attacking', live.attack ? unitLabel(live.attack) : '—']);
+    block('state', [
+      unit && ['life', 'tick ' + unit.firstTick + '…' + unit.lastTick + (unit.died ? ' · died' : '')],
+      ['health', live.hp + '/' + live.hpMax + '  (' + healthPercentOf(live) + '%)'],
+      ['cell', p ? Math.floor(p[0] / ONE) + ',' + Math.floor(p[1] / ONE) : '—']
+    ]);
+    block('orders', [
+      ['doing', behaviourOf(live)],
+      ['goal', cell(live.goalX, live.goalY)],
+      ['order', cell(live.orderX, live.orderY)]
+    ]);
 
     // THE OTHER HALF OF A FIGHT. Who this unit shoots at is one event away;
     // who shoots at IT was, until now, a search through the log — and that is
     // the question one has while watching something die.
     const attackers = attackersOf(selected);
-    rows.push(['attacked by', attackers.length
-      ? attackers.length + (attackers.length === 1 ? ' unit<br>' : ' units<br>') +
-        attackers.slice(0, ATTACKER_ROWS).map(unitLabel).join('<br>') +
-        (attackers.length > ATTACKER_ROWS
-          ? '<br><span class=""sub"">… and ' + (attackers.length - ATTACKER_ROWS) + ' more</span>' : '')
-      : '<span class=""sub"">nobody — nothing has this one as its target</span>']);
+    block('combat', [
+      ['attacking', live.attack ? unitLabel(live.attack) : '—'],
+      ['attacked by', attackers.length
+        ? attackers.length + (attackers.length === 1 ? ' unit<br>' : ' units<br>') +
+          attackers.slice(0, ATTACKER_ROWS).map(unitLabel).join('<br>') +
+          (attackers.length > ATTACKER_ROWS
+            ? '<br><span class=""sub"">… and ' + (attackers.length - ATTACKER_ROWS) + ' more</span>' : '')
+        : '<span class=""sub"">nobody — nothing has this one as its target</span>'],
+      unit && ['damage taken', String(unit.damageTaken)],
+      unit && ['dealt / kills', '<span class=""derived"">' + unit.damageDealtDerived + ' / ' +
+        unit.killsDerived + ' (derived)</span>']
+    ]);
   } else {
-    rows.push(['at this tick', unit && unit.firstTick > tick ? 'not born yet' : 'dead']);
-  }
-  if (unit) {
-    rows.push(['walked', unit.pathLengthCells + ' cells']);
-    rows.push(['detour', unit.detourPercent < 0
-      ? '— (never walked towards a goal)'
-      : unit.detourPercent + '% over ' + unit.segments + ' segments']);
-    rows.push(['blocked', unit.blockedTicks + ' of ' + unit.movingTicks + ' moving ticks']);
-    rows.push(['orders / goals', unit.orderChanges + ' / ' + unit.goalChanges]);
-    rows.push(['damage taken', String(unit.damageTaken)]);
-    rows.push(['dealt / kills', '<span class=""derived"">' + unit.damageDealtDerived + ' / ' +
-      unit.killsDerived + ' (derived)</span>']);
+    block('state', [
+      unit && ['life', 'tick ' + unit.firstTick + '…' + unit.lastTick + (unit.died ? ' · died' : '')],
+      ['at this tick', unit && unit.firstTick > tick ? 'not born yet' : 'dead'],
+      unit && ['damage taken', String(unit.damageTaken)],
+      unit && ['dealt / kills', '<span class=""derived"">' + unit.damageDealtDerived + ' / ' +
+        unit.killsDerived + ' (derived)</span>']
+    ]);
   }
 
-  detail.innerHTML = '<h2>#' + selected + ' ' + roleNameOf(selected) + '</h2><dl>' +
-    rows.map(r => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
+  if (unit) {
+    block('the way it took', [
+      ['walked', unit.pathLengthCells + ' cells'],
+      ['detour', unit.detourPercent < 0
+        ? '— (never walked towards a goal)'
+        : unit.detourPercent + '% over ' + unit.segments + ' segments'],
+      ['blocked', unit.blockedTicks + ' of ' + unit.movingTicks + ' moving ticks'],
+      ['orders / goals', unit.orderChanges + ' / ' + unit.goalChanges]
+    ]);
+  }
+
+  const known = live || unit;
+  const iconName = known
+    ? roleIconName(live ? live.role : unit.role, live ? live.site : false)
+    : 'role.unknown';
+  detail.innerHTML =
+    '<div class=""dhead"">' +
+      '<span style=""color:' + colour + '"">' + iconSvg(iconName, 20) + '</span>' +
+      '<span class=""nm"">#' + selected + ' ' + roleNameOf(selected) + '</span>' +
+      (slot >= 0 ? '<span class=""chip"">slot ' + slot + '</span>' : '') +
+      (known ? (world.has(selected) ? '' : '<span class=""chip"">gone</span>')
+             : '<span class=""chip bad"">not in this run</span>') +
+    '</div>' + blocks.join('');
 }
 
 // ------------------------------------------------------- the match log
@@ -1824,8 +2191,8 @@ function jumpEvent(direction, mine) {
 canvas.addEventListener('click', ev => {
   if (dragged > 4) return;                   // das war ein Verschieben, keine Auswahl
   const rect = canvas.getBoundingClientRect();
-  const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
-  const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+  const x = (ev.clientX - rect.left) * (boardW() / rect.width);
+  const y = (ev.clientY - rect.top) * (boardH() / rect.height);
 
   let best = null, bestDistance = 18 * 18;
   for (const u of world.values()) {
@@ -1855,7 +2222,7 @@ document.getElementById('zoomOut').addEventListener('click', () => zoomBy(1 / 1.
 document.getElementById('fit').addEventListener('click', fitMap);
 document.getElementById('focus').addEventListener('click', focusSelected);
 
-for (const id of ['layerLines','layerHealth','layerFog','layerTrail','layerAllTrails',
+for (const id of ['layerIcons','layerLines','layerHealth','layerFog','layerTrail','layerAllTrails',
                   'trailSpan','filterShape','filterDead','logKind','logOnlySelected','logFollow']) {
   document.getElementById(id).addEventListener('change', draw);
 }
@@ -1863,9 +2230,17 @@ for (const select of [fogSlot, trailSlot, filterSlot, logSlot]) {
   select.addEventListener('change', draw);
 }
 
+function setIcon(element, name, size) {
+  const svg = element.querySelector('svg');
+  if (svg) svg.remove();
+  element.insertAdjacentHTML('afterbegin', iconSvg(name, size || 16));
+}
+
 function togglePlay() {
   playing = !playing;
-  document.getElementById('play').textContent = playing ? 'pause' : 'play';
+  const button = document.getElementById('play');
+  setIcon(button, playing ? 'pause' : 'play');
+  button.title = playing ? 'pause (space)' : 'play (space)';
   clearInterval(timer);
   if (!playing) return;
   timer = setInterval(() => {
@@ -1877,11 +2252,79 @@ document.getElementById('play').addEventListener('click', togglePlay);
 
 function toggleSide() {
   const collapsed = document.body.classList.toggle('collapsed');
-  document.getElementById('sideToggle').textContent = collapsed ? '«' : '»';
+  document.getElementById('sideToggle').classList.toggle('on', collapsed);
   draw();                                    // die Karte nimmt den frei gewordenen Platz
 }
 document.getElementById('sideToggle').addEventListener('click', toggleSide);
+
+// Die Anzeigetafel auf die Anteilsbalken zusammenlegen. Wer eine Weile
+// zusieht, will irgendwann nur noch die Karte — und beim nächsten Öffnen
+// wieder so, wie er sie verlassen hat.
+function toggleSeats() {
+  const tight = document.body.classList.toggle('seats-tight');
+  const button = document.getElementById('seatsToggle');
+  setIcon(button, tight ? 'expand' : 'collapse');
+  button.title = tight ? 'unfold the scoreboard' : 'fold the scoreboard down to the share bars';
+  remember('seatsTight', tight ? '1' : '');
+  draw();
+}
+document.getElementById('seatsToggle').addEventListener('click', toggleSeats);
+
 addEventListener('resize', draw);
+
+/** Was die Seite sich merken darf. Ein privates Fenster darf nein sagen. */
+function remember(key, value) {
+  try { localStorage.setItem('novaLab.' + key, value); } catch (ignored) {}
+}
+function remembered(key) {
+  try { return localStorage.getItem('novaLab.' + key); } catch (ignored) { return null; }
+}
+
+// ---------------------------------------------------- Ziehgriff am Panel
+//
+// Das Seitenpanel war fest 430 px breit — zu breit für ein schmales Fenster
+// und zu schmal, sobald man das Protokoll liest. Jetzt zieht man daran.
+const SIDE_MIN = 280, SIDE_MAX = 640;
+
+/**
+ * The side panel never takes more than its share of a narrow window.
+ * <p>
+ * A panel remembered at 420 pixels is right on a wide screen and absurd on a
+ * 900-pixel one, where it would leave the map less room than the list of
+ * units beside it. The remembered width stays remembered — it is only capped
+ * for as long as the window is small.
+ */
+function clampSide() {
+  const stored = +remembered('sideWidth');
+  const want = stored >= SIDE_MIN && stored <= SIDE_MAX ? stored : 420;
+  const room = Math.max(SIDE_MIN, Math.min(SIDE_MAX, window.innerWidth * 0.42));
+  document.getElementById('side').style.width = Math.round(Math.min(want, room)) + 'px';
+}
+
+function setSideWidth(px) {
+  const width = Math.round(Math.min(SIDE_MAX, Math.max(SIDE_MIN, px)));
+  document.getElementById('side').style.width = width + 'px';
+  remember('sideWidth', String(width));
+  draw();
+}
+
+(function dragSplitter() {
+  const splitter = document.getElementById('splitter');
+  let from = null;
+  splitter.addEventListener('pointerdown', event => {
+    from = [event.clientX, document.getElementById('side').offsetWidth];
+    splitter.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+  splitter.addEventListener('pointermove', event => {
+    if (!from) return;
+    setSideWidth(from[1] - (event.clientX - from[0]));   // nach links ziehen macht breiter
+  });
+  for (const kind of ['pointerup', 'pointercancel']) {
+    splitter.addEventListener(kind, () => { from = null; });
+  }
+  splitter.addEventListener('dblclick', () => setSideWidth(420));
+})();
 
 // Reiter statt Spalten nebeneinander: vier Flächen, die sich denselben Platz
 // teilen, statt einer Seite, die nach unten wächst und die Karte wegschiebt.
@@ -1889,12 +2332,13 @@ const TABS = ['units', 'log', 'layers', 'legend'];
 
 function showTab(name) {
   for (const tab of TABS) document.getElementById('tab-' + tab).hidden = tab !== name;
-  for (const button of document.querySelectorAll('.tabs button')) {
+  for (const button of document.querySelectorAll('.tabs .btn')) {
     button.classList.toggle('on', button.dataset.tab === name);
   }
+  remember('tab', name);
   draw();                                    // das Protokoll muss neu mitlaufen
 }
-for (const button of document.querySelectorAll('.tabs button')) {
+for (const button of document.querySelectorAll('.tabs .btn')) {
   button.addEventListener('click', () => showTab(button.dataset.tab));
 }
 
@@ -1918,6 +2362,95 @@ addEventListener('keydown', e => {
   else if (e.key >= '1' && e.key <= '4') showTab(TABS[+e.key - 1]);
   else if (e.key === 'Escape') { selected = null; draw(); }
 });
+
+// --------------------------------------------------------- die Legende
+//
+// AUS DEM SYMBOLSATZ ERZEUGT, nicht von Hand gepflegt. Die Legende stand
+// vorher als fester Text da und konnte von dem abweichen, was die Karte
+// zeichnet — eine Legende, die luegt, ist schlimmer als keine. Jetzt ist sie
+// dieselbe Quelle: eine neue Rolle im Spiel steht hier von selbst.
+
+function buildLegend() {
+  const roles = ROLE_NAME.map((name, role) =>
+    '<span>' + iconSvg(roleIconName(role, false), 14) + ' ' + name + '</span>').join('') +
+    '<span>' + iconSvg('role.site', 14) + ' construction site</span>';
+
+  const swatch = colour => '<span class=""sw"" style=""background:' + colour + '""></span>';
+
+  document.getElementById('legendBox').innerHTML =
+    '<h3>what stands there</h3>' +
+    '<div class=""roleGrid"">' + roles + '</div>' +
+    '<p class=""sub"" style=""margin-top:6px"">Buildings carry a plate under the icon, construction ' +
+      'sites a dashed one, mobile units none. Zoomed out far enough the icons give way to plain ' +
+      'shapes — at three pixels a silhouette is a smudge, and then the question is where the mass ' +
+      'is, not which chassis it has.</p>' +
+
+    '<h3>marks on a unit</h3>' +
+    '<p><b>hollow</b> returning cargo · <b>white rim</b> below the retreat threshold · ' +
+      '<b>yellow rim</b> stuck · <b>red circles</b> hits landing · <b>fading cross</b> died just now</p>' +
+
+    '<h3>lines and events</h3>' +
+    '<p><b>line</b> ' + swatch(LINE_COLOURS[1]) + ' attack · ' + swatch(LINE_COLOURS[2]) + ' harvest · ' +
+      swatch(LINE_COLOURS[3]) + ' move<br>' +
+      '<b>event band</b> ' + swatch(EVENT_COLOUR.damage) + ' damage/death · ' +
+      swatch(EVENT_COLOUR.attackStart) + ' attack · ' + swatch(EVENT_COLOUR.order) + ' order/goal · ' +
+      swatch(EVENT_COLOUR.stuck) + ' stuck · ' + swatch(EVENT_COLOUR.harvestStart) + ' harvest/cargo · ' +
+      swatch(EVENT_COLOUR.spawn) + ' spawn/site</p>' +
+
+    '<h3>the seats</h3>' +
+    '<p>' + SLOTS.map(s => '<span class=""chip"" style=""color:' +
+        SLOT_COLOURS[s.slot % SLOT_COLOURS.length] + '"">slot ' + s.slot + ' · ' + s.faction +
+        '</span> ').join('') + '</p>' +
+
+    '<h3>the scoreboard</h3>' +
+    '<p><b>strength</b> is the AI\'s own measure — damage × health ÷ firing interval, summed over ' +
+      'the combat units, so twelve recruits and twelve riflemen are not the same wave. ' +
+      '<b>gathered</b> is only what stands in the staging ring around the own HQ; everything ' +
+      'outside it marched with an earlier wave and is never called back. <b>wave</b> is that ' +
+      'strength against the gate\'s threshold — <span class=""derived"">recomputed here, not ' +
+      'recorded</span>, and the AI decides on its own cadence. AE, power and ""sees"" are as old as ' +
+      'the newest frame; everything else on the card is exact for the tick.</p>' +
+
+    '<h3>map</h3>' +
+    '<div class=""keys"">' +
+      '<b>wheel</b><span>zoom on the pointer</span>' +
+      '<b>drag</b><span>move</span>' +
+      '<b>double-click</b><span>fit the whole map</span>' +
+      '<b>+ − 0</b><span>zoom in, out, fit</span>' +
+      '<b>f</b><span>centre the selection</span>' +
+    '</div>' +
+
+    '<h3>keys</h3>' +
+    '<div class=""keys"">' +
+      '<b>← →</b><span>one tick, shift for 25</span>' +
+      '<b>space</b><span>play</span>' +
+      '<b>Home / End</b><span>first, last tick</span>' +
+      '<b>n / p</b><span>the selection\'s events</span>' +
+      '<b>N / P</b><span>every event</span>' +
+      '<b>s</b><span>fold the side panel</span>' +
+      '<b>1–4</b><span>the tabs</span>' +
+      '<b>Esc</b><span>clear the selection</span>' +
+    '</div>' +
+
+    '<p class=""warn"" style=""margin-top:10px"">' + iconSvg('warn', 12) + ' fog is the most common ' +
+      'reason an AI ""did not react"" — check it before blaming the logic.</p>' +
+    '<p class=""derived"">who fired is DERIVED from state and is never reported by the simulation — ' +
+      'see notes/schadensquelle.md.</p>';
+}
+
+// ------------------------------------------------- Symbole und Gedaechtnis
+
+for (const element of document.querySelectorAll('[data-icon]')) {
+  setIcon(element, element.dataset.icon, +element.dataset.isize || 15);
+}
+buildLegend();
+
+(function restore() {
+  clampSide();
+  if (remembered('seatsTight')) toggleSeats();
+  const tab = remembered('tab');
+  if (TABS.indexOf(tab) >= 0) showTab(tab);
+})();
 </script>
 </body>
 </html>

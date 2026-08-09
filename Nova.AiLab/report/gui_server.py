@@ -32,6 +32,7 @@ import time
 import urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+UIKIT = os.path.join(HERE, 'uikit')
 LAB = os.path.normpath(os.path.join(HERE, '..', '..'))
 GUI_RUNS = os.path.join(LAB, 'out', 'gui')
 WORKTREES = os.path.join(LAB, '.worktrees')
@@ -48,6 +49,28 @@ SAFE_REF = re.compile(r'^[A-Za-z0-9._/-]{1,120}$')
 
 # Eine Laufkennung oder ein Blockname: derselbe Zeichenvorrat ohne Schraegstrich.
 SAFE_NAME = re.compile(r'^[A-Za-z0-9._-]{1,120}$')
+
+
+def render_page(path):
+    """Eine Vorlage mit eingesetztem UI-Kit.
+
+    Das Kit (`uikit/tokens.css`, `uikit/icons.js`) ist die eine Quelle fuer
+    alle drei Flaechen — Player, Steuerseite, Dashboard. Es wird eingesetzt und
+    nicht verlinkt, weil der Player eine einzelne kopierbare Datei bleiben muss
+    und zwei Wege, dasselbe zu laden, zwei Wege sind, es auseinanderlaufen zu
+    lassen.
+
+    Ein fehlender Platzhalter ist ein Fehler in der Vorlage und wird gemeldet,
+    nicht ueberspielt: eine Seite ohne Tokens sieht aus wie ein Defekt im Lauf.
+    """
+    with open(path, encoding='utf-8') as handle:
+        page = handle.read()
+    for placeholder, name in (('__UIKIT_CSS__', 'tokens.css'), ('__UIKIT_JS__', 'icons.js')):
+        if placeholder not in page:
+            raise RuntimeError(f'{path}: Platzhalter {placeholder} fehlt')
+        with open(os.path.join(UIKIT, name), encoding='utf-8') as handle:
+            page = page.replace(placeholder, handle.read())
+    return page.encode('utf-8')
 
 
 def safe_name(value, pattern, what):
@@ -460,7 +483,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         try:
             if url.path in ('/', '/index.html'):
-                self.send_file(os.path.join(HERE, 'gui.tpl.html'), 'text/html; charset=utf-8')
+                body = render_page(os.path.join(HERE, 'gui.tpl.html'))
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
 
             elif url.path == '/api/state':
                 current = git_quiet('rev-parse', '--abbrev-ref', 'HEAD').strip()
