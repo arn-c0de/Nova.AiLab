@@ -84,9 +84,12 @@ Tests 649/649, Determinismus Exit 0, keine Baseline angefasst.
 - [x] Zeile unter `[Unreleased]` in [CHANGELOG.md](../CHANGELOG.md)
 - [x] ~~Echte Entscheidung getroffen? → D-ID im [DecisionLog](../docs/production/DecisionLog.md)~~ —
       **gestrichen, wie die Vorlage es vorsieht.** Hier wurde keine
-      Inhaberentscheidung getroffen: die beiden Fragen, die welche wären
-      (Armeeobergrenze in `MatchRunner`, Fingerprint-Relevanz eines KI-Profils),
-      stehen ausdrücklich als Rückfrage und **nicht** als Änderung.
+      Inhaberentscheidung getroffen. Die beiden Fragen, die welche wären, stehen
+      ausdrücklich als Rückfrage und **nicht** als Änderung: die Armeeobergrenze,
+      die als Literal in `MatchRunner` liegt, und ob ein KI-Profil überhaupt in
+      den Match-Fingerprint eingehen soll — Letzteres nennt `AiBehaviorId`
+      selbst eine Inhaberentscheidung (`Simulation/Replays`), und dieser PR
+      beantwortet sie ausdrücklich nicht.
 - [x] Bei Simulationsänderung: keine Determinismus-Baseline im selben PR geändert
 
 ## Externe Beiträge
