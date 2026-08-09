@@ -6,12 +6,13 @@
 > [!NOTE]
 > **Der Diff hier ist KUMULATIV.** GitHub vergleicht gegen `main`, also
 > zeigt er auch die vorigen Stufen mit. Zu **dieser** Stufe gehören nur
-> diese Commits (489 Zeilen in 11 Dateien):
+> diese Commits (492 Zeilen in 11 Dateien):
 >
 > - `dc48034 feat(ai): pick attack targets by score, not by list order`
 > - `050aa9f fix(hud): reference Nova.AI.Data from the UI assembly`
-> - `b376796 fix(ai): den Bezeichner dorthin legen, wo er benutzt wird`
 > - `a452d80 docs(changelog): Eintrag zur Zielwahl nach Score`
+> - `b376796 fix(ai): den Bezeichner dorthin legen, wo er benutzt wird`
+> - `06d6029 docs(changelog): gespielte Beobachtung zur Zielwahl nachtragen`
 >
 > Der saubere Diff ist `refactor/ai-profile-data-layer...` gegen diesen Branch. Am einfachsten
 > von unten nach oben lesen: erst die vorige Stufe mergen, dann zeigt

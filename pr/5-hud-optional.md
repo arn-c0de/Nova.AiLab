@@ -6,7 +6,7 @@
 > [!NOTE]
 > **Der Diff hier ist KUMULATIV.** GitHub vergleicht gegen `main`, also
 > zeigt er auch die vorigen Stufen mit. Zu **dieser** Stufe gehören nur
-> diese Commits (328 Zeilen in 11 Dateien):
+> diese Commits (330 Zeilen in 11 Dateien):
 >
 > - `27904b3 feat(hud): show the simulation identity next to the AI behaviour`
 > - `a886e85 feat(lab): reveal the map from the debug panel to watch the AI`

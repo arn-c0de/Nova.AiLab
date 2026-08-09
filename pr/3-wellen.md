@@ -6,12 +6,13 @@
 > [!NOTE]
 > **Der Diff hier ist KUMULATIV.** GitHub vergleicht gegen `main`, also
 > zeigt er auch die vorigen Stufen mit. Zu **dieser** Stufe gehören nur
-> diese Commits (785 Zeilen in 8 Dateien):
+> diese Commits (790 Zeilen in 8 Dateien):
 >
 > - `50d54bb refactor(ai): one intent per unit instead of one order for the army`
 > - `9967ae3 feat(ai): attack in waves instead of trickling in one by one`
 > - `0094bad docs(ai): the determinism baselines never run the skirmish AI`
 > - `83d1116 docs(changelog): Eintrag zum Wellenangriff`
+> - `37cd636 docs(changelog): gespielte Beobachtung zu den Wellen nachtragen`
 >
 > Der saubere Diff ist `feat/ai-score-targeting...` gegen diesen Branch. Am einfachsten
 > von unten nach oben lesen: erst die vorige Stufe mergen, dann zeigt
