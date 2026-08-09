@@ -102,20 +102,42 @@ namespace Nova.AiLab
             {
                 var startInfo = new System.Diagnostics.ProcessStartInfo("git", "rev-parse HEAD")
                 {
-                    RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    // git's own complaint (not a repository, no HEAD yet) would
+                    // otherwise land raw in the lab's stderr, between the lines
+                    // the lab wrote itself. Captured and dropped: the honest
+                    // answer to a failed lookup is "unknown", not git's prose.
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
                 };
                 if (!string.IsNullOrEmpty(NovaRepo.Path)) startInfo.WorkingDirectory = NovaRepo.Path;
 
-                var process = new System.Diagnostics.Process { StartInfo = startInfo };
+                using var process = new System.Diagnostics.Process { StartInfo = startInfo };
                 process.Start();
+
+                // Read BEFORE waiting: a full pipe buffer with nobody draining
+                // it deadlocks the child, and this one has two pipes open.
                 string output = process.StandardOutput.ReadToEnd().Trim();
-                process.WaitForExit();
-                return string.IsNullOrEmpty(output) ? "unknown" : output;
+                process.StandardError.ReadToEnd();
+
+                // A hung git must not hang the comparison. Provenance is worth
+                // a few seconds, never the run.
+                if (!process.WaitForExit(GitTimeoutMilliseconds))
+                {
+                    process.Kill(entireProcessTree: true);
+                    return "unknown";
+                }
+
+                return process.ExitCode == 0 && output.Length > 0 ? output : "unknown";
             }
             catch (Exception)
             {
                 return "unknown";
             }
         }
+
+        /// <summary>How long <c>git rev-parse</c> may take before the commit is simply unknown.</summary>
+        private const int GitTimeoutMilliseconds = 10_000;
     }
 }
