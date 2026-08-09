@@ -104,10 +104,24 @@ namespace Nova.AiLab
         /// would otherwise have to replay every delta from tick 0; with a
         /// keyframe it starts at the nearest one — the same reason a video
         /// stream carries them.
+        /// <para>
+        /// It is a CEILING on the gap, not a divisor of the tick number. The
+        /// first capture at or past each boundary is the keyframe, because
+        /// <see cref="MatchSpec.TrackIntervalTicks"/> decides which ticks are
+        /// captured at all: tested as <c>tick % 500 == 0</c>, an interval that
+        /// does not divide 500 pushed the keyframes out to every lcm(interval,
+        /// 500) ticks — 1.500 at interval 3, 3.500 at interval 7 — and at
+        /// interval 11 a 4.000-tick match got exactly one, at tick 0. The
+        /// promise this constant makes would then have quietly stopped holding
+        /// for every interval nobody happened to test.
+        /// </para>
         /// </summary>
         public const int KeyframeIntervalTicks = 500;
 
         private readonly MultiSlotAiHost _host;
+
+        /// <summary>First tick that is allowed to be a keyframe; 0, so the opening capture is one.</summary>
+        private uint _nextKeyframeTick;
 
         // Shadow state per entity SLOT (not per id): the array index is the
         // pool index, and the version tells a reused slot from a survivor.
@@ -132,7 +146,8 @@ namespace Nova.AiLab
         /// <summary>One tick's samples. Ascending index scan — no dictionary order anywhere.</summary>
         public TrackFrame Capture(uint tick)
         {
-            bool keyframe = tick % KeyframeIntervalTicks == 0;
+            bool keyframe = tick >= _nextKeyframeTick;
+            if (keyframe) _nextKeyframeTick = tick + KeyframeIntervalTicks;
             var frame = new TrackFrame { Tick = tick, IsKeyframe = keyframe };
 
             UnitState[] units = _host.Entities.RawUnits;

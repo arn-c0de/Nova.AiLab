@@ -69,6 +69,23 @@ namespace Nova.AiLab
         public int D = Absent;
 
         /// <summary>
+        /// Where the victim stood when it was hit, Q16.16 raw. Carried for the
+        /// attacker reconstruction, not for the file.
+        /// <para>
+        /// IT CANNOT BE READ OFF <see cref="A"/>/<see cref="B"/>, and that is
+        /// the whole reason it exists: those two mean a different thing per
+        /// kind. A death event carries the position there, a DAMAGE event
+        /// carries the health it went from and to. Reading them as coordinates
+        /// measured the distance from the attacker to the map ORIGIN — which
+        /// sits next to one of the two corner bases and nowhere near the other,
+        /// so the wide path could name a unit of slot 0 and never one of slot 1,
+        /// wherever the victim actually stood.
+        /// </para>
+        /// </summary>
+        public int VictimX = Absent;
+        public int VictimY = Absent;
+
+        /// <summary>
         /// DERIVED attackers, never observed — null when the kind carries
         /// none. See <see cref="DebugEventLog"/> and <c>notes/schadensquelle.md</c>
         /// for how it is derived and where the derivation fails.
@@ -441,6 +458,10 @@ namespace Nova.AiLab
                 A = _x[i],
                 B = _y[i],
                 C = _health[i],
+                // The same position A/B carry for this kind — named, so the
+                // reconstruction never has to know which kind it is holding.
+                VictimX = _x[i],
+                VictimY = _y[i],
             };
             Add(death);
             _needAttacker.Add(death);
@@ -460,6 +481,10 @@ namespace Nova.AiLab
                 {
                     Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
                     Kind = DebugEventKind.Damage, A = _health[i], B = u.CurrentHealth,
+                    // A/B are HEALTH here. The reconstruction needs a position
+                    // and has to be handed one.
+                    VictimX = u.Transform.PositionX.RawValue,
+                    VictimY = u.Transform.PositionY.RawValue,
                 };
                 Add(damage);
                 _needAttacker.Add(damage);
@@ -699,10 +724,10 @@ namespace Nova.AiLab
         /// </summary>
         private static bool CouldReach(in UnitState attacker, WeaponProfile weapon, DebugEvent victim)
         {
-            if (victim.A == DebugEvent.Absent || victim.B == DebugEvent.Absent) return false;
+            if (victim.VictimX == DebugEvent.Absent || victim.VictimY == DebugEvent.Absent) return false;
 
-            long dx = (long)attacker.Transform.PositionX.RawValue - victim.A;
-            long dy = (long)attacker.Transform.PositionY.RawValue - victim.B;
+            long dx = (long)attacker.Transform.PositionX.RawValue - victim.VictimX;
+            long dy = (long)attacker.Transform.PositionY.RawValue - victim.VictimY;
             SimFixed reach = weapon.AttackRange + SimFixed.FromInt(1);
             long reachSquared = (long)reach.RawValue * reach.RawValue;
             return dx * dx + dy * dy <= reachSquared;
