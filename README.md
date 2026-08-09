@@ -148,6 +148,41 @@ python3 Nova.AiLab/report/build_reports.py --regenerate
 python3 Nova.AiLab/report/build_dashboard.py Nova.AiLab/out
 ```
 
+### Auf dem Telefon (Termux, arm64)
+
+Das Labor läuft vollständig unter Termux — nicht nur das Zurückspulen fertiger
+Läufe, sondern das Messen selbst. Es braucht ein SDK für die richtige
+Architektur, und das steht im Termux-Hauptrepo:
+
+```bash
+pkg install dotnet-sdk-8.0     # nativ aarch64, RID linux-bionic-arm64
+./lab.sh                       # misst ../Project_Nova wie überall sonst
+```
+
+Das `.dotnet/` **im Spiel-Checkout** hilft dabei nicht: es ist ein x86-64-Build
+und bricht hier mit `Exec format error` ab. Schlimmer als nutzlos war es,
+solange `lab.sh` es blind in den `PATH` gehängt hat — dann verdeckte ein SDK,
+das nicht startet, eines, das gestartet wäre. `lab.sh` nimmt es seitdem nur
+noch, wenn es sich auch ausführen lässt.
+
+Was das Gerät leistet (8 Kerne, Snapdragon-Klasse): eine Partie **1,5 s**, ein
+vollständiger `./lab.sh` mit allen vier Laufarten und 23 Kandidatenprofilen
+**2,5 min**, die 655 Tests von `Nova.SimRunner.Tests` **108 s**.
+
+**Und das ist die interessante Zahl:** die 655 schliessen die vier
+Baseline-Dateien ein, deren Golden-Bytes und Hashes auf x86 entstanden sind.
+Dass sie auf arm64/bionic grün bleiben, ist der Nachweis, den die
+Festkomma-Regel verlangt — beide Architekturen rechnen bitgleich, und ein auf
+dem Telefon gemessener Lauf ist mit einem auf dem Rechner gemessenen
+vergleichbar.
+
+Zwei Stolpersteine bleiben. Das `global.json` des Spiels pinnt SDK `8.0.318`
+mit `rollForward: disable`, Termux liefert `8.0.129`: `dotnet test` **drüben**
+läuft nur aus einem Arbeitsverzeichnis ausserhalb des Checkouts, sonst greift
+der Pin. Und Unity gibt es hier nicht — die gespielte Beobachtung, die jeder
+verhaltensändernde PR verlangt, kommt weiterhin nur von einem echten Build.
+Ein grüner Laborlauf auf dem Telefon ändert daran nichts.
+
 ## Zwei Fassungen desselben Laufs
 
 | Fassung | Wo | Wofür |

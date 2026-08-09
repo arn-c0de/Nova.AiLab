@@ -52,8 +52,11 @@ export NovaRepo="$REPO"
 
 cd "$LAB"
 
-# Das SDK liegt im Spiel-Checkout, nicht im Labor.
-if [[ -d "$REPO/.dotnet" ]]; then
+# Das SDK liegt im Spiel-Checkout, nicht im Labor — aber es ist ein Binaerbau
+# fuer genau eine Architektur. Auf einer anderen (arm64 unter Termux) laeuft es
+# nicht, und ein PATH, der es voranstellt, verdeckt das SDK, das laufen wuerde.
+# Deshalb wird es nur genommen, wenn es sich hier auch starten laesst.
+if [[ -x "$REPO/.dotnet/dotnet" ]] && "$REPO/.dotnet/dotnet" --version >/dev/null 2>&1; then
     export DOTNET_ROOT="$REPO/.dotnet"
     export PATH="$DOTNET_ROOT:$PATH"
 fi
