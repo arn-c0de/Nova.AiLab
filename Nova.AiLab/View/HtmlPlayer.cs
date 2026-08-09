@@ -5,10 +5,8 @@ namespace Nova.AiLab
 {
     /// <summary>
     /// Writes the recorded half of the view window (plan section 3.4): one
-    /// self-contained HTML file with a canvas that loads the run's artifacts
-    /// from beside it. Scrubber, single tick, switchable layers — and the
-    /// per-unit half: pick one entity and follow where it walked, what it
-    /// attacked, when it stood still and how it died.
+    /// self-contained HTML file that loads the run's artifacts from beside it
+    /// and plays the match back — forwards, backwards, and TICK BY TICK.
     /// <para>
     /// A real window (Avalonia, SDL) was weighed and dropped: a foreign
     /// dependency and platform upkeep for no advantage over this file.
@@ -20,18 +18,28 @@ namespace Nova.AiLab
     /// with a double-click and one that needs a local web server first.
     /// </para>
     /// <para>
-    /// FOUR SURFACES, and each answers a different question — the shape the
+    /// FIVE SURFACES, each answering a different question — the shape the
     /// Unreal Visual Logger settled on for the same job: the map says WHERE,
-    /// the unit list says WHO, the detail panel says WHAT IT IS DOING, and the
-    /// event band under the scrubber says WHEN IT CHANGED. A picture alone
-    /// cannot answer the last one, which is why watching a match at
-    /// <c>--view-every 25</c> never explained a bad wave.
+    /// the unit list says WHO, the detail panel says WHAT IT IS DOING, the
+    /// event band says WHEN IT CHANGED, and the match log says WHAT ELSE
+    /// HAPPENED AT THE SAME TIME. The last one is the difference between
+    /// watching one unit die and understanding why.
     /// </para>
     /// <para>
-    /// THE ROUTE IS FINER THAN THE PICTURE. Frames arrive every n ticks;
-    /// <c>tracks.ndjson</c> arrives every tick. The trail is drawn from the
-    /// track, so it shows the way that was walked and not the straight line
-    /// between two pictures.
+    /// THE SCRUBBER RUNS ON TICKS, NOT ON FRAMES. Frames arrive every n ticks
+    /// and would make stepping jump in blocks of n; the track carries every
+    /// tick and the events carry the exact tick they happened at, so the page
+    /// REBUILDS the state at any tick instead of showing the nearest picture.
+    /// Position, health, orders, targets and flags are exact. Two things
+    /// cannot be: the fog layer and the per-slot header row exist only in the
+    /// frames, so both come from the nearest frame at or before the tick and
+    /// the page says which one.
+    /// </para>
+    /// <para>
+    /// AND IT CHECKS ITSELF. On load the reconstruction is compared against
+    /// every recorded frame — position, shape, flags, health. The result
+    /// stands in the status line. A viewer that quietly disagrees with the
+    /// file it was built from is worse than no viewer.
     /// </para>
     /// </summary>
     public static class HtmlPlayer
@@ -40,7 +48,7 @@ namespace Nova.AiLab
 
         public static string Build(int mapWidth, int mapHeight, int slotCount, ulong seed)
         {
-            var html = new StringBuilder(48 * 1024);
+            var html = new StringBuilder(64 * 1024);
             html.Append(Template
                 .Replace("__MAP_WIDTH__", mapWidth.ToString(CultureInfo.InvariantCulture))
                 .Replace("__MAP_HEIGHT__", mapHeight.ToString(CultureInfo.InvariantCulture))
@@ -68,42 +76,54 @@ namespace Nova.AiLab
   h1 { font-size:14px; margin:0 0 2px; font-weight:600; }
   .sub { color:#8b949e; font-size:12px; }
   .warn { color:#d29922; }
+  .ok { color:#3fb950; }
   .derived { color:#d29922; font-style:italic; }
-  main { display:flex; gap:14px; padding:14px; align-items:flex-start; flex-wrap:wrap; }
+  main { display:flex; gap:14px; padding:0 14px 14px; align-items:flex-start; flex-wrap:wrap; }
   canvas#map { background:#010409; border:1px solid #21262d; border-radius:4px;
            image-rendering:pixelated; max-width:100%; cursor:crosshair; }
-  aside { min-width:320px; flex:1; max-width:520px; }
-  .bar { display:flex; gap:8px; align-items:center; padding:0 14px 6px; flex-wrap:wrap; }
-  input[type=range] { flex:1; min-width:220px; }
+  /* The map column has to be pinned to the canvas: the note under it is a
+     sentence, and an unbounded sentence widens the flex item until the log
+     column wraps off the row it is supposed to sit next to. */
+  .mapcol { width:700px; max-width:100%; flex:0 0 auto; }
+  .col { min-width:290px; flex:1 1 290px; max-width:430px; }
+  .bar { display:flex; gap:6px; align-items:center; padding:8px 14px 4px; flex-wrap:wrap; }
+  input[type=range] { flex:1; min-width:240px; }
   button, label.file, select { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
-           border-radius:4px; padding:4px 10px; cursor:pointer; font:inherit; }
+           border-radius:4px; padding:4px 9px; cursor:pointer; font:inherit; }
   button:hover, label.file:hover { background:#30363d; }
+  button.wide { min-width:52px; }
   table { border-collapse:collapse; width:100%; font-size:12px; }
   th,td { text-align:right; padding:3px 7px; border-bottom:1px solid #21262d; }
   th:first-child, td:first-child { text-align:left; }
-  .layers { margin-top:12px; display:flex; flex-direction:column; gap:4px; font-size:12px; }
-  .legend { margin-top:12px; color:#8b949e; font-size:12px; line-height:1.7; }
+  .layers { margin-top:10px; display:flex; flex-direction:column; gap:3px; font-size:12px; }
+  .legend { margin-top:12px; color:#8b949e; font-size:12px; line-height:1.7; padding:0 14px 20px; }
   .sw { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; }
-  #drop { padding:14px 14px 6px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  #bandWrap { padding:0 14px 10px; }
-  canvas#band { width:100%; height:26px; display:block; background:#010409;
+  #drop { padding:12px 14px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  #bandWrap { padding:0 14px 8px; }
+  canvas#band { width:100%; height:30px; display:block; background:#010409;
                 border:1px solid #21262d; border-radius:4px; cursor:pointer; }
-  #unitList { max-height:260px; overflow-y:auto; border:1px solid #21262d; border-radius:4px; }
-  #unitList table { font-size:12px; }
+  #unitList { max-height:230px; overflow-y:auto; border:1px solid #21262d; border-radius:4px; }
   #unitList tr { cursor:pointer; }
   #unitList tr:hover td { background:#161b22; }
   #unitList tr.sel td { background:#1f6feb33; }
   #unitList tr.dead td { opacity:0.45; }
   #detail { margin-top:10px; border:1px solid #21262d; border-radius:4px; padding:8px 10px;
-            font-size:12px; min-height:96px; }
+            font-size:12px; min-height:90px; }
   #detail h2 { font-size:12px; margin:0 0 6px; font-weight:600; }
   #detail dl { display:grid; grid-template-columns:auto 1fr; gap:1px 10px; margin:0; }
   #detail dt { color:#8b949e; }
   #detail dd { margin:0; }
-  #log { margin-top:8px; max-height:150px; overflow-y:auto; font-size:11px; color:#8b949e; }
-  #log div { white-space:nowrap; }
-  #log div.now { color:#c9d1d9; }
-  .filters { display:flex; gap:6px; align-items:center; margin-bottom:6px; flex-wrap:wrap; font-size:12px; }
+  #logBox { border:1px solid #21262d; border-radius:4px; height:640px; overflow-y:auto;
+            font-size:11px; padding:2px 0; }
+  #logBox div.row { white-space:nowrap; padding:0 8px; cursor:pointer; }
+  #logBox div.row:hover { background:#161b22; }
+  #logBox div.past { color:#6e7681; }
+  #logBox div.now { background:#1f6feb26; color:#e6edf3; }
+  #logBox div.future { color:#484f58; }
+  #logBox div.sel { border-left:2px solid #ffffff; padding-left:6px; }
+  #logBox b.id { color:#8b949e; font-weight:400; }
+  .filters { display:flex; gap:5px; align-items:center; margin-bottom:6px; flex-wrap:wrap; font-size:12px; }
+  .hint { color:#8b949e; font-size:11px; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -120,22 +140,36 @@ namespace Nova.AiLab
 </div>
 
 <div class=""bar"">
-  <button id=""play"">play</button>
-  <button id=""prev"">◀ tick</button>
-  <button id=""next"">tick ▶</button>
-  <input type=""range"" id=""scrub"" min=""0"" max=""0"" value=""0"">
+  <button id=""first"" title=""tick 0"">⏮</button>
+  <button id=""back25"" class=""wide"" title=""25 ticks back"">◀◀</button>
+  <button id=""back1"" class=""wide"" title=""one tick back"">◀</button>
+  <button id=""play"" class=""wide"">play</button>
+  <button id=""fwd1"" class=""wide"" title=""one tick on"">▶</button>
+  <button id=""fwd25"" class=""wide"" title=""25 ticks on"">▶▶</button>
+  <button id=""last"" title=""last tick"">⏭</button>
+  <select id=""speed"" title=""ticks per playback step"">
+    <option value=""1"">1 tick/step</option>
+    <option value=""5"" selected>5 ticks/step</option>
+    <option value=""25"">25 ticks/step</option>
+    <option value=""100"">100 ticks/step</option>
+  </select>
+  <input type=""range"" id=""scrub"" min=""0"" max=""0"" value=""0"" step=""1"">
   <span id=""tickLabel"" class=""sub"">—</span>
 </div>
 
 <div id=""bandWrap"">
-  <canvas id=""band"" width=""2000"" height=""26""></canvas>
-  <div class=""sub"" id=""bandLabel"">event band — pick a unit to see its life on the time axis
-    (<b>n</b> / <b>p</b> jump to the next / previous event)</div>
+  <canvas id=""band"" width=""2000"" height=""30""></canvas>
+  <div class=""sub"" id=""bandLabel"">event band — every event of the match faintly, the selected unit's
+    brightly (<b>n</b> / <b>p</b> jump between them, <b>N</b> / <b>P</b> through all of them)</div>
 </div>
 
 <main>
-  <canvas id=""map"" width=""768"" height=""768""></canvas>
-  <aside>
+  <div class=""mapcol"">
+    <canvas id=""map"" width=""700"" height=""700""></canvas>
+    <div class=""hint"" id=""mapNote"">—</div>
+  </div>
+
+  <div class=""col"">
     <table id=""headers""><thead><tr>
       <th>slot</th><th>credits</th><th>power</th><th>army</th><th>sees</th>
     </tr></thead><tbody></tbody></table>
@@ -157,7 +191,7 @@ namespace Nova.AiLab
         </select></label>
     </div>
 
-    <div style=""margin-top:12px"">
+    <div style=""margin-top:10px"">
       <div class=""filters"">
         <b>units</b>
         <select id=""filterSlot""><option value=""-1"">every slot</option></select>
@@ -169,30 +203,49 @@ namespace Nova.AiLab
           <option value=""0"">building</option>
           <option value=""1"">site</option>
         </select>
-        <label><input type=""checkbox"" id=""filterDead""> show the dead</label>
+        <label><input type=""checkbox"" id=""filterDead""> the dead</label>
       </div>
       <div id=""unitList""><table><tbody></tbody></table></div>
       <div id=""detail""><span class=""sub"">no unit selected — click one in the list or on the map</span></div>
-      <div id=""log""></div>
     </div>
+  </div>
 
-    <div class=""legend"">
-      <b>shape</b> ▣ building · ▢ site · ✚ builder · ● harvester · ▲ combat<br>
-      <b>line</b> <span class=""sw"" style=""background:#f85149""></span> attack ·
-      <span class=""sw"" style=""background:#3fb950""></span> harvest ·
-      <span class=""sw"" style=""background:#58a6ff""></span> move<br>
-      <b>event</b> <span class=""sw"" style=""background:#f85149""></span> damage/death ·
-      <span class=""sw"" style=""background:#ff9e64""></span> attack ·
-      <span class=""sw"" style=""background:#58a6ff""></span> order/goal ·
-      <span class=""sw"" style=""background:#d29922""></span> stuck ·
-      <span class=""sw"" style=""background:#3fb950""></span> harvest/cargo ·
-      <span class=""sw"" style=""background:#bc8cff""></span> spawn/site<br>
-      <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold<br>
-      <span class=""warn"">fog is the most common reason an AI ""did not react"" — check it before blaming the logic.</span><br>
-      <span class=""derived"">who fired is DERIVED from state, never reported by the simulation — see notes/schadensquelle.md.</span>
+  <div class=""col"">
+    <div class=""filters"">
+      <b>match log</b>
+      <select id=""logSlot""><option value=""-1"">every slot</option></select>
+      <select id=""logKind"">
+        <option value=""all"">everything</option>
+        <option value=""combat"">combat</option>
+        <option value=""movement"">movement</option>
+        <option value=""economy"">economy</option>
+        <option value=""life"">life and building</option>
+      </select>
+      <label><input type=""checkbox"" id=""logOnlySelected""> only the selection</label>
+      <label><input type=""checkbox"" id=""logFollow"" checked> follow</label>
     </div>
-  </aside>
+    <div id=""logBox""></div>
+    <div class=""hint"" id=""logNote"">—</div>
+  </div>
 </main>
+
+<div class=""legend"">
+  <b>shape</b> ▣ building · ▢ site · ✚ builder · ● harvester · ▲ combat<br>
+  <b>line</b> <span class=""sw"" style=""background:#f85149""></span> attack ·
+  <span class=""sw"" style=""background:#3fb950""></span> harvest ·
+  <span class=""sw"" style=""background:#58a6ff""></span> move<br>
+  <b>event</b> <span class=""sw"" style=""background:#f85149""></span> damage/death ·
+  <span class=""sw"" style=""background:#ff9e64""></span> attack ·
+  <span class=""sw"" style=""background:#58a6ff""></span> order/goal ·
+  <span class=""sw"" style=""background:#d29922""></span> stuck ·
+  <span class=""sw"" style=""background:#3fb950""></span> harvest/cargo ·
+  <span class=""sw"" style=""background:#bc8cff""></span> spawn/site<br>
+  <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold<br>
+  <b>keys</b> ← → one tick · shift+← → 25 ticks · space play · n/p the selection's events ·
+  N/P every event · Home/End<br>
+  <span class=""warn"">fog is the most common reason an AI ""did not react"" — check it before blaming the logic.</span><br>
+  <span class=""derived"">who fired is DERIVED from state, never reported by the simulation — see notes/schadensquelle.md.</span>
+</div>
 
 <script>
 const MAP_W = __MAP_WIDTH__, MAP_H = __MAP_HEIGHT__;
@@ -216,20 +269,31 @@ const EVENT_COLOUR = {
   spawn:'#bc8cff', siteOpen:'#bc8cff', siteDone:'#bc8cff',
   heal:'#3fb950', retreatBelow:'#e6edf3', retreatAbove:'#e6edf3'
 };
+const EVENT_GROUP = {
+  damage:'combat', death:'combat', heal:'combat', retreatBelow:'combat', retreatAbove:'combat',
+  attackStart:'combat', attackSwitch:'combat', attackStop:'combat',
+  order:'movement', goal:'movement', moveStart:'movement', moveStop:'movement',
+  stuck:'movement', unstuck:'movement',
+  harvestStart:'economy', harvestStop:'economy', cargoFull:'economy', cargoDelivered:'economy',
+  spawn:'life', siteOpen:'life', siteDone:'life'
+};
 
 const canvas = document.getElementById('map'), ctx = canvas.getContext('2d');
 const band = document.getElementById('band'), bctx = band.getContext('2d');
 const scrub = document.getElementById('scrub'), tickLabel = document.getElementById('tickLabel');
 const status = document.getElementById('status');
 const fogSlot = document.getElementById('fogSlot'), trailSlot = document.getElementById('trailSlot');
-const filterSlot = document.getElementById('filterSlot');
+const filterSlot = document.getElementById('filterSlot'), logSlot = document.getElementById('logSlot');
 
-let frames = [], index = 0, playing = false, timer = null;
+let frames = [];               // view.ndjson — fog and the per-slot header row live only here
+let frameTicks = [];
 let tracks = new Map();        // id -> {t:[], x:[], y:[]}
-let events = [], eventsById = new Map();
+let events = [], eventTicks = [], eventsById = new Map();
 let units = new Map();         // id -> row of units.json
-let selected = null, selectedEventIndex = -1;
-let haveIds = false;           // a view.ndjson written before the id column exists
+let world = new Map();         // reconstructed state at `tick`
+let tick = 0, lastTick = 0;
+let selected = null, playing = false, timer = null;
+let haveIds = false;
 
 const loaded = { view:false, tracks:false, events:false, units:false };
 
@@ -242,24 +306,26 @@ function parseNdjson(text) {
 function loadView(text) {
   frames = parseNdjson(text);
   if (!frames.length) { status.textContent = 'no frames in the view file'; return; }
+  frameTicks = frames.map(f => f.t);
   haveIds = frames.some(f => f.e.some(e => e.length > 9));
-  index = 0;
-  scrub.max = frames.length - 1;
-  scrub.value = 0;
+  lastTick = Math.max(lastTick, frames[frames.length - 1].t);
+
   const slots = frames[0].h.map(h => h[0]);
-  fogSlot.innerHTML = slots.map(s => '<option value=""' + s + '"">' + s + '</option>').join('');
-  trailSlot.innerHTML = slots.map(s => '<option value=""' + s + '"">' + s + '</option>').join('');
-  filterSlot.innerHTML = '<option value=""-1"">every slot</option>' +
+  const options = slots.map(s => '<option value=""' + s + '"">' + s + '</option>').join('');
+  fogSlot.innerHTML = options;
+  trailSlot.innerHTML = options;
+  const named = '<option value=""-1"">every slot</option>' +
     slots.map(s => '<option value=""' + s + '"">slot ' + s + '</option>').join('');
+  filterSlot.innerHTML = named;
+  logSlot.innerHTML = named;
+
   loaded.view = true;
-  const wanted = readHash();
-  note();
-  if (wanted !== null) gotoTick(wanted); else draw();
+  ready();
 }
 
-// The track is the whole point of the trail: it carries every tick, while a
-// frame carries every n-th. Rebuilt into one array per id so drawing a route
-// is a slice, not a search.
+// The track is the whole point of the trail AND of tick-exact playback: it
+// carries every tick, while a frame carries every n-th. Rebuilt into one array
+// per id so a position at any tick is a binary search, not a replay.
 function loadTracks(text) {
   const lines = parseNdjson(text);
   tracks = new Map();
@@ -273,10 +339,10 @@ function loadTracks(text) {
       push(s[0], f.t, p[0], p[1]);
     }
     if (f.x) for (const id of f.x) pos.delete(id);
+    lastTick = Math.max(lastTick, f.t);
   }
   loaded.tracks = true;
-  note();
-  draw();
+  ready();
 
   function push(id, t, x, y) {
     let tr = tracks.get(id);
@@ -289,37 +355,73 @@ function loadTracks(text) {
 
 function loadEvents(text) {
   events = parseNdjson(text);
+  eventTicks = events.map(e => e.t);
   eventsById = new Map();
   for (const e of events) {
     let list = eventsById.get(e.id);
     if (!list) { list = []; eventsById.set(e.id, list); }
     list.push(e);
+    lastTick = Math.max(lastTick, e.t);
   }
   loaded.events = true;
+  ready();
+}
+
+function loadUnits(text) {
+  units = new Map((JSON.parse(text).units || []).map(u => [u.id, u]));
+  loaded.units = true;
+  ready();
+}
+
+function ready() {
+  scrub.max = lastTick;
+  const wanted = readHash();
+  if (wanted !== null) tick = Math.min(lastTick, Math.max(0, wanted));
   note();
   draw();
 }
 
-function loadUnits(text) {
-  const parsed = JSON.parse(text);
-  units = new Map((parsed.units || []).map(u => [u.id, u]));
-  loaded.units = true;
-  note();
-  draw();
+/** Reads ""#u=1043&t=2200"" and returns the wanted tick, or null. */
+function readHash() {
+  const params = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+  if (params.has('u')) selected = +params.get('u');
+  return params.has('t') ? +params.get('t') : null;
 }
 
 function note() {
   const missing = Object.keys(loaded).filter(k => !loaded[k]);
-  let text = frames.length
-    ? frames.length + ' frames, ticks ' + frames[0].t + '…' + frames[frames.length - 1].t
-    : 'no frames yet';
+  let text = frames.length ? frames.length + ' frames' : 'no frames';
+  text += ' · ticks 0…' + lastTick;
   if (loaded.tracks) text += ' · ' + tracks.size + ' tracked units';
   if (loaded.events) text += ' · ' + events.length + ' events';
   if (missing.length) text += ' · missing: ' + missing.join(', ');
   if (frames.length && !haveIds) {
     text += ' · this view file predates the id column — no unit can be followed in it';
   }
-  status.textContent = text;
+  status.innerHTML = text + (loaded.view && loaded.tracks && loaded.events ? ' · ' + selfCheck() : '');
+}
+
+// The page proving itself against the file it was built from. Position, shape
+// and the flags are reconstructed from track and events; the frames were
+// written by a different piece of code. If the two disagree, one of them is
+// wrong and the picture is worthless either way.
+function selfCheck() {
+  let checked = 0, wrong = 0;
+  for (let i = 0; i < frames.length; i += Math.max(1, Math.floor(frames.length / 40))) {
+    const frame = frames[i];
+    const rebuilt = stateAt(frame.t);
+    for (const e of frame.e) {
+      if (e.length < 10) return '<span class=""warn"">no ids in the frames — self-check skipped</span>';
+      checked++;
+      const u = rebuilt.get(e[9]);
+      const p = u ? posAt(e[9], frame.t) : null;
+      if (!u || !p || p[0] !== e[2] || p[1] !== e[3] || shapeOf(u) !== e[1] || flagsOf(u) !== e[5]) wrong++;
+    }
+  }
+  return wrong === 0
+    ? '<span class=""ok"">reconstruction agrees with the frames (' + checked + ' checked)</span>'
+    : '<span class=""warn"">reconstruction differs from the frames in ' + wrong + ' of ' + checked +
+      ' — do not trust this picture</span>';
 }
 
 const FILES = [
@@ -345,32 +447,117 @@ document.getElementById('file').addEventListener('change', e => {
   }
 });
 
-// ------------------------------------------------------------- geometry
+// ------------------------------------------------- the state at one tick
 
-const px = raw => (raw / ONE) * (canvas.width / MAP_W);
-const py = raw => canvas.height - (raw / ONE) * (canvas.height / MAP_H);
-
-function currentTick() { return frames[index] ? frames[index].t : 0; }
-
-/** First index whose tick is >= t. */
+/** First index whose value is >= t. */
 function lowerBound(list, t) {
   let lo = 0, hi = list.length;
   while (lo < hi) { const mid = (lo + hi) >> 1; if (list[mid] < t) lo = mid + 1; else hi = mid; }
   return lo;
 }
 
-function trailRange(id, tick, span) {
+function posAt(id, atTick) {
   const tr = tracks.get(id);
-  if (!tr || !tr.t.length) return null;
-  const to = lowerBound(tr.t, tick + 1);
-  const from = span > 0 ? lowerBound(tr.t, tick - span) : 0;
-  return to - from < 2 ? null : { tr, from, to };
+  if (!tr) return null;
+  const i = lowerBound(tr.t, atTick + 1) - 1;
+  return i < 0 ? null : [tr.x[i], tr.y[i]];
+}
+
+/**
+ * Replays the events up to `atTick`. All of them, from tick 0, every time —
+ * a match carries a few thousand, which is nothing, and a replay from the
+ * start cannot drift the way an incremental state can when you scrub back.
+ */
+function stateAt(atTick) {
+  const state = new Map();
+  const end = lowerBound(eventTicks, atTick + 1);
+  for (let i = 0; i < end; i++) {
+    const e = events[i];
+    let u = state.get(e.id);
+    switch (e.k) {
+      case 'spawn':
+        state.set(e.id, { id:e.id, slot:e.slot, role:e.role, hp:e.hp, hpMax:e.hpMax || e.hp,
+                          site:false, siteDef:0, moving:false, attack:0, field:0, fx:0, fy:0,
+                          cargo:false, cargoAE:0, goalX:-1, goalY:-1, orderX:-1, orderY:-1,
+                          below:false, stuck:false, born:e.t });
+        break;
+      case 'death': state.delete(e.id); break;
+      default:
+        if (!u) break;
+        if (e.k === 'damage' || e.k === 'heal') u.hp = e.to;
+        else if (e.k === 'siteOpen') { u.site = true; u.siteDef = e.def; }
+        else if (e.k === 'siteDone') { u.site = false; u.role = e.role; }
+        else if (e.k === 'moveStart') u.moving = true;
+        else if (e.k === 'moveStop') u.moving = false;
+        else if (e.k === 'goal') { u.goalX = e.tx; u.goalY = e.ty; }
+        else if (e.k === 'order') { u.orderX = e.tx; u.orderY = e.ty; }
+        else if (e.k === 'attackStart' || e.k === 'attackSwitch') u.attack = e.target;
+        else if (e.k === 'attackStop') u.attack = 0;
+        else if (e.k === 'harvestStart') { u.field = e.field; u.fx = e.x; u.fy = e.y; }
+        else if (e.k === 'harvestStop') u.field = 0;
+        else if (e.k === 'cargoFull') { u.cargo = true; u.cargoAE = e.cargo; }
+        else if (e.k === 'cargoDelivered') u.cargo = false;
+        else if (e.k === 'stuck') u.stuck = true;
+        else if (e.k === 'unstuck') u.stuck = false;
+        else if (e.k === 'retreatBelow') u.below = true;
+        else if (e.k === 'retreatAbove') u.below = false;
+        if (e.role !== undefined && e.k !== 'siteDone') u.role = e.role;
+    }
+  }
+  return state;
+}
+
+function shapeOf(u) {
+  if (u.site) return 1;
+  if (u.role >= 3 && u.role <= 11) return 0;   // the nine building roles
+  if (u.role === 1) return 2;
+  if (u.role === 2) return 3;
+  return 4;
+}
+
+function healthPercentOf(u) {
+  if (u.site) return siteProgress(u.id);
+  return u.hpMax > 0 ? Math.floor(u.hp * 100 / u.hpMax) : 0;
+}
+
+/** Build progress lives only in the frames: it is not an edge, it creeps. */
+function siteProgress(id) {
+  const frame = frameAt(tick);
+  if (!frame) return 0;
+  const row = frame.e.find(e => e.length > 9 && e[9] === id);
+  return row ? row[4] : 0;
+}
+
+function flagsOf(u) {
+  return (u.cargo ? 1 : 0) | (u.below ? 2 : 0) | (u.moving ? 4 : 0);
+}
+
+function lineOf(u) {
+  // The same priority the recorder uses: an attack order says more about what
+  // a unit is doing than the move that carries it there.
+  if (u.attack) {
+    const p = posAt(u.attack, tick);
+    if (p && world.has(u.attack)) return [1, p[0], p[1]];
+  }
+  if (u.field) return [2, u.fx, u.fy];
+  if (u.moving && u.goalX >= 0) return [3, u.goalX * ONE, u.goalY * ONE];
+  return [0, 0, 0];
+}
+
+/** The newest frame at or before `atTick` — fog and the header row live there. */
+function frameAt(atTick) {
+  if (!frames.length) return null;
+  const i = lowerBound(frameTicks, atTick + 1) - 1;
+  return i < 0 ? frames[0] : frames[i];
 }
 
 // ---------------------------------------------------------------- drawing
 
+const px = raw => (raw / ONE) * (canvas.width / MAP_W);
+const py = raw => canvas.height - (raw / ONE) * (canvas.height / MAP_H);
+
 function drawFog(frame) {
-  if (!frame.fog) return;
+  if (!frame || !frame.fog) return;
   const runs = frame.fog[+fogSlot.value];
   if (!runs) return;
   const cw = canvas.width / MAP_W, ch = canvas.height / MAP_H;
@@ -388,22 +575,32 @@ function drawFog(frame) {
   }
 }
 
-// A trail pool with a hard budget: hundreds of polylines per frame is the
-// known cost of this kind of view, and a page that stutters does not get used.
-const TRAIL_BUDGET = 6000;
+// A hard budget on POINTS across the bulk layer. Points are cheap — they are
+// lineTo calls inside one path — so this is high enough to draw a whole slot
+// over a whole match and still a real cap.
+const TRAIL_BUDGET = 250000;
 
-function drawTrail(id, tick, span, colour, width, fade, budget) {
-  const range = trailRange(id, tick, span);
-  if (!range) return 0;
-  const { tr, from, to } = range;
+// A hard budget on STROKES for the fading trail. Those are not cheap: one
+// stroke per segment over a 9000-tick match is nine thousand of them per
+// redraw. Longer trails are drawn in bundles instead, which changes how fine
+// the fade is and nothing about where the line runs.
+const FADE_STROKES = 900;
+
+function drawTrail(id, span, colour, width, fade, budget) {
+  const tr = tracks.get(id);
+  if (!tr || !tr.t.length) return 0;
+  const to = lowerBound(tr.t, tick + 1);
+  const from = span > 0 ? lowerBound(tr.t, tick - span) : 0;
+  if (to - from < 2) return 0;
+
   const count = Math.min(to - from, budget);
   const start = to - count;
-
   ctx.lineWidth = width;
   ctx.lineJoin = 'round';
   ctx.strokeStyle = colour;
+
   if (!fade) {
-    ctx.globalAlpha = 0.55;
+    ctx.globalAlpha = 0.5;
     ctx.beginPath();
     ctx.moveTo(px(tr.x[start]), py(tr.y[start]));
     for (let i = start + 1; i < to; i++) ctx.lineTo(px(tr.x[i]), py(tr.y[i]));
@@ -412,83 +609,101 @@ function drawTrail(id, tick, span, colour, width, fade, budget) {
     return count;
   }
 
-  // Fading: the segment nearest the current tick is the brightest, so the
-  // direction of travel is readable without an arrowhead.
-  for (let i = start + 1; i < to; i++) {
+  // Bundles overlap by one point, otherwise the trail is drawn with gaps.
+  const bundle = Math.max(1, Math.ceil(count / FADE_STROKES));
+  for (let i = start; i < to - 1; i += bundle) {
+    const end = Math.min(to - 1, i + bundle);
     ctx.globalAlpha = 0.12 + 0.78 * ((i - start) / count);
     ctx.beginPath();
-    ctx.moveTo(px(tr.x[i - 1]), py(tr.y[i - 1]));
-    ctx.lineTo(px(tr.x[i]), py(tr.y[i]));
+    ctx.moveTo(px(tr.x[i]), py(tr.y[i]));
+    for (let k = i + 1; k <= end; k++) ctx.lineTo(px(tr.x[k]), py(tr.y[k]));
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
   return count;
 }
 
-function drawTrails(frame) {
+function drawTrails() {
   const span = +document.getElementById('trailSpan').value;
-  const tick = frame.t;
 
   if (document.getElementById('layerAllTrails').checked) {
     const slot = +trailSlot.value;
+    const colour = SLOT_COLOURS[slot % SLOT_COLOURS.length];
     let budget = TRAIL_BUDGET;
-    for (const e of frame.e) {
-      if (e.length < 10 || e[0] !== slot || budget <= 0) continue;
-      budget -= drawTrail(e[9], tick, span, SLOT_COLOURS[slot % SLOT_COLOURS.length], 1, false, budget);
+
+    // Every unit the slot EVER had up to this tick, not only the ones still
+    // standing. The dead are the interesting half of a traffic picture: they
+    // are the ones that walked into something.
+    const ids = units.size
+      ? [...units.values()].filter(u => u.slot === slot && u.firstTick <= tick).map(u => u.id)
+      : [...world.values()].filter(u => u.slot === slot).map(u => u.id);
+
+    for (const id of ids) {
+      if (budget <= 0) break;
+      budget -= drawTrail(id, span, colour, 1, false, budget);
     }
   }
 
   if (selected !== null && document.getElementById('layerTrail').checked) {
-    drawTrail(selected, tick, span, '#ffffff', 1.8, true, TRAIL_BUDGET);
+    drawTrail(selected, span, '#ffffff', 1.8, true, TRAIL_BUDGET);
   }
 }
 
 function draw() {
-  const frame = frames[index];
-  if (!frame) return;
+  if (!loaded.events || !loaded.tracks) { drawEmpty(); return; }
+  world = stateAt(tick);
+
   ctx.fillStyle = '#010409';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const showLines = document.getElementById('layerLines').checked;
   const showHealth = document.getElementById('layerHealth').checked;
 
-  drawTrails(frame);
+  drawTrails();
+
+  const drawn = [];
+  for (const u of world.values()) {
+    const p = posAt(u.id, tick);
+    if (!p) continue;
+    drawn.push([u, p]);
+  }
+  drawn.sort((a, b) => a[0].id - b[0].id);   // stable paint order, so a screenshot repeats
 
   if (showLines) {
     ctx.lineWidth = 1;
-    for (const e of frame.e) {
-      const line = e[6];
-      if (!line) continue;
-      ctx.strokeStyle = LINE_COLOURS[line];
-      ctx.globalAlpha = 0.45;
-      ctx.beginPath(); ctx.moveTo(px(e[2]), py(e[3])); ctx.lineTo(px(e[7]), py(e[8])); ctx.stroke();
+    ctx.globalAlpha = 0.45;
+    for (const [u, p] of drawn) {
+      const [kind, lx, ly] = lineOf(u);
+      if (!kind) continue;
+      ctx.strokeStyle = LINE_COLOURS[kind];
+      ctx.beginPath(); ctx.moveTo(px(p[0]), py(p[1])); ctx.lineTo(px(lx), py(ly)); ctx.stroke();
     }
     ctx.globalAlpha = 1;
   }
 
-  for (const e of frame.e) {
-    const slot = e[0], shape = e[1], hp = e[4], flags = e[5];
-    const cx = px(e[2]), cy = py(e[3]);
-    const base = SLOT_COLOURS[slot % SLOT_COLOURS.length];
+  for (const [u, p] of drawn) {
+    const shape = shapeOf(u), hp = healthPercentOf(u), flags = flagsOf(u);
+    const cx = px(p[0]), cy = py(p[1]);
+    const base = SLOT_COLOURS[u.slot % SLOT_COLOURS.length];
     ctx.globalAlpha = showHealth ? Math.max(0.3, hp / 100) : 1;
     ctx.fillStyle = base; ctx.strokeStyle = base; ctx.lineWidth = 1.4;
 
-    const hollow = (flags & 1) !== 0;   // returning cargo
-    const weak   = (flags & 2) !== 0;   // below retreat threshold
+    const hollow = (flags & 1) !== 0;
+    const weak   = (flags & 2) !== 0;
     const r = shape === 0 ? 5 : shape === 1 ? 4.5 : 3.2;
 
     ctx.beginPath();
-    if (shape === 0 || shape === 1) {              // building / site
+    if (shape === 0 || shape === 1) {
       ctx.rect(cx - r, cy - r, r * 2, r * 2);
-    } else if (shape === 2) {                      // builder: cross
+    } else if (shape === 2) {
       ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
       ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
       ctx.stroke(); ctx.globalAlpha = 1;
-      if (e.length > 9 && e[9] === selected) ring(cx, cy, r);
+      if (u.id === selected) ring(cx, cy, r);
       continue;
-    } else if (shape === 3) {                      // harvester: disc
+    } else if (shape === 3) {
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    } else {                                       // combat: triangle
+    } else {
       ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r, cy + r); ctx.lineTo(cx - r, cy + r); ctx.closePath();
     }
     if (hollow || shape === 1) ctx.stroke(); else ctx.fill();
@@ -497,42 +712,56 @@ function draw() {
       ctx.globalAlpha = 1; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2); ctx.stroke();
     }
+    if (u.stuck) {
+      ctx.globalAlpha = 1; ctx.strokeStyle = '#d29922'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 4.5, 0, Math.PI * 2); ctx.stroke();
+    }
     ctx.globalAlpha = 1;
-    if (e.length > 9 && e[9] === selected) ring(cx, cy, r);
+    if (u.id === selected) ring(cx, cy, r);
   }
 
+  const frame = frameAt(tick);
   if (document.getElementById('layerFog').checked) drawFog(frame);
+  markDeath();
 
-  markDeath(frame);
+  renderHeaders(frame);
+  document.getElementById('mapNote').innerHTML =
+    'positions, health, orders and flags are rebuilt for tick <b>' + tick + '</b> exactly · ' +
+    'fog and the header row come from frame t=' + (frame ? frame.t : '—') +
+    ', the newest one at or before it';
 
-  const body = document.querySelector('#headers tbody');
-  body.innerHTML = frame.h.map(h =>
-    '<tr><td style=""color:' + SLOT_COLOURS[h[0] % SLOT_COLOURS.length] + '"">slot ' + h[0] +
-    '</td><td>' + h[1] + '</td><td>' + h[2] + '</td><td>' + h[3] + '</td><td>' + h[4] + '</td></tr>').join('');
+  tickLabel.textContent = 'tick ' + tick + ' / ' + lastTick;
+  scrub.value = tick;
 
-  tickLabel.textContent = 'tick ' + frame.t + '  (' + (index + 1) + '/' + frames.length + ')';
-  scrub.value = index;
-
-  renderUnits(frame);
-  renderDetail(frame);
+  renderUnits();
+  renderDetail();
+  renderLog();
   drawBand();
+}
+
+function drawEmpty() {
+  ctx.fillStyle = '#010409';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '13px ui-monospace, monospace';
+  ctx.fillText('waiting for tracks.ndjson and events.ndjson', 20, 30);
 }
 
 function ring(cx, cy, r) {
   ctx.save();
   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.9;
-  ctx.beginPath(); ctx.arc(cx, cy, r + 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.stroke();
   ctx.restore();
 }
 
 // A unit that dies does not simply vanish from the page: the spot it died on
 // stays marked, because ""where did it die"" is half the question.
-function markDeath(frame) {
+function markDeath() {
   if (selected === null) return;
   const list = eventsById.get(selected);
   if (!list) return;
   const death = list.find(e => e.k === 'death');
-  if (!death || death.t > frame.t || death.x === undefined) return;
+  if (!death || death.t > tick || death.x === undefined) return;
 
   const cx = px(death.x), cy = py(death.y);
   ctx.save();
@@ -544,79 +773,71 @@ function markDeath(frame) {
   ctx.restore();
 }
 
+function renderHeaders(frame) {
+  const body = document.querySelector('#headers tbody');
+  body.innerHTML = !frame ? '' : frame.h.map(h =>
+    '<tr><td style=""color:' + SLOT_COLOURS[h[0] % SLOT_COLOURS.length] + '"">slot ' + h[0] +
+    '</td><td>' + h[1] + '</td><td>' + h[2] + '</td><td>' + h[3] + '</td><td>' + h[4] + '</td></tr>').join('');
+}
+
 // -------------------------------------------------------------- the band
 
 function drawBand() {
   bctx.clearRect(0, 0, band.width, band.height);
   bctx.fillStyle = '#010409';
   bctx.fillRect(0, 0, band.width, band.height);
-  if (!frames.length) return;
+  if (!events.length) return;
 
-  const t0 = frames[0].t, t1 = frames[frames.length - 1].t || 1;
-  const at = t => ((t - t0) / Math.max(1, t1 - t0)) * (band.width - 2) + 1;
+  const at = t => (t / Math.max(1, lastTick)) * (band.width - 2) + 1;
+
+  // Every event of the match, faintly — the shape of the whole run.
+  bctx.globalAlpha = 0.35;
+  bctx.fillStyle = '#484f58';
+  for (const e of events) bctx.fillRect(at(e.t), 21, 1, 6);
+  bctx.globalAlpha = 1;
 
   const list = selected === null ? null : eventsById.get(selected);
   if (list) {
     for (const e of list) {
       bctx.fillStyle = EVENT_COLOUR[e.k] || '#8b949e';
-      bctx.fillRect(at(e.t) - 1, 3, 2, band.height - 10);
+      bctx.fillRect(at(e.t) - 1, 3, 2, 15);
     }
   }
 
   bctx.fillStyle = '#ffffff';
-  bctx.fillRect(at(currentTick()) - 1, 0, 2, band.height);
+  bctx.fillRect(at(tick) - 1, 0, 2, band.height);
 
-  const label = document.getElementById('bandLabel');
-  label.innerHTML = selected === null
-    ? 'event band — pick a unit to see its life on the time axis (<b>n</b> / <b>p</b> jump between events)'
-    : '#' + selected + ': ' + (list ? list.length : 0) + ' events, ticks ' + t0 + '…' + t1 +
-      ' (<b>n</b> / <b>p</b> jump between events)';
+  document.getElementById('bandLabel').innerHTML = selected === null
+    ? 'event band — every event of the match faintly (<b>N</b> / <b>P</b> step through them); ' +
+      'pick a unit to see its own life brightly'
+    : '#' + selected + ': ' + (list ? list.length : 0) + ' events of ' + events.length +
+      ' in the match (<b>n</b> / <b>p</b> its own, <b>N</b> / <b>P</b> all)';
 }
 
 band.addEventListener('click', ev => {
-  if (!frames.length) return;
   const rect = band.getBoundingClientRect();
-  const t0 = frames[0].t, t1 = frames[frames.length - 1].t;
-  const tick = t0 + ((ev.clientX - rect.left) / rect.width) * (t1 - t0);
-  gotoTick(tick);
+  seek(Math.round(((ev.clientX - rect.left) / rect.width) * lastTick));
 });
-
-function gotoTick(tick) {
-  let best = 0, bestDistance = Infinity;
-  for (let i = 0; i < frames.length; i++) {
-    const d = Math.abs(frames[i].t - tick);
-    if (d < bestDistance) { bestDistance = d; best = i; }
-  }
-  index = best;
-  draw();
-}
 
 // --------------------------------------------------------- list + detail
 
-function renderUnits(frame) {
+function renderUnits() {
   const body = document.querySelector('#unitList tbody');
-  if (!haveIds) {
-    body.innerHTML = '<tr><td class=""sub"">this view file carries no ids — rerun the match to follow units</td></tr>';
-    return;
-  }
-
   const slotFilter = +filterSlot.value, shapeFilter = +document.getElementById('filterShape').value;
   const rows = [];
-  const alive = new Set();
 
-  for (const e of frame.e) {
-    if (e.length < 10) continue;
-    alive.add(e[9]);
-    if (slotFilter >= 0 && e[0] !== slotFilter) continue;
-    if (shapeFilter >= 0 && e[1] !== shapeFilter) continue;
-    rows.push({ id:e[9], slot:e[0], shape:e[1], hp:e[4], line:e[6], dead:false });
+  for (const u of world.values()) {
+    if (slotFilter >= 0 && u.slot !== slotFilter) continue;
+    const shape = shapeOf(u);
+    if (shapeFilter >= 0 && shape !== shapeFilter) continue;
+    rows.push({ id:u.id, slot:u.slot, shape, hp:healthPercentOf(u), u, dead:false });
   }
 
   if (document.getElementById('filterDead').checked) {
-    for (const [id, u] of units) {
-      if (alive.has(id) || !u.died) continue;
-      if (slotFilter >= 0 && u.slot !== slotFilter) continue;
-      rows.push({ id, slot:u.slot, shape:-1, hp:0, line:0, dead:true, role:u.role });
+    for (const [id, row] of units) {
+      if (world.has(id) || row.firstTick > tick) continue;
+      if (slotFilter >= 0 && row.slot !== slotFilter) continue;
+      rows.push({ id, slot:row.slot, shape:-1, hp:0, role:row.role, dead:true });
     }
   }
 
@@ -625,39 +846,46 @@ function renderUnits(frame) {
   body.innerHTML = rows.map(r => {
     const colour = SLOT_COLOURS[r.slot % SLOT_COLOURS.length];
     const glyph = r.shape >= 0 ? SHAPE_GLYPH[r.shape] : '✖';
-    const unit = units.get(r.id);
     const name = r.shape >= 0 ? SHAPE_NAME[r.shape] : (ROLE_NAME[r.role] || 'unit');
-    // Short words, not pictograms: the monospace stacks this page runs in
-    // fall back to a replacement box for half the symbol block, and a box
-    // says nothing at all.
-    const mark = r.line === 1 ? 'atk' : r.line === 2 ? 'hrv' : r.line === 3 ? 'mov' : '';
-    const blocked = unit && unit.blockedTicks > 0
-      ? ' <span class=""warn"">blk ' + unit.blockedTicks + '</span>' : '';
+    // Short words, not pictograms: the monospace stacks this page runs in fall
+    // back to a replacement box for half the symbol block, and a box says
+    // nothing at all.
+    let mark = '';
+    if (r.u) {
+      if (r.u.attack) mark = 'atk';
+      else if (r.u.field) mark = 'hrv';
+      else if (r.u.moving) mark = 'mov';
+      if (r.u.stuck) mark = '<span class=""warn"">stuck</span>';
+    }
     return '<tr data-id=""' + r.id + '"" class=""' + (r.id === selected ? 'sel ' : '') + (r.dead ? 'dead' : '') + '"">' +
       '<td style=""color:' + colour + '"">' + glyph + ' #' + r.id + ' ' + name + '</td>' +
-      '<td>' + (r.dead ? '†' : r.hp + '%') + '</td>' +
-      '<td>' + mark + blocked + '</td></tr>';
+      '<td>' + (r.dead ? '†' : r.hp + '%') + '</td><td>' + mark + '</td></tr>';
   }).join('') || '<tr><td class=""sub"">nothing matches the filter</td></tr>';
-
-  for (const tr of body.querySelectorAll('tr[data-id]')) {
-    tr.addEventListener('click', () => select(+tr.dataset.id));
-  }
 }
+
+// Delegation, not a listener per row: both lists are rebuilt on every redraw,
+// and while the match plays that is sixteen times a second.
+document.getElementById('unitList').addEventListener('click', ev => {
+  const row = ev.target.closest('tr[data-id]');
+  if (row) select(+row.dataset.id);
+});
+
+document.getElementById('logBox').addEventListener('click', ev => {
+  const row = ev.target.closest('div.row[data-i]');
+  if (!row) return;
+  const e = logRows[+row.dataset.i];
+  if (!e) return;
+  if (ev.target.classList.contains('id')) select(e.id); else seek(e.t);
+});
 
 // The selection lives in the URL fragment, so ""look at #1043 around tick
 // 2200"" is a link and not a set of instructions.
 function select(id) {
   selected = selected === id ? null : id;
-  selectedEventIndex = -1;
-  try { history.replaceState(null, '', selected === null ? '#' : '#u=' + selected); } catch (ignored) {}
+  try {
+    history.replaceState(null, '', selected === null ? '#t=' + tick : '#u=' + selected + '&t=' + tick);
+  } catch (ignored) {}
   draw();
-}
-
-/** Reads ""#u=1043&t=2200"" and returns the wanted tick, or null. */
-function readHash() {
-  const params = new URLSearchParams((location.hash || '').replace(/^#/, ''));
-  if (params.has('u')) { selected = +params.get('u'); selectedEventIndex = -1; }
-  return params.has('t') ? +params.get('t') : null;
 }
 
 function describe(e) {
@@ -676,7 +904,7 @@ function describe(e) {
     case 'harvestStop': return 'leaves field ' + e.field;
     case 'cargoFull': return 'cargo full (' + e.cargo + ' AE)';
     case 'cargoDelivered': return 'cargo delivered (' + e.cargo + ' AE)';
-    case 'spawn': return 'spawned, ' + e.hp + ' hp';
+    case 'spawn': return 'spawned, ' + e.hp + '/' + (e.hpMax || e.hp) + ' hp';
     case 'siteOpen': return 'construction site of def ' + e.def;
     case 'siteDone': return 'finished building def ' + e.def;
     case 'stuck': return 'STUCK — moving, not moving';
@@ -697,32 +925,34 @@ function by(e) {
 
 function cell(x, y) { return x < 0 || y < 0 ? '—' : x + ',' + y; }
 
-function renderDetail(frame) {
-  const detail = document.getElementById('detail'), log = document.getElementById('log');
+function renderDetail() {
+  const detail = document.getElementById('detail');
   if (selected === null) {
     detail.innerHTML = '<span class=""sub"">no unit selected — click one in the list or on the map</span>';
-    log.innerHTML = '';
     return;
   }
 
-  const live = frame.e.find(e => e.length > 9 && e[9] === selected);
+  const live = world.get(selected);
   const unit = units.get(selected);
-  const list = eventsById.get(selected) || [];
-  const rows = [];
+  const rows = [['id', '#' + selected]];
 
-  rows.push(['id', '#' + selected]);
   if (unit) {
     rows.push(['slot', unit.slot + ' · ' + (ROLE_NAME[unit.role] || 'unit')]);
     rows.push(['life', 'tick ' + unit.firstTick + '…' + unit.lastTick + (unit.died ? ' · died' : '')]);
   }
   if (live) {
-    rows.push(['health', live[4] + '%']);
-    rows.push(['state', (live[5] & 4 ? 'moving ' : 'standing ') +
-      (live[5] & 1 ? '· cargo ' : '') + (live[5] & 2 ? '· below retreat mark' : '')]);
-    rows.push(['order line', live[6] === 1 ? 'attack' : live[6] === 2 ? 'harvest' :
-      live[6] === 3 ? 'move to ' + cell(live[7] >> 16, live[8] >> 16) : 'none']);
+    const p = posAt(selected, tick);
+    rows.push(['health', live.hp + '/' + live.hpMax + '  (' + healthPercentOf(live) + '%)']);
+    rows.push(['cell', p ? Math.floor(p[0] / ONE) + ',' + Math.floor(p[1] / ONE) : '—']);
+    rows.push(['state', (live.moving ? 'moving' : 'standing') +
+      (live.stuck ? ' · <span class=""warn"">STUCK</span>' : '') +
+      (live.cargo ? ' · cargo ' + live.cargoAE + ' AE' : '') +
+      (live.below ? ' · below retreat mark' : '')]);
+    rows.push(['goal', cell(live.goalX, live.goalY)]);
+    rows.push(['order', cell(live.orderX, live.orderY)]);
+    rows.push(['attacking', live.attack ? '#' + live.attack : '—']);
   } else {
-    rows.push(['at this tick', 'not on the map']);
+    rows.push(['at this tick', unit && unit.firstTick > tick ? 'not born yet' : 'dead']);
   }
   if (unit) {
     rows.push(['walked', unit.pathLengthCells + ' cells']);
@@ -738,84 +968,140 @@ function renderDetail(frame) {
 
   detail.innerHTML = '<h2>#' + selected + '</h2><dl>' +
     rows.map(r => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
+}
 
-  const tick = frame.t;
-  log.innerHTML = list.map((e, i) =>
-    '<div class=""' + (e.t <= tick && (i + 1 >= list.length || list[i + 1].t > tick) ? 'now' : '') + '"" ' +
-    'data-i=""' + i + '"" style=""cursor:pointer"">t' + e.t + '  ' +
-    '<span style=""color:' + (EVENT_COLOUR[e.k] || '#8b949e') + '"">' + e.k + '</span>  ' +
-    describe(e) + '</div>').join('');
+// ------------------------------------------------------- the match log
 
-  for (const div of log.querySelectorAll('div[data-i]')) {
-    div.addEventListener('click', () => { selectedEventIndex = +div.dataset.i; gotoTick(list[selectedEventIndex].t); });
+/** The window of rows the log renders around the current tick. */
+const LOG_WINDOW = 500;
+
+function logFiltered() {
+  const slot = +logSlot.value, group = document.getElementById('logKind').value;
+  const only = document.getElementById('logOnlySelected').checked;
+  return events.filter(e =>
+    (slot < 0 || e.slot === slot) &&
+    (group === 'all' || EVENT_GROUP[e.k] === group) &&
+    (!only || e.id === selected));
+}
+
+/** Rows the log currently shows, so a click can resolve back to its event. */
+let logRows = [];
+
+function renderLog() {
+  const box = document.getElementById('logBox');
+  const list = logFiltered();
+  const note = document.getElementById('logNote');
+  logRows = list;
+  if (!list.length) { box.innerHTML = '<div class=""row sub"">nothing matches the filter</div>'; note.textContent = '—'; return; }
+
+  // Binary search on the list itself — building an array of ticks for it would
+  // allocate thousands of numbers per redraw, and this redraws while playing.
+  let lo = 0, hi = list.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (list[mid].t < tick + 1) lo = mid + 1; else hi = mid; }
+  const here = lo;
+  const from = Math.max(0, here - Math.floor(LOG_WINDOW / 2));
+  const to = Math.min(list.length, from + LOG_WINDOW);
+
+  const rows = [];
+  for (let i = from; i < to; i++) {
+    const e = list[i];
+    const when = e.t < tick ? 'past' : e.t > tick ? 'future' : 'now';
+    rows.push('<div class=""row ' + when + (e.id === selected ? ' sel' : '') + '"" data-i=""' + i + '"">' +
+      't' + String(e.t).padStart(5, ' ') + ' ' +
+      '<b class=""id"" style=""color:' + SLOT_COLOURS[e.slot % SLOT_COLOURS.length] + '"">#' + e.id + '</b> ' +
+      '<span style=""color:' + (EVENT_COLOUR[e.k] || '#8b949e') + '"">' + e.k + '</span> ' +
+      describe(e) + '</div>');
   }
-  const now = log.querySelector('.now');
-  if (now) now.scrollIntoView({ block:'nearest' });
+  box.innerHTML = rows.join('');
+
+  note.textContent = 'showing ' + (from + 1) + '…' + to + ' of ' + list.length +
+    ' matching events (' + events.length + ' in the match)';
+
+  if (document.getElementById('logFollow').checked) {
+    const current = box.querySelector('.now') || box.querySelector('.future');
+    if (current) current.scrollIntoView({ block:'center' });
+  }
 }
 
 // ------------------------------------------------------------ navigation
 
-function step(delta) {
-  index = Math.min(frames.length - 1, Math.max(0, index + delta));
+function seek(target) {
+  tick = Math.min(lastTick, Math.max(0, Math.round(target)));
+  try {
+    history.replaceState(null, '', selected === null ? '#t=' + tick : '#u=' + selected + '&t=' + tick);
+  } catch (ignored) {}
   draw();
 }
 
-function jumpEvent(direction) {
-  if (selected === null) return;
-  const list = eventsById.get(selected);
+function step(delta) { seek(tick + delta); }
+
+/** Jumps to the next or previous event — of the selection, or of the match. */
+function jumpEvent(direction, mine) {
+  const list = mine ? (selected === null ? null : eventsById.get(selected)) : events;
   if (!list || !list.length) return;
-  const tick = currentTick();
   const next = direction > 0
     ? list.find(e => e.t > tick)
     : [...list].reverse().find(e => e.t < tick);
-  if (next) gotoTick(next.t);
+  if (next) seek(next.t);
 }
 
 canvas.addEventListener('click', ev => {
-  const frame = frames[index];
-  if (!frame || !haveIds) return;
   const rect = canvas.getBoundingClientRect();
   const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
   const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
 
   let best = null, bestDistance = 18 * 18;
-  for (const e of frame.e) {
-    if (e.length < 10) continue;
-    const dx = px(e[2]) - x, dy = py(e[3]) - y;
+  for (const u of world.values()) {
+    const p = posAt(u.id, tick);
+    if (!p) continue;
+    const dx = px(p[0]) - x, dy = py(p[1]) - y;
     const d = dx * dx + dy * dy;
-    if (d < bestDistance) { bestDistance = d; best = e[9]; }
+    if (d < bestDistance) { bestDistance = d; best = u.id; }
   }
   if (best !== null) select(best); else { selected = null; draw(); }
 });
 
-scrub.addEventListener('input', () => { index = +scrub.value; draw(); });
-document.getElementById('prev').addEventListener('click', () => step(-1));
-document.getElementById('next').addEventListener('click', () => step(1));
+scrub.addEventListener('input', () => seek(+scrub.value));
+document.getElementById('first').addEventListener('click', () => seek(0));
+document.getElementById('last').addEventListener('click', () => seek(lastTick));
+document.getElementById('back25').addEventListener('click', () => step(-25));
+document.getElementById('back1').addEventListener('click', () => step(-1));
+document.getElementById('fwd1').addEventListener('click', () => step(1));
+document.getElementById('fwd25').addEventListener('click', () => step(25));
+
 for (const id of ['layerLines','layerHealth','layerFog','layerTrail','layerAllTrails',
-                  'trailSpan','filterShape','filterDead']) {
+                  'trailSpan','filterShape','filterDead','logKind','logOnlySelected','logFollow']) {
   document.getElementById(id).addEventListener('change', draw);
 }
-fogSlot.addEventListener('change', draw);
-trailSlot.addEventListener('change', draw);
-filterSlot.addEventListener('change', draw);
+for (const select of [fogSlot, trailSlot, filterSlot, logSlot]) {
+  select.addEventListener('change', draw);
+}
 
-document.getElementById('play').addEventListener('click', e => {
+function togglePlay() {
   playing = !playing;
-  e.target.textContent = playing ? 'pause' : 'play';
+  document.getElementById('play').textContent = playing ? 'pause' : 'play';
   clearInterval(timer);
-  if (playing) timer = setInterval(() => {
-    if (index >= frames.length - 1) { index = 0; } else { index++; }
-    draw();
+  if (!playing) return;
+  timer = setInterval(() => {
+    const stepSize = +document.getElementById('speed').value;
+    seek(tick >= lastTick ? 0 : tick + stepSize);
   }, 60);
-});
+}
+document.getElementById('play').addEventListener('click', togglePlay);
 
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-  if (e.key === 'ArrowRight') step(1);
-  if (e.key === 'ArrowLeft') step(-1);
-  if (e.key === 'n') jumpEvent(1);
-  if (e.key === 'p') jumpEvent(-1);
-  if (e.key === 'Escape') { selected = null; draw(); }
+  const big = e.shiftKey ? 25 : 1;
+  if (e.key === 'ArrowRight') { step(big); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft') { step(-big); e.preventDefault(); }
+  else if (e.key === 'Home') seek(0);
+  else if (e.key === 'End') seek(lastTick);
+  else if (e.key === ' ') { togglePlay(); e.preventDefault(); }
+  else if (e.key === 'n') jumpEvent(1, true);
+  else if (e.key === 'p') jumpEvent(-1, true);
+  else if (e.key === 'N') jumpEvent(1, false);
+  else if (e.key === 'P') jumpEvent(-1, false);
+  else if (e.key === 'Escape') { selected = null; draw(); }
 });
 </script>
 </body>
