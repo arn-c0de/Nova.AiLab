@@ -600,7 +600,9 @@ function lineOf(u) {
     const p = posAt(u.attack, tick);
     if (p && world.has(u.attack)) return [1, p[0], p[1]];
   }
-  if (u.field) return [2, u.fx, u.fy];
+  // Ein Lauf, der aufgezeichnet wurde bevor harvestStart die Zelle des Feldes
+  // mitschrieb, hat hier nichts. Dann lieber keine Linie als eine nach NaN.
+  if (u.field && Number.isFinite(u.fx) && Number.isFinite(u.fy)) return [2, u.fx, u.fy];
   if (u.moving && u.goalX >= 0) return [3, u.goalX * ONE, u.goalY * ONE];
   return [0, 0, 0];
 }

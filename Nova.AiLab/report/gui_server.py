@@ -46,6 +46,9 @@ REPO = os.environ.get('NovaRepo') or os.path.normpath(os.path.join(LAB, '..', 'P
 # Frage, ob subprocess wirklich nirgends eine Shell benutzt.
 SAFE_REF = re.compile(r'^[A-Za-z0-9._/-]{1,120}$')
 
+# Der Dateiname, den RunArtifacts fuer die Seite vergibt.
+HtmlPlayerName = 'player.html'
+
 _jobs = {}
 _job_lock = threading.Lock()
 
@@ -303,10 +306,17 @@ def start_run(options):
 
 def _execute(job_id, checkout, args):
     environment = dict(os.environ, NovaRepo=checkout)
-    dotnet = os.path.join(checkout, '.dotnet')
-    if os.path.isdir(dotnet):
-        environment['DOTNET_ROOT'] = dotnet
-        environment['PATH'] = dotnet + os.pathsep + environment.get('PATH', '')
+
+    # DAS SDK LIEGT NUR IM ARBEITSCHECKOUT. `.dotnet/` ist im Spiel-Repo nicht
+    # versioniert, ein frischer worktree hat es also nicht — und dann scheitert
+    # der Lauf an einem 'dotnet', das es im PATH nicht gibt. Der Arbeitscheckout
+    # ist der Rueckfall: es ist dasselbe SDK, es uebersetzt nur andere Quellen.
+    for candidate in (os.path.join(checkout, '.dotnet'), os.path.join(REPO, '.dotnet')):
+        if not os.path.isdir(candidate):
+            continue
+        environment['DOTNET_ROOT'] = candidate
+        environment['PATH'] = candidate + os.pathsep + environment.get('PATH', '')
+        break
 
     command = ['dotnet', 'run', '--project', os.path.join(LAB, 'Nova.AiLab'), '-c', 'Release', '--', *args]
     try:
@@ -317,6 +327,13 @@ def _execute(job_id, checkout, args):
                 _jobs[job_id]['log'].append(line.rstrip())
         process.wait()
         code = process.returncode
+    except FileNotFoundError:
+        with _job_lock:
+            _jobs[job_id]['log'].append(
+                "FEHLER: 'dotnet' nicht gefunden. Das SDK liegt unter <checkout>/.dotnet und "
+                'gehoert in den PATH — lab-gui.sh setzt das; wer gui_server.py von Hand startet, '
+                'muss es selbst tun.')
+        code = -1
     except Exception as error:                                   # noqa: BLE001
         with _job_lock:
             _jobs[job_id]['log'].append(f'FEHLER: {error}')
@@ -352,6 +369,12 @@ def _execute(job_id, checkout, args):
         json.dump(meta, open(meta_path, 'w', encoding='utf-8'), indent=2)
     except (OSError, ValueError):
         pass
+
+    # Der frisch geschriebene Player wird der, den die Steuerseite fuer JEDEN
+    # Lauf ausliefert — auch fuer die aelteren. Siehe serve_artifact.
+    fresh = os.path.join(GUI_RUNS, job_id, HtmlPlayerName)
+    if code == 0 and os.path.exists(fresh):
+        shutil.copyfile(fresh, os.path.join(GUI_RUNS, HtmlPlayerName))
 
 
 # ------------------------------------------------------------ der Server
@@ -435,7 +458,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_json({'error': str(error)}, code=400)
 
     def serve_artifact(self, relative):
-        """Artefakte eines GUI-Laufs, damit `player.html` dort aufgeht wo er liegt."""
+        """Artefakte eines GUI-Laufs, damit `player.html` dort aufgeht wo er liegt.
+
+        EINE AUSNAHME: die Seite selbst. Jeder Lauf legt beim Messen seinen
+        eigenen `player.html` ab, damit ein Artefaktverzeichnis am Stueck
+        kopierbar bleibt und per Doppelklick aufgeht — das ist Absicht und
+        bleibt so. Fuer die Steuerseite ist es aber falsch: ein Lauf von
+        letzter Woche wuerde mit dem Player von letzter Woche angesehen, und
+        jede Verbesserung an der Ansicht waere fuer alles Aeltere unsichtbar.
+        Deshalb gewinnt hier der zuletzt geschriebene Player. Die Daten holt
+        er weiter relativ zu seiner URL, also aus dem Lauf, den man angeklickt
+        hat.
+        """
+        parts = urllib.parse.unquote(relative).split('/')
+        current = os.path.join(GUI_RUNS, HtmlPlayerName)
+        if len(parts) == 2 and parts[1] == HtmlPlayerName and os.path.exists(current):
+            self.send_file(current, 'text/html; charset=utf-8')
+            return
+
         target = os.path.normpath(os.path.join(GUI_RUNS, urllib.parse.unquote(relative)))
         # Der Pfad muss UNTER dem Laufordner bleiben. Ohne diese Zeile ist ein
         # ../../ in der URL ein Lesezugriff auf alles, was der Benutzer lesen darf.
