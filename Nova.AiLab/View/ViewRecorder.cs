@@ -140,6 +140,7 @@ namespace Nova.AiLab
 
             var entity = new ViewEntity
             {
+                Id = raw,
                 Slot = u.PlayerId,
                 Shape = shape,
                 XRaw = u.Transform.PositionX.RawValue,

@@ -35,6 +35,19 @@ namespace Nova.AiLab
     /// <summary>One entity in one frame. Integers only — positions are Q16.16 raw.</summary>
     public struct ViewEntity
     {
+        /// <summary>
+        /// The raw entity id — index and version in one integer, the value
+        /// <c>UnitCommandStateView.ToRawEntityId</c> produces.
+        /// <para>
+        /// WITHOUT THIS THERE IS NO ROUTE. An entry in frame n cannot be tied
+        /// to an entry in frame n+1 by position alone; what is left is a point
+        /// cloud per tick. The VERSION half is what makes a reused pool slot
+        /// read as a NEW unit instead of the old one teleporting — the same
+        /// property <c>TraceCollector</c> builds its loss attribution on.
+        /// </para>
+        /// </summary>
+        public uint Id;
+
         public byte Slot;
         public ViewShape Shape;
         public int XRaw;
@@ -107,11 +120,15 @@ namespace Nova.AiLab
             {
                 if (i > 0) json.Append(',');
                 ViewEntity e = Entities[i];
+                // The id is APPENDED, not inserted: a view.ndjson written
+                // before it existed still reads correctly in the first nine
+                // columns, and the player switches trails off when the tenth
+                // is missing instead of drawing a route it cannot know.
                 json.Append('[').Append(e.Slot).Append(',').Append((int)e.Shape).Append(',')
                     .Append(e.XRaw).Append(',').Append(e.YRaw).Append(',')
                     .Append(e.HealthPercent).Append(',').Append(e.Flags).Append(',')
                     .Append((int)e.Line).Append(',').Append(e.LineXRaw).Append(',')
-                    .Append(e.LineYRaw).Append(']');
+                    .Append(e.LineYRaw).Append(',').Append(e.Id).Append(']');
             }
             json.Append(']');
 
