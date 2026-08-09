@@ -19,9 +19,14 @@ namespace Nova.AiLab
     /// <c>TraceCollectorTests</c>, not merely intended.
     /// </para>
     /// <para>
-    /// Cost discipline: the expensive part is an O(capacity) entity scan, and
-    /// it runs only on a metric tick. Per-tick work is the low-power counter
-    /// alone, which reads one struct per slot.
+    /// Cost discipline, as it actually stands: the metric sample is an
+    /// O(capacity) entity scan and runs only on a metric tick — but the
+    /// reaction bookkeeping is a SECOND O(capacity) scan and runs EVERY tick,
+    /// because the pair it watches (damage here, re-order there) opens and
+    /// closes between two samples. At the canonical budget that is capacity x
+    /// 27.000 struct reads per match. The cheap part is the low-power counter
+    /// alone, one struct per slot. Said plainly because the paragraph that
+    /// used to stand here claimed the per-tick path was only that counter.
     /// </para>
     /// </summary>
     public sealed class TraceCollector
@@ -134,6 +139,15 @@ namespace Nova.AiLab
         /// is sealed a tick after it is submitted and cannot answer damage
         /// that has not happened yet.
         /// </para>
+        /// <para>
+        /// THE ANSWER AND THE NEW HIT ARE TWO EVENTS, not one branch. Both are
+        /// evaluated every tick: the re-order closes the OPEN pair, and damage
+        /// in the same tick opens the NEXT one. Written as if/else-if, the
+        /// second event vanished — neither answered nor unanswered, simply
+        /// uncounted. That is not a rare corner: a unit walking away from fire
+        /// is being shot WHILE it receives new orders, so the shape this
+        /// column exists to measure was the shape it dropped.
+        /// </para>
         /// </summary>
         private void TrackReactions(uint tick)
         {
@@ -161,7 +175,12 @@ namespace Nova.AiLab
                         tally.LatencySumTicks += tick - _reactPendingTick[i];
                         _reactPendingTick[i] = -1;
                     }
-                    else if (u.CurrentHealth < _reactHealth[i] && _reactPendingTick[i] < 0)
+
+                    // Recorded AFTER the answer above, never instead of it. The
+                    // pair opened here can only be closed by an order change on
+                    // a LATER tick — _reactOrder is brought up to date at the
+                    // end of this loop — so the latency of 0 stays impossible.
+                    if (u.CurrentHealth < _reactHealth[i] && _reactPendingTick[i] < 0)
                     {
                         _reactPendingTick[i] = tick;
                     }

@@ -72,26 +72,89 @@ namespace Nova.AiLab
             {
                 foreach (JsonElement entry in candidates.EnumerateArray())
                 {
-                    set.Candidates.Add(new CandidateResult
-                    {
-                        ProfileId = Text(entry, "profileId"),
-                        Matches = Int(entry, "matches"),
-                        Wins = Int(entry, "wins"),
-                        Losses = Int(entry, "losses"),
-                        Draws = Int(entry, "draws"),
-                        DecidedMatches = Int(entry, "matches"),
-                        DecidedTickSum = (long)Int(entry, "averageDecidedTick") * Int(entry, "matches"),
-                        CreditsAtEndSum = (long)Int(entry, "averageCredits") * Int(entry, "matches"),
-                        ArmySizeAtEndSum = (long)Int(entry, "averageArmySize") * Int(entry, "matches"),
-                        UnitsLostSum = (long)Int(entry, "averageUnitsLost") * Int(entry, "matches"),
-                        IntentsSubmittedSum = Int(entry, "intentsSubmitted"),
-                        IntentsRejectedSum = Int(entry, "intentsRejected"),
-                        DifferencesFromReference = SplitChanges(Text(entry, "changes")),
-                    });
+                    set.Candidates.Add(ReadCandidate(entry));
                 }
             }
 
             return set;
+        }
+
+        /// <summary>
+        /// One candidate row, restored to the SUMS the aggregate properties
+        /// divide again — an average alone cannot be re-averaged.
+        /// <para>
+        /// EVERY WRITTEN COLUMN IS READ BACK. The six game-feel columns and the
+        /// replay value used to be written and then silently dropped here, so
+        /// an archived set reported <c>0</c> exchange ratio, <c>0</c> combat
+        /// intervals and <c>-1</c> reaction latency no matter what it had
+        /// measured — zeros that read exactly like measurements, in the one
+        /// class whose whole job is to keep a wrong comparison from looking
+        /// like a right one.
+        /// </para>
+        /// <para>
+        /// The two <c>-1</c> columns keep their meaning across the round trip:
+        /// "not measurable in this set" restores as zero SAMPLES, not as a
+        /// sample of value -1 that would drag the average down.
+        /// </para>
+        /// </summary>
+        private static CandidateResult ReadCandidate(JsonElement entry)
+        {
+            int matches = Int(entry, "matches");
+            // Older archives predate the explicit divisor; falling back to the
+            // match count is what they were read with, so they keep the numbers
+            // they always had instead of quietly turning into zeros.
+            int decided = entry.TryGetProperty("decidedMatches", out _) ? Int(entry, "decidedMatches") : matches;
+
+            var candidate = new CandidateResult
+            {
+                ProfileId = Text(entry, "profileId"),
+                Matches = matches,
+                Wins = Int(entry, "wins"),
+                Losses = Int(entry, "losses"),
+                Draws = Int(entry, "draws"),
+                DecidedMatches = decided,
+                DecidedTickSum = (long)Int(entry, "averageDecidedTick") * decided,
+                CreditsAtEndSum = (long)Int(entry, "averageCredits") * matches,
+                ArmySizeAtEndSum = (long)Int(entry, "averageArmySize") * matches,
+                UnitsLostSum = (long)Int(entry, "averageUnitsLost") * matches,
+                IntentsSubmittedSum = Int(entry, "intentsSubmitted"),
+                IntentsRejectedSum = Int(entry, "intentsRejected"),
+                DifferencesFromReference = SplitChanges(Text(entry, "changes")),
+
+                CombatIntervalsSum = (long)Int(entry, "combatIntervals") * matches,
+                LargestLossJumpSum = (long)Int(entry, "largestLossJump") * matches,
+                UnansweredDamageSum = (long)Int(entry, "unansweredDamage") * matches,
+                ActionsPerMinuteSum = (long)Int(entry, "actionsPerMinute") * matches,
+
+                // The archive carries the COUNT of distinct endings, never the
+                // endings themselves — so it is restored as the count and the
+                // list stays honestly empty.
+                ArchivedReplayValue = Int(entry, "replayValue"),
+            };
+
+            RestoreSampledAverage(Int(entry, "exchangeRatioPercent"), matches,
+                out candidate.ExchangeRatioSum, out candidate.ExchangeRatioSamples);
+            RestoreSampledAverage(Int(entry, "reactionLatencyTicks"), matches,
+                out candidate.ReactionLatencySum, out candidate.ReactionLatencySamples);
+
+            return candidate;
+        }
+
+        /// <summary>
+        /// A column that averages over its OWN sample count: <c>-1</c> means
+        /// the set produced no sample at all, and restoring it as one sample of
+        /// -1 would turn "not measurable" into a measurement below zero.
+        /// </summary>
+        private static void RestoreSampledAverage(int average, int matches, out long sum, out int samples)
+        {
+            if (average < 0 || matches <= 0)
+            {
+                sum = 0;
+                samples = 0;
+                return;
+            }
+            sum = (long)average * matches;
+            samples = matches;
         }
 
         private static List<string> SplitChanges(string changes)
