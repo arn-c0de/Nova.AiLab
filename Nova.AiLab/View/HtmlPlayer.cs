@@ -78,14 +78,16 @@ namespace Nova.AiLab
   .warn { color:#d29922; }
   .ok { color:#3fb950; }
   .derived { color:#d29922; font-style:italic; }
-  main { display:flex; gap:14px; padding:0 14px 14px; align-items:flex-start; flex-wrap:wrap; }
+  main { display:flex; gap:14px; padding:0 14px 14px; align-items:flex-start; }
   canvas#map { background:#010409; border:1px solid #21262d; border-radius:4px;
-           image-rendering:pixelated; max-width:100%; cursor:crosshair; }
-  /* The map column has to be pinned to the canvas: the note under it is a
-     sentence, and an unbounded sentence widens the flex item until the log
-     column wraps off the row it is supposed to sit next to. */
-  .mapcol { width:700px; max-width:100%; flex:0 0 auto; }
-  .col { min-width:290px; flex:1 1 290px; max-width:430px; }
+           image-rendering:pixelated; display:block; cursor:crosshair; }
+  /* flex-basis 0, not auto: with auto the column measures itself against the
+     canvas inside it, the canvas is then sized from the column, and the two
+     chase each other a pixel at a time on every redraw. */
+  .mapcol { flex:1 1 0; min-width:0; }
+  aside#side { display:flex; gap:14px; flex:0 0 auto; flex-wrap:wrap; }
+  .col { width:420px; max-width:100%; }
+  body.collapsed aside#side { display:none; }
   .bar { display:flex; gap:6px; align-items:center; padding:8px 14px 4px; flex-wrap:wrap; }
   input[type=range] { flex:1; min-width:240px; }
   button, label.file, select { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
@@ -155,6 +157,7 @@ namespace Nova.AiLab
   </select>
   <input type=""range"" id=""scrub"" min=""0"" max=""0"" value=""0"" step=""1"">
   <span id=""tickLabel"" class=""sub"">—</span>
+  <button id=""sideToggle"" title=""Bedienleiste ein- und ausklappen (s)"">»</button>
 </div>
 
 <div id=""bandWrap"">
@@ -169,6 +172,7 @@ namespace Nova.AiLab
     <div class=""hint"" id=""mapNote"">—</div>
   </div>
 
+  <aside id=""side"">
   <div class=""col"">
     <table id=""headers""><thead><tr>
       <th>slot</th><th>credits</th><th>power</th><th>army</th><th>sees</th>
@@ -227,6 +231,7 @@ namespace Nova.AiLab
     <div id=""logBox""></div>
     <div class=""hint"" id=""logNote"">—</div>
   </div>
+  </aside>
 </main>
 
 <div class=""legend"">
@@ -240,9 +245,10 @@ namespace Nova.AiLab
   <span class=""sw"" style=""background:#d29922""></span> stuck ·
   <span class=""sw"" style=""background:#3fb950""></span> harvest/cargo ·
   <span class=""sw"" style=""background:#bc8cff""></span> spawn/site<br>
-  <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold<br>
+  <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold ·
+  <b>yellow rim</b> stuck · <b>red circles</b> hits landing · <b>fading cross</b> died just now<br>
   <b>keys</b> ← → one tick · shift+← → 25 ticks · space play · n/p the selection's events ·
-  N/P every event · Home/End<br>
+  N/P every event · s the side panel · Home/End<br>
   <span class=""warn"">fog is the most common reason an AI ""did not react"" — check it before blaming the logic.</span><br>
   <span class=""derived"">who fired is DERIVED from state, never reported by the simulation — see notes/schadensquelle.md.</span>
 </div>
@@ -313,7 +319,7 @@ function loadView(text) {
   const slots = frames[0].h.map(h => h[0]);
   const options = slots.map(s => '<option value=""' + s + '"">' + s + '</option>').join('');
   fogSlot.innerHTML = options;
-  trailSlot.innerHTML = options;
+  trailSlot.innerHTML = options + '<option value=""-1"">allen</option>';
   const named = '<option value=""-1"">every slot</option>' +
     slots.map(s => '<option value=""' + s + '"">slot ' + s + '</option>').join('');
   filterSlot.innerHTML = named;
@@ -464,12 +470,29 @@ function posAt(id, atTick) {
 }
 
 /**
+ * Ticks a unit stays on the map after it died, fading out.
+ * <p>
+ * Without it a unit that dies simply is not there on the next redraw, and at
+ * one tick per step that is the single most important moment of its life
+ * passing unnoticed. It is drawn, not remembered: the position comes from the
+ * death event, which carries the cell the unit stood in.
+ */
+const DEATH_FADE_TICKS = 120;
+
+/** Ticks a hit stays visible as a spark at the victim. */
+const HIT_FLASH_TICKS = 8;
+
+/**
  * Replays the events up to `atTick`. All of them, from tick 0, every time —
  * a match carries a few thousand, which is nothing, and a replay from the
  * start cannot drift the way an incremental state can when you scrub back.
+ * <p>
+ * The returned map carries a second one on `.dying`: the units that died
+ * within the last DEATH_FADE_TICKS, with the tick and the place.
  */
 function stateAt(atTick) {
   const state = new Map();
+  const dying = new Map();
   const end = lowerBound(eventTicks, atTick + 1);
   for (let i = 0; i < end; i++) {
     const e = events[i];
@@ -481,7 +504,12 @@ function stateAt(atTick) {
                           cargo:false, cargoAE:0, goalX:-1, goalY:-1, orderX:-1, orderY:-1,
                           below:false, stuck:false, born:e.t });
         break;
-      case 'death': state.delete(e.id); break;
+      case 'death':
+        if (u && atTick - e.t <= DEATH_FADE_TICKS && e.x !== undefined) {
+          dying.set(e.id, { unit:u, t:e.t, x:e.x, y:e.y });
+        }
+        state.delete(e.id);
+        break;
       default:
         if (!u) break;
         if (e.k === 'damage' || e.k === 'heal') u.hp = e.to;
@@ -504,6 +532,7 @@ function stateAt(atTick) {
         if (e.role !== undefined && e.k !== 'siteDone') u.role = e.role;
     }
   }
+  state.dying = dying;
   return state;
 }
 
@@ -627,20 +656,20 @@ function drawTrails() {
   const span = +document.getElementById('trailSpan').value;
 
   if (document.getElementById('layerAllTrails').checked) {
-    const slot = +trailSlot.value;
-    const colour = SLOT_COLOURS[slot % SLOT_COLOURS.length];
+    const slot = +trailSlot.value;                 // -1 = alle Slots übereinander
     let budget = TRAIL_BUDGET;
 
     // Every unit the slot EVER had up to this tick, not only the ones still
     // standing. The dead are the interesting half of a traffic picture: they
     // are the ones that walked into something.
-    const ids = units.size
-      ? [...units.values()].filter(u => u.slot === slot && u.firstTick <= tick).map(u => u.id)
-      : [...world.values()].filter(u => u.slot === slot).map(u => u.id);
+    const rows = units.size
+      ? [...units.values()].filter(u => u.firstTick <= tick)
+      : [...world.values()].map(u => ({ id:u.id, slot:u.slot }));
 
-    for (const id of ids) {
+    for (const row of rows) {
       if (budget <= 0) break;
-      budget -= drawTrail(id, span, colour, 1, false, budget);
+      if (slot >= 0 && row.slot !== slot) continue;
+      budget -= drawTrail(row.id, span, SLOT_COLOURS[row.slot % SLOT_COLOURS.length], 1, false, budget);
     }
   }
 
@@ -649,7 +678,21 @@ function drawTrails() {
   }
 }
 
+/**
+ * The canvas takes whatever room the map column has. It is a square because
+ * the map is one — a stretched canvas would put the distances out of true,
+ * and distances are the whole point of drawing this at all.
+ */
+function fitCanvas() {
+  const column = document.querySelector('.mapcol');
+  const available = Math.max(320, column.clientWidth);
+  const room = Math.max(320, window.innerHeight - column.getBoundingClientRect().top - 46);
+  const size = Math.round(Math.min(available, room, 1800));
+  if (canvas.width !== size) { canvas.width = size; canvas.height = size; }
+}
+
 function draw() {
+  fitCanvas();
   if (!loaded.events || !loaded.tracks) { drawEmpty(); return; }
   world = stateAt(tick);
 
@@ -682,43 +725,12 @@ function draw() {
   }
 
   for (const [u, p] of drawn) {
-    const shape = shapeOf(u), hp = healthPercentOf(u), flags = flagsOf(u);
-    const cx = px(p[0]), cy = py(p[1]);
-    const base = SLOT_COLOURS[u.slot % SLOT_COLOURS.length];
-    ctx.globalAlpha = showHealth ? Math.max(0.3, hp / 100) : 1;
-    ctx.fillStyle = base; ctx.strokeStyle = base; ctx.lineWidth = 1.4;
-
-    const hollow = (flags & 1) !== 0;
-    const weak   = (flags & 2) !== 0;
-    const r = shape === 0 ? 5 : shape === 1 ? 4.5 : 3.2;
-
-    ctx.beginPath();
-    if (shape === 0 || shape === 1) {
-      ctx.rect(cx - r, cy - r, r * 2, r * 2);
-    } else if (shape === 2) {
-      ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
-      ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
-      ctx.stroke(); ctx.globalAlpha = 1;
-      if (u.id === selected) ring(cx, cy, r);
-      continue;
-    } else if (shape === 3) {
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    } else {
-      ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r, cy + r); ctx.lineTo(cx - r, cy + r); ctx.closePath();
-    }
-    if (hollow || shape === 1) ctx.stroke(); else ctx.fill();
-
-    if (weak) {
-      ctx.globalAlpha = 1; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2); ctx.stroke();
-    }
-    if (u.stuck) {
-      ctx.globalAlpha = 1; ctx.strokeStyle = '#d29922'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(cx, cy, r + 4.5, 0, Math.PI * 2); ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-    if (u.id === selected) ring(cx, cy, r);
+    paintUnit(u, px(p[0]), py(p[1]), healthPercentOf(u), flagsOf(u), showHealth ? 1 : 0, 1);
+    if (u.id === selected) ring(px(p[0]), py(p[1]), 5);
   }
+
+  drawDying();
+  drawHits();
 
   const frame = frameAt(tick);
   if (document.getElementById('layerFog').checked) drawFog(frame);
@@ -745,6 +757,96 @@ function drawEmpty() {
   ctx.fillStyle = '#8b949e';
   ctx.font = '13px ui-monospace, monospace';
   ctx.fillText('waiting for tracks.ndjson and events.ndjson', 20, 30);
+}
+
+/**
+ * One marker. Shared by the living and the dying, so a unit does not change
+ * its shape in the moment it is most worth looking at.
+ * `healthDims` 1 lets health darken the marker, 0 keeps it flat;
+ * `fade` scales everything for the units that are on their way out.
+ */
+function paintUnit(u, cx, cy, hp, flags, healthDims, fade) {
+  const shape = shapeOf(u);
+  const base = SLOT_COLOURS[u.slot % SLOT_COLOURS.length];
+  const dim = healthDims ? Math.max(0.3, hp / 100) : 1;
+  ctx.globalAlpha = dim * fade;
+  ctx.fillStyle = base; ctx.strokeStyle = base; ctx.lineWidth = 1.4;
+
+  const hollow = (flags & 1) !== 0;
+  const weak   = (flags & 2) !== 0;
+  const r = shape === 0 ? 5 : shape === 1 ? 4.5 : 3.2;
+
+  ctx.beginPath();
+  if (shape === 0 || shape === 1) {
+    ctx.rect(cx - r, cy - r, r * 2, r * 2);
+  } else if (shape === 2) {
+    ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
+    ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
+    ctx.stroke(); ctx.globalAlpha = 1;
+    return;
+  } else if (shape === 3) {
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  } else {
+    ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r, cy + r); ctx.lineTo(cx - r, cy + r); ctx.closePath();
+  }
+  if (hollow || shape === 1) ctx.stroke(); else ctx.fill();
+
+  if (weak) {
+    ctx.globalAlpha = fade; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (u.stuck) {
+    ctx.globalAlpha = fade; ctx.strokeStyle = '#d29922'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 4.5, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** The recently dead, fading where they fell, with a cross that fades with them. */
+function drawDying() {
+  if (!world.dying) return;
+  for (const entry of world.dying.values()) {
+    const age = tick - entry.t;
+    if (age < 0 || age > DEATH_FADE_TICKS) continue;
+    const fade = 1 - age / DEATH_FADE_TICKS;
+    const cx = px(entry.x), cy = py(entry.y);
+
+    paintUnit(entry.unit, cx, cy, 100, 0, 0, fade * 0.6);
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.strokeStyle = '#f85149'; ctx.lineWidth = 1.6;
+    const r = 4 + (1 - fade) * 5;                 // der Riss geht auf, während er verblasst
+    ctx.beginPath();
+    ctx.moveTo(cx - r, cy - r); ctx.lineTo(cx + r, cy + r);
+    ctx.moveTo(cx + r, cy - r); ctx.lineTo(cx - r, cy + r);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/**
+ * Where hits landed in the last few ticks. The order lines say who is aiming
+ * at whom; this says where it is actually connecting — a wave that stalls out
+ * of range looks identical to one that is trading, until the sparks show up.
+ */
+function drawHits() {
+  const from = lowerBound(eventTicks, Math.max(0, tick - HIT_FLASH_TICKS));
+  const to = lowerBound(eventTicks, tick + 1);
+  ctx.save();
+  ctx.lineWidth = 1.4;
+  for (let i = from; i < to; i++) {
+    const e = events[i];
+    if (e.k !== 'damage') continue;
+    const p = posAt(e.id, e.t);
+    if (!p) continue;
+    const fade = 1 - (tick - e.t) / (HIT_FLASH_TICKS + 1);
+    ctx.globalAlpha = fade * 0.9;
+    ctx.strokeStyle = '#f85149';
+    ctx.beginPath();
+    ctx.arc(px(p[0]), py(p[1]), 3 + (1 - fade) * 7, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function ring(cx, cy, r) {
@@ -1089,6 +1191,14 @@ function togglePlay() {
 }
 document.getElementById('play').addEventListener('click', togglePlay);
 
+function toggleSide() {
+  const collapsed = document.body.classList.toggle('collapsed');
+  document.getElementById('sideToggle').textContent = collapsed ? '«' : '»';
+  draw();                                    // die Karte nimmt den frei gewordenen Platz
+}
+document.getElementById('sideToggle').addEventListener('click', toggleSide);
+addEventListener('resize', draw);
+
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   const big = e.shiftKey ? 25 : 1;
@@ -1101,6 +1211,7 @@ addEventListener('keydown', e => {
   else if (e.key === 'p') jumpEvent(-1, true);
   else if (e.key === 'N') jumpEvent(1, false);
   else if (e.key === 'P') jumpEvent(-1, false);
+  else if (e.key === 's') toggleSide();
   else if (e.key === 'Escape') { selected = null; draw(); }
 });
 </script>
