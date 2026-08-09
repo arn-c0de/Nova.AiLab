@@ -83,3 +83,14 @@ mit keiner Zeile und fahren kein KI-System. Die Trennungsregel gilt trotzdem.
 
 **Nicht geprüft.** Alle Zahlen oben stammen aus headless-Läufen und sind
 Diagnose, kein Nachweis.
+
+## Checkliste
+
+- [x] `dotnet test tools/Nova.SimRunner.Tests` lokal grün — **562/562**
+- [x] Zeile unter `[Unreleased]` in [CHANGELOG.md](../CHANGELOG.md)
+- [ ] ~~Echte Entscheidung getroffen? → D-ID~~ — keine Entscheidung dieser Art, gestrichen
+- [x] Bei Simulationsänderung: keine Determinismus-Baseline im selben PR geändert
+
+## Externe Beiträge
+
+- [ ] I agree to the Contributor License Agreement

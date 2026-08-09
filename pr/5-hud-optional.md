@@ -67,3 +67,14 @@ Der Editor kompiliert und startet mit diesen Änderungen; F3, F4 und F5 tun, was
 oben steht. **Eine Partie zur Beurteilung des KI-Verhaltens ist damit noch nicht
 gespielt** — das steht in den Stufen 3 und 4 offen und wird dort auch nicht
 behauptet.
+
+## Checkliste
+
+- [x] `dotnet test tools/Nova.SimRunner.Tests` lokal grün — **565/565**
+- [x] Zeile unter `[Unreleased]` in [CHANGELOG.md](../CHANGELOG.md)
+- [ ] ~~Echte Entscheidung getroffen? → D-ID~~ — keine Entscheidung dieser Art, gestrichen
+- [x] Bei Simulationsänderung: keine Determinismus-Baseline im selben PR geändert
+
+## Externe Beiträge
+
+- [ ] I agree to the Contributor License Agreement

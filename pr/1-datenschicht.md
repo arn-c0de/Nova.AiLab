@@ -68,3 +68,14 @@ bis 4 ändern Verhalten und sagen dort jeweils selbst, dass sie ungespielt sind.
 Alle fünf sind gebaut, getestet und zusammen als Integrationsstand geprüft
 (565/565, Determinismus über 24 Seeds ohne Abweichung). Sie kommen einzeln,
 damit jede für sich beurteilbar bleibt.
+
+## Checkliste
+
+- [x] `dotnet test tools/Nova.SimRunner.Tests` lokal grün — **561/561**
+- [x] Zeile unter `[Unreleased]` in [CHANGELOG.md](../CHANGELOG.md)
+- [ ] ~~Echte Entscheidung getroffen? → D-ID~~ — keine Entscheidung dieser Art, gestrichen
+- [x] Bei Simulationsänderung: keine Determinismus-Baseline im selben PR geändert
+
+## Externe Beiträge
+
+- [ ] I agree to the Contributor License Agreement
