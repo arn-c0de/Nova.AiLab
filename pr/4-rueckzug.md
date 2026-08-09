@@ -85,3 +85,14 @@ Reichweite läuft näher an ihr eigenes HQ heran, als sie steht.
 
 **Nicht geprüft.** Was man sehen müsste: drehen angeschlagene Einheiten sichtbar
 ab, und sieht das nach Absicht aus oder nach Fehler.
+
+## Checkliste
+
+- [x] `dotnet test tools/Nova.SimRunner.Tests` lokal grün — **565/565**
+- [x] Zeile unter `[Unreleased]` in [CHANGELOG.md](../CHANGELOG.md)
+- [ ] ~~Echte Entscheidung getroffen? → D-ID~~ — keine Entscheidung dieser Art, gestrichen
+- [x] Bei Simulationsänderung: keine Determinismus-Baseline im selben PR geändert
+
+## Externe Beiträge
+
+- [ ] I agree to the Contributor License Agreement
