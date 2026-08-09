@@ -24,6 +24,52 @@ namespace Nova.AiLab.Tests
 
         private static MatchSpec ShortSpec() => new MatchSpec { Seed = Seed, TickBudget = ShortBudget };
 
+        /// <summary>
+        /// A KEYFRAME EVERY 500 TICKS AT WORST, whatever the track interval is.
+        /// <para>
+        /// The keyframe used to be tested as <c>tick % 500 == 0</c> while the
+        /// recorder is only CALLED on <c>tick % TrackIntervalTicks == 0</c>, so
+        /// the real gap was lcm(interval, 500): 1.500 ticks at interval 3,
+        /// 3.500 at interval 7, and at interval 11 a 4.000-tick match got a
+        /// single keyframe at tick 0. The delta chain then has no restart point
+        /// and the scrubber has to replay it from the beginning — the exact
+        /// thing keyframes are in the file to prevent.
+        /// </para>
+        /// <para>
+        /// Interval 3 on purpose: the two existing tests use 1 and 10, and both
+        /// of those divide 500, which is why neither of them could see it.
+        /// </para>
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(3)]
+        [TestCase(7)]
+        [TestCase(11)]
+        public void KeyframesSurviveAThinnedTrack(int trackEvery)
+        {
+            MatchSpec spec = ShortSpec();
+            spec.ViewIntervalTicks = 100;
+            spec.TrackIntervalTicks = trackEvery;
+
+            var keyframeTicks = new List<uint>();
+            foreach (TrackFrame frame in MatchRun.Execute(spec).Tracks)
+            {
+                if (frame.IsKeyframe) keyframeTicks.Add(frame.Tick);
+            }
+
+            Assert.That(keyframeTicks, Is.Not.Empty, "a track without a keyframe cannot be scrubbed into");
+            Assert.That(keyframeTicks[0], Is.Zero, "the opening capture is always a keyframe");
+
+            // The gap may exceed 500 by at most one capture — the boundary can
+            // fall between two captured ticks, and the NEXT one carries it.
+            for (int i = 1; i < keyframeTicks.Count; i++)
+            {
+                Assert.That(keyframeTicks[i] - keyframeTicks[i - 1],
+                    Is.LessThanOrEqualTo((uint)(EntityTrackRecorder.KeyframeIntervalTicks + trackEvery)),
+                    $"keyframes {keyframeTicks[i - 1]} and {keyframeTicks[i]} sit further apart than the " +
+                    $"interval promises at --track-every {trackEvery}");
+            }
+        }
+
         // ================================================================
         // (a) THE HARD CONDITION: a pure observer
         // ================================================================

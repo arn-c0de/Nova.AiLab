@@ -28,6 +28,71 @@ namespace Nova.AiLab.Tests
             return MatchRun.Execute(spec);
         }
 
+        /// <summary>
+        /// THE RECONSTRUCTION GETS A POSITION, NOT A HEALTH VALUE.
+        /// <para>
+        /// <c>A</c>/<c>B</c> mean a different thing per kind: a death carries
+        /// the position there, a DAMAGE carries the health it went from and to.
+        /// The reach test read A/B as coordinates for both, so on a damage
+        /// event it measured the distance from the attacker to a point a few
+        /// raw units off the map ORIGIN. That corner is where slot 0's base
+        /// stands and 120 cells from slot 1's, so the wide path could only ever
+        /// name a unit of slot 0 — wherever the victim was standing.
+        /// </para>
+        /// <para>
+        /// Checked against the RECORDED TRACK rather than against a plausible
+        /// range: a health value of 55 sits inside the map's coordinate range
+        /// too, so a range check would pass on the broken version. The track
+        /// says where the unit really stood at that tick, and that is the only
+        /// thing the reach test may be handed.
+        /// </para>
+        /// <para>
+        /// Not asserted on the attributions themselves on purpose: the strict
+        /// path names an attacker for almost every hit in a real match, so the
+        /// wide path barely runs and a test on its output would pass either way.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void TheAttackerReconstructionIsHandedAPositionAndNotAHealthValue()
+        {
+            MatchRunResult played = PlayedMatch();
+
+            // The track, replayed the way the player replays it: absolutes set,
+            // deltas accumulate, ended ids drop out.
+            var position = new Dictionary<uint, (int X, int Y)>();
+            var atTick = new Dictionary<uint, Dictionary<uint, (int X, int Y)>>();
+            foreach (TrackFrame frame in played.Tracks)
+            {
+                foreach (TrackSample s in frame.Absolute) position[s.Id] = (s.X, s.Y);
+                foreach (TrackSample s in frame.Delta)
+                {
+                    if (position.TryGetValue(s.Id, out (int X, int Y) p)) position[s.Id] = (p.X + s.X, p.Y + s.Y);
+                }
+                foreach (uint ended in frame.Ended) position.Remove(ended);
+                atTick[frame.Tick] = new Dictionary<uint, (int X, int Y)>(position);
+            }
+
+            int checkedEvents = 0;
+            foreach (DebugEvent e in played.Events)
+            {
+                // Damage only: at a DEATH the id has already left the track of
+                // that tick, and its position is the previous tick's by design.
+                if (e.Kind != DebugEventKind.Damage) continue;
+                if (!atTick.TryGetValue(e.Tick, out Dictionary<uint, (int X, int Y)> snapshot)) continue;
+                if (!snapshot.TryGetValue(e.Id, out (int X, int Y) walked)) continue;
+
+                checkedEvents++;
+                Assert.That((e.VictimX, e.VictimY), Is.EqualTo(walked),
+                    $"the damage event at tick {e.Tick} has to carry where unit {e.Id} actually stood. " +
+                    "A/B are the health it went from and to, and reading those as coordinates put the " +
+                    "victim at the map origin — next to one corner base and 120 cells from the other");
+
+                Assert.That(e.A, Is.GreaterThan(e.B), "and the health pair stays health");
+            }
+
+            Assert.That(checkedEvents, Is.GreaterThan(0), "the match has to have produced damage to test on");
+        }
+
         [Test]
         public void TheStreamCarriesEveryEdgeThatExplainsAMatch()
         {
