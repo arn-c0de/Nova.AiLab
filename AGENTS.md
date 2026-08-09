@@ -37,6 +37,7 @@ Antwort. Alle vier kosten zusammen unter zehn Sekunden.
 | Ist sie besser oder nur anders? | `compare --out <dir>` | `resultset.json`, `report.html`, je Kandidat ein PR-Entwurf |
 | Woran liegt es? | `match --view-every 25 --fog --out <dir>` | `player.html` + `view.ndjson`, dazu `dashboard.html` |
 | Woran liegt es **bei dieser einen Einheit**? | derselbe Lauf | `player.html`: Einheit anklicken → Laufroute, Ereignisband, Detailfeld. Roh in `tracks.ndjson`, `events.ndjson`, `units.json` |
+| Und **auf einem anderen Branch**? | `./lab-gui.sh` | die Steuerseite: Branch auswählen, messen, gegen einen früheren Lauf legen. Der Arbeitscheckout wird nie umgeschaltet — gemessen wird in einem `git worktree` |
 
 Vorspann für alle Kommandos, falls `dotnet` nicht im PATH ist:
 
