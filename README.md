@@ -1,5 +1,16 @@
 # Nova.AiLab — KI-Simulationslabor
 
+> **Das Labor ist aus dem Fork herausgelöst und liegt jetzt in einem eigenen
+> Repository — neben dem Spiel-Checkout, nicht mehr darin.**
+>
+> Der Gewinn ist kein Ordnungsgewinn, sondern ein Messgewinn: Solange das Labor
+> **in** einem Branch lag, konnte es nur diesen einen Branch messen. Jeder andere
+> hätte erst mit dem Werkzeug bestückt werden müssen — und ein Branch, in den man
+> das Messwerkzeug einbaut, ist nicht mehr der Branch, den man messen wollte.
+> Von aussen misst es, was drüben ausgecheckt ist: **jeder Branch lässt sich
+> gegentesten, ohne Hin- und Herbauen.** `git checkout` drüben genügt, hier
+> ändert sich nichts.
+
 ## → [Gesamtübersicht](reports/README.md) · [Letzter Lauf](reports/latest.md) · [Verhaltensjournal](reports/behavior-log.md) · [Nächste Schritte](NEXT-STEPS.md)
 
 | Wohin | Was dort steht |
@@ -12,21 +23,13 @@
 Die interaktive Fassung derselben Zahlen ist `out/dashboard.html` — sie braucht
 einen Browser, die drei Seiten oben nicht.
 
-**Werkzeug, kein Beitrag — und seit dem Ausbau auch räumlich.** Das Labor liegt
-**neben** dem Spiel-Checkout, nicht darin:
+**Werkzeug, kein Beitrag — und seit dem Ausbau auch räumlich:**
 
 ```
 ProjectNova - HASHKRIEG/
 ├── Project_Nova/        das Spiel, in irgendeinem Branch
 └── Nova.AiLab/          dieses Labor, eigenes Repo
 ```
-
-Das ist keine Aufräumaktion, sondern der Unterschied zwischen messbar und
-nicht messbar: Solange das Labor **in** einem Branch lag, konnte es nur den
-Branch anschauen, in dem es lag. Jeden anderen hätte man erst mit ihm
-bestücken müssen — und ein `feat/`-Branch, in den man das Messwerkzeug
-einbaut, ist nicht mehr der Branch, den man messen wollte. Von hier aus misst
-es, was drüben ausgecheckt ist. `git checkout` genügt.
 
 Welcher Checkout gemessen wird, entscheidet die MSBuild-Eigenschaft
 `NovaRepo` (Vorgabe: `../Project_Nova`). Sie bestimmt beides zugleich — welche
