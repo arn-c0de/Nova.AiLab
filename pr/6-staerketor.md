@@ -1,326 +1,265 @@
-# PR — Die Welle kann in Kampfstärke messen statt in Köpfen
+# PR-Beschreibung — `feat/ai-strength-wave-gate`
 
-> **Ziel-Repo:** Pull Request vom **FORK** `arn-c0de/Project_Nova` nach
-> **HAUPTREPO** `VibecodingGermany/HashKrieg` (`main`) ·
-> **Branch:** `feat/ai-strength-wave-gate` · **Basis:** `upstream/main` (`f13f4d5`)
-> · **Bezeichner:** `r5.779A1B5B` → **`r6.E34435F9`**
+> **Diese Datei ist der PR-Text zum Einfügen, 1:1.** Sie folgt der Vorlage des
+> Repos; alles unterhalb der Checkliste ist eingeklappt, damit der PR kurz
+> bleibt und die Belege trotzdem dranhängen.
 >
-> **Gebaut, gemessen und gegengelesen.** Tests 649/649 grün, Determinismus Exit 0.
-> Der Abschnitt „Im laufenden Spiel gesehen" ist leer und bleibt es, bis ein
-> Mensch gespielt hat.
->
-> Journal: [`../reports/behavior-log.md`](../reports/behavior-log.md) V007 ·
-> Plan: [`../KAMPFSTAERKE.md`](../KAMPFSTAERKE.md) §3 und §5.
+> **Vom FORK** `arn-c0de/Project_Nova` (`feat/ai-strength-wave-gate`, `308d8cf`)
+> **ins HAUPTREPO** `VibecodingGermany/HashKrieg` → `main`.
+> Bezeichner `r5.779A1B5B` → `r6.E34435F9`.
 
-## Was dieser PR tut — und was ausdrücklich nicht
+---
 
-Er gibt der Welle eine **Masseinheit**. Sie marschierte auf eine *Anzahl*
-gesammelter Einheiten, und eine Anzahl weiss nicht, was eine Einheit wert ist.
+## Was & Warum
 
-**Mit der ausgelieferten Armeeobergrenze von 12 ändert er noch kein Verhalten,
-und ein Test nagelt das fest.** Die kanonische Partie endet Byte für Byte wie
-bisher. Das ist keine Schwäche des PRs, das ist sein Zweck: **Wellengrösse und
-Produktionsobergrenze hängen danach nicht mehr an derselben Zahl** — und erst
-dann darf man an dieser Zahl drehen. Wer es umgekehrt macht, macht die Legion
-messbar schlechter (Zahlen unten).
+Die Welle marschierte auf einer **Anzahl** gesammelter Einheiten, und eine Anzahl
+weiss nicht, was eine Einheit wert ist: zwölf Allianz-Schützen wiegen 1.200
+Kampfpunkte, zwölf Legions-Rekruten 528 — dieselbe Regel nennt beides „volle
+Welle", und die Legion greift mit 44 % der Angriffsstärke an, die sie der
+Allianz gibt (Verluste 51 gegen 23). Das Tor summiert jetzt Kampfpunkte statt
+Köpfe.
 
-Die Obergrenze zu drehen ist allerdings **nicht unsere Zeile**: sie steht als
-Literal in `MatchRunner`. Der Vorschlag samt Messreihe steht weiter unten unter
-„Rückfrage".
+**Ausgeliefert ändert das noch kein Verhalten, und ein Test nagelt das fest:**
+die Punktschwelle kann erst greifen, wenn die Armeeobergrenze höher liegt als
+heute, und die liegt in `MatchRunner` — also nicht bei uns. Der Endzustands-Pin
+steht unverändert bei Tick 2.548 / `0x14472B2B943ED2BB`. Was der Schritt bringt,
+ist die **Entkopplung**: die Wellenschwelle hängt nicht mehr an der
+Produktionsobergrenze, und das ist die Voraussetzung dafür, an dieser Zahl
+überhaupt drehen zu dürfen.
 
-## Warum — zwölf ist nicht zwölf
+**Im laufenden Spiel gesehen: nichts.** Alle Zahlen unten sind Labormessung —
+Diagnose, kein Nachweis.
+
+## Checkliste
+
+- [x] `dotnet test tools/Nova.SimRunner.Tests` lokal grün — **649/649**
+- [x] Zeile unter `[Unreleased]` in [CHANGELOG.md](../CHANGELOG.md)
+- [ ] ~~Echte Entscheidung getroffen? → D-ID im DecisionLog~~ — **gestrichen:**
+      hier wurde keine Inhaberentscheidung getroffen. Die eine Frage, die eine
+      wäre (Armeeobergrenze), steht unten als Rückfrage und **nicht** als
+      Änderung.
+- [x] Bei Simulationsänderung: keine Determinismus-Baseline im selben PR geändert
+
+## Externe Beiträge
+
+- [ ] I agree to the Contributor License Agreement
+
+---
+
+<details>
+<summary><b>Die Regel, in einem Absatz</b></summary>
 
 ```
-S(u) = AttackDamage(u) × CurrentHealth(u) / AttackCooldownTicks(u)
+S(u)       = AttackDamage(u) × CurrentHealth(u) / AttackCooldownTicks(u)
+
+erreichbar = max(0, TargetArmySize − draussen − sammelnd) × S(Rekrut, voll)
+             // 0, wenn keine Kaserne steht
+WaveReady  = S_sammelnd >= min(WaveStrengthPoints, S_sammelnd + erreichbar)
 ```
 
-Schaden mal Zähigkeit je Feuerintervall. Bei voller Gesundheit:
+Ganzzahlig, **eine** Division, eine festgeschriebene Abschneidung (Allianz
+LightTank ist 962, nicht 963). Unbewaffnet ist `AttackDamage == 0` und ergibt 0 —
+Builder, Harvester und acht der neun Gebäudearten fallen ohne Sonderfall heraus.
+Die Werte kommen aus `WeaponProfiles`; die Definitionstabelle wird **gelesen,
+nicht geändert** (`0x6326FA3E56CFF5A3` unverändert).
 
-| Rolle | Allianz | Legion |
+| Rolle, volle Gesundheit | Allianz | Legion |
 |---|---:|---:|
 | BasicInfantry | **100** | **44** |
 | ScoutVehicle | 264 | 180 |
 | LightTank | 962 | 672 |
-| AntiArmorInfantry *(T2)* | 200 | 144 |
-| BattleTank *(T2)* | 2.640 | 2.500 |
-| Artillery *(T2)* | 550 | 274 |
+| AntiArmorInfantry | 200 | 144 |
+| BattleTank | 2.640 | 2.500 |
+| Artillery | 550 | 274 |
 
-Zwölf Allianz-Schützen wiegen **1.200** Punkte, zwölf Legions-Rekruten **528**.
-Dieselbe Regel, dasselbe Wort „volle Welle" — und die Legion marschiert mit
-**44 %** der Angriffsstärke los. In der Referenzpartie steht das in der
-Verlustspalte: 51 gegen 23.
-
-Ganzzahlig, **eine** Division, eine festgeschriebene Abschneidung (LightTank ist
-962, nicht 963). Unbewaffnet ist `AttackDamage == 0` und ergibt 0 — Builder,
-Harvester und acht der neun Gebäudearten fallen ohne Sonderfall heraus. Die
-Werte kommen aus `WeaponProfiles`; die Definitionstabelle wird **gelesen, nicht
-geändert** (`0x6326FA3E56CFF5A3` unverändert).
-
-## Die Regel
-
-```
-WaveReady  =  S_sammelnd >= schwelle
-
-erreichbar = max(0, TargetArmySize − committed − sammelnd) × S(BasicInfantry, voll)
-schwelle   = min(WaveStrengthPoints, S_sammelnd + erreichbar)
-```
-
-`S_sammelnd` summiert `S(u)` über die Kampfeinheiten **innerhalb** des Rings ums
-eigene HQ — dieselbe Menge, die `IsCommittedToTheWave` schon abgrenzt, nur
-summiert statt gezählt.
-
-**Die r5-Regel wandert mit, in Punkten statt in Köpfen.** Ohne sie kehrt die
-Blockade zurück, die `f13f4d5` beseitigt hat: Überlebende früherer Wellen
+**Die r5-Regel wandert mit, in Punkten statt in Köpfen.** Ohne den Deckel kehrt
+die Blockade zurück, die `f13f4d5` beseitigt hat: Überlebende früherer Wellen
 belegen die Obergrenze, also kann die Produktion die Schwelle nie mehr liefern.
-Der Deckel „was der Ring noch **erreichen** kann" sagt dasselbe wie r5s
-`reachable = TargetArmySize − committed`, nur in der neuen Einheit.
+Ein freier Kopf zählt dabei nur, solange eine **Kaserne** hineinbauen kann —
+sonst wartet die Welle die Partie aus. Kredite gehen bewusst nicht ein: pleite
+ist vorübergehend, und ein Tor, das mit der Kasse flackert, ordnet die Armee
+jede Kadenz neu (Journal V002).
 
-**Es gibt keinen Boden darunter**, und die erste Fassung hatte einen. Siehe
-„Ein Fund unterwegs".
+**Aus-Stellung:** `waveStrengthPoints: 0` ⇒ der Zählpfad, unverändert, Bit für
+Bit. Ohne sie ist die Regel im Selbstspiel nicht messbar — eine Coderegel
+erreicht beide Seiten zugleich.
 
-### Warum das bei Obergrenze 12 nichts tut
+</details>
 
-Arithmetik, nicht Nachlässigkeit: der Deckel bindet zuerst. Zwölf
-Allianz-Schützen **sind** 1.200 Punkte und eine dreizehnte Einheit lässt die
-Kappe nicht zu; bei der Legion liegt der Deckel mit 528 dauerhaft unter der
-Schwelle. Das Tor kann erst wirken, wenn die Obergrenze mehr Stärke zulässt, als
-es verlangt.
+<details>
+<summary><b>Warum das ausgeliefert nichts ändert — und was das festnagelt</b></summary>
 
-### Die Aus-Stellung
+Der Schwellwert ist gegen das gekappt, was die Produktion noch liefern kann. Die
+Punktklausel kann deshalb nur entscheiden, solange **noch ein Kopf der
+Armeeobergrenze frei** ist — also bei elf Schützen, 1.100 Punkten, gegen eine
+Schwelle von 1.200. Das Tor entscheidet damit exakt wie die Kopfzahl, die es
+ersetzt.
 
-`waveStrengthPoints: 0` ⇒ der Zählpfad von `f13f4d5`, unverändert, **Bit für
-Bit**. Ohne sie ist die Regel im Selbstspiel nicht messbar (M001): eine
-Coderegel erreicht beide Seiten zugleich.
+- Endzustands-Pin `SkirmishAiTests`: Tick **2.548**, `0x14472B2B943ED2BB` —
+  unverändert.
+- KI-gegen-KI-Lauf im Labor: Tick **5.773**, `0x2B34B4E194257940` — mit Tor und
+  mit `waveStrengthPoints: 0` **byteidentisch**.
+- Nur `AiBehaviorId.Value` bewegt sich.
 
-## Gemessen
+**Die Reserve ist neun Punkte pro Schütze.** Deshalb rechnet der Dormanz-Test die
+Ungleichung `(Kappe − 1) × stärkste produzierte Einheit < Schwelle` aus
+`CombatStrength` aus statt aus einer abgeschriebenen Zahl: Waffenwerte sind der
+Auftrag genau dieses Strangs, und **ein Schadenspunkt mehr beim Allianz-Schützen
+weckt das Tor**. Eine frühere Fassung des Tests hätte genau das verschlafen.
 
-Labor, einseitig, dasselbe Binary, **ein** Profilwert Unterschied, je Zeile ist
-**ein** Sitz umgestellt und der andere bleibt heutig. Heutige Auslieferung auf
-beiden Sitzen: Tick 5.773, Verluste 23 / 51, Austausch 221 / 45, grösste Armee
-12 / 12.
+</details>
 
-| Sitz | Kandidat | Tick | Sieger | eig. Verluste | eig. Austausch | grösste eig. Armee |
+<details>
+<summary><b>Gemessen — einseitig, im Labor</b></summary>
+
+Dasselbe Binary, **ein** Profilwert Unterschied, je Zeile ist **ein** Sitz
+umgestellt. Heutige Auslieferung auf beiden Sitzen: Tick 5.773, Verluste 23 / 51,
+Austausch 221 / 45, grösste Armee 12 / 12.
+
+| Sitz | Stellung | Tick | Sieger | eig. Verluste | Austausch | grösste Armee |
 |---|---|---:|---|---:|---:|---:|
 | **Legion** | *(heute)* | 5.773 | Allianz | 51 | 45 | 12 |
-| **Legion** | Obergrenze 24 **allein** | 5.921 | Allianz | **64** | **34** | 16 |
-| **Legion** | Obergrenze 20 + Tor | 5.599 | **Legion** | 42 | 64 | 20 |
-| **Legion** | Obergrenze 24 + Tor | 17.350 | **Legion** | 178 | 69 | 24 |
-| **Legion** | Obergrenze 36 + Tor | 7.747 | **Legion** | 63 | **90** | **35** |
+| **Legion** | Obergrenze 30 **allein** | 5.921 | Allianz | **64** | **34** | 16 |
+| **Legion** | Obergrenze 30 **+ Tor** | 5.005 | **Legion** | 23 | **139** | **30** |
 | Allianz | *(heute)* | 5.773 | Allianz | 23 | 221 | 12 |
-| Allianz | Obergrenze 24 **allein** | 4.154 | Allianz | 6 | 633 | 24 |
-| Allianz | Obergrenze 24 + Tor | 3.914 | Allianz | 12 | 225 | 23 |
-| Allianz | Obergrenze 36 + Tor | 3.914 | Allianz | 12 | 225 | 23 |
+| Allianz | Obergrenze 30 + Tor | 3.914 | Allianz | 12 | 225 | 23 |
 
 Die tragende Zeile ist die zweite: **die Obergrenze allein macht die Legion
-schlechter** (Verluste 51 → 64, Austausch 45 → 34). Mehr Bauplatz nützt nichts,
-solange die Welle bei zwölf Köpfen losläuft, egal was zwölf Köpfe wiegen. Mit
-dem Tor kippt derselbe Sitz — und die grösste Legionsarmee wächst von 12 auf
-bis zu 35, sie sammelt also während des Gefechts weiter.
+schlechter.** Mehr Bauplatz nützt nichts, solange die Welle bei zwölf Köpfen
+losläuft, egal was zwölf Köpfe wiegen.
 
-**`intentsRejected` bleibt 0** über alle 23 Laborkandidaten.
+`intentsRejected` bleibt **0** über alle Laborkandidaten.
 
-### Was schlechter wird
+**Was schlechter wird**, und es steht hier, weil es dazugehört:
 
-- **APM steigt deutlich**: Legionssitz 13 → 43 bei Obergrenze 36, Allianzsitz
-  29 → 47. Das ist die Kennzahl, an der `DefendBase` gescheitert ist (+23 % und
-  schlechteres Spiel, Journal V002). Ein Teil ist erklärbar — eine dreimal so
-  grosse Armee wird häufiger gruppiert —, aber erklärbar ist nicht geprüft.
-- **Der Allianz-Sitz gewinnt durch das Tor nichts.** Obergrenze 24 *ohne* Tor
-  ist dort besser (6 Verluste gegen 12, Austausch 633 gegen 225). Bei Obergrenze
-  12 kostet es sie nichts, weil dort nichts passiert.
-- **Obergrenze 24 auf dem Legionssitz dauert 17.350 Ticks** und kostet 178
-  eigene Einheiten. Gewonnen ist gewonnen, aber das ist Zermürbung, kein
-  Angriff — dieselbe Form, die `retreat-75` disqualifiziert hat.
+- **APM steigt deutlich** (Legionssitz 13 → 29, Allianzsitz 29 → 46). Das ist die
+  Kennzahl, an der `DefendBase` gescheitert ist (Journal V002).
+- **Der Allianz-Sitz gewinnt durch das Tor nichts** — die Obergrenze ohne Tor ist
+  dort besser. Die Allianz zahlt das Tor, damit die Legion es bekommt. Bei
+  Obergrenze 12 kostet es sie nichts, weil dort nichts passiert.
 
-### Eine Annahme aus dem Plan, die der Lauf gekippt hat
+</details>
 
-> Der Plan schrieb die Klippe zwischen Obergrenze 18 und 20 dem an die Kappe
-> gekoppelten Wellentor zu. **Das ist falsch.** Mit dem Tor bleibt sie stehen:
-> `army-18` braucht auf dem Legionssitz 17.908 Ticks und 203 eigene Verluste.
-> Die Kopplung war *eine* Ursache, nicht *die*. Was 18 von 20 unterscheidet,
-> ist unerklärt, und dieser PR behauptet nicht, es erklärt zu haben.
+<details>
+<summary><b>Rückfrage: die Armeeobergrenze liegt in eurer Datei — und ist noch nicht reif</b></summary>
 
-## Drei Funde unterwegs
+Damit das Tor greifen kann, muss die Armeeobergrenze bei mindestens **29**
+liegen: 1.200 Punkte sind 28 Legions-Rekruten zu je 44, und die Punktklausel
+entscheidet nur, solange noch ein Kopf frei ist. Diesen Wert überschreibt
+`MatchRunner` mit einem eigenen Literal (`MatchRunner.cs:254`), und
+`Scripts/Gameplay/Match/` ist Netzstrang. **Wir fassen das nicht an.**
 
-**Der Boden, der eine zweite Regel war.** Die erste Fassung hob den Schwellwert auf mindestens **eine vollgesunde
-produzierte Einheit** an — als Absicherung gedacht, tatsächlich eine zweite
-Regel. Damit wartete ein einzelner **verwundeter** Nachzügler (weniger wert als
-ein frischer Rekrut, während die Kappe von den Kämpfenden draussen belegt ist)
-auf eine Einheit, die nie gebaut werden konnte: die Blockade aus `f13f4d5`, eine
-Nummer kleiner. Das Labor hat sie sofort gezeigt — die kanonische Partie lief
-**1.650 Ticks länger** (7.423 statt 5.773). Ohne den Boden ist die Aus-Stellung
-wieder bitgenau. Der Boden ist raus, der Grund steht als Kommentar im Code.
+Der Vorschlag wäre:
 
-**Ein freier Kopf ist nur frei, solange etwas hineinbauen kann.** Der Deckel
-sagt „was die Produktion noch liefern kann" — und rechnete dabei Köpfe, die
-ohne Kaserne niemand füllen wird. Mit angehobener Obergrenze wäre daraus ein
-Hänger geworden: plateauiert die Armee unter der Schwelle, weil die Kaserne
-zerstört ist, wartet die Welle bis zum Zeitlimit, während die Basis abgetragen
-wird. Der Zählpfad hatte das Problem nie, weil er unabhängig davon bei
-`waveSize` marschierte; ein Punktschwellwert hat diese zweite Grenze nicht und
-muss den Produzenten deshalb selbst modellieren. Credits gehen bewusst **nicht**
-ein: pleite ist vorübergehend, ein Tor das mit der Kasse flackert würde die
-Armee jede Kadenz neu ordnen (V002).
+```csharp
+targetArmySize: 30,   // war 12
+```
+
+**30, weil es aus dem Schwellwert folgt**, nicht weil es der beste Punkt der
+Kurve ist. Unter 29 fällt die Welle *nicht* auf eine Kopfzahl zurück, sondern
+degeneriert zu „sammle die gesamte Armeeobergrenze" — das sind die
+Zermürbungspartien bei 22, 24 und 28 (78, 178 und 154 eigene Verluste). 30 ist
+die erste Stellung, in der die Schwelle greift und zwei Köpfe zum Nachbauen frei
+bleiben. Der Kurve ist nicht zu trauen: **Obergrenze 20 gewinnt, 19 und 21
+verlieren beide.**
+
+> [!WARNING]
+> **Diese Änderung ist noch nicht reif, und das ist ein Befund von uns, nicht
+> von euch.** Beim Ansehen einer Laboraufnahme fiel auf: die KI sammelt am
+> Sammelpunkt weiter, während ihr eigenes HQ beschossen wird. Nachgemessen — in
+> der **ausgelieferten** KI stehen in 19 % der Zeit, in der ihr HQ unter Feuer
+> liegt, mindestens drei eigene Einheiten am Sammelpunkt, im Spitzenwert neun.
+> Ursache: eine angekommene Verstärkung bekommt **gar keinen Befehl** (Absicht,
+> gegen Intent-Churn), hängt also an der Auto-Zielerfassung — und die reicht
+> 6 Zellen, während der Sammelpunkt 12 Zellen vom HQ entfernt liegt.
+>
+> Der Defekt ist **älter als dieser PR** und durch ihn unverändert. Aber die
+> Obergrenze 30 **verdreifacht die Fläche**, auf der er auftritt: die Zeit, die
+> Einheiten wartend herumstehen, steigt von 3.502 auf 12.326 Einheit-Ticks je
+> 1.000 Ticks, und eine einzelne Einheit wartet bis zu 3.214 Ticks.
+>
+> **Deshalb bitten wir nicht um die Obergrenze, sondern melden sie an.** Vorher
+> gehört eine Abbruch-/Verteidigungsregel gebaut. Reihenfolge also: dieser PR →
+> Abbruchregel → Obergrenze.
+
+</details>
+
+<details>
+<summary><b>Zwei Funde, die euch gehören</b></summary>
+
+**1. `MatchRunner`s vier Literale konnten still von `AiProfiles` abdriften.**
+`MatchRunner` holt fünfzehn der neunzehn Profilwerte über den historischen
+`AiFactionProfile`-Konstruktor aus `Ms1Canonical` — nur so kommt
+`waveStrengthPoints` überhaupt im Spiel an — und **überschreibt vier** mit
+eigenen Literalen. Diese vier bewachte nichts: der Profil-Hash rechnet über
+`Ms1Canonical`, der Endzustands-Pin spiegelt MatchRunners Literale, beide
+Wächter sehen von je einer Seite an der Lücke vorbei. Aufgefallen ist es, weil
+der Pin nach einer Änderung an `Ms1Canonical` **nicht** wanderte.
+`AiProfileTests.MatchRunnerPassesTheSameFourNumbersTheShippedProfileCarries`
+liest jetzt euren Quelltext und wird rot, wenn die vier abweichen — **gelesen,
+nicht geändert.**
+
+**2. `NoFloatInSimulationTests` bewacht `Scripts/AI*` nicht.** Es scannt `Core`
+und `Simulation`. Der Determinismus-Vertrag nennt `Scripts/AI*` aber
+ausdrücklich mit, und ein `float` dort käme heute lautlos durch die CI. Der neue
+Code ist float-frei; wir haben nur unseren Kommentar korrigiert, der das
+Gegenteil behauptete. **Die Lücke selbst haben wir nicht geschlossen**, weil der
+Test zweimal existiert und die EditMode-Kopie unter `Assets/Tests/` nicht
+unserem Scope zugeteilt ist. Sollen wir `"AI"` und `"AI.Data"` in beiden Kopien
+zu `ScannedRoots` ergänzen?
+
+</details>
+
+<details>
+<summary><b>Zwei Fehler, die unterwegs gefunden und behoben wurden</b></summary>
+
+**Der „Boden von einer Einheit" war eine zweite Regel.** Die erste Fassung hob
+den Schwellwert auf mindestens eine vollgesunde produzierte Einheit an. Damit
+wartete ein einzelner **verwundeter** Nachzügler auf eine Einheit, die nie gebaut
+werden konnte — die Blockade aus `f13f4d5`, eine Nummer kleiner. Das Labor zeigte
+es sofort: die kanonische Partie lief **1.650 Ticks länger**. Ohne den Boden ist
+die Aus-Stellung wieder bitgenau.
 
 **Die Arithmetik war nicht prüfbar.** In einer Mutationsprobe blieb die ganze
 Suite grün, als der Negativ-Clamp gelöscht **und** als `waveStrengthPoints`
 komplett ignoriert wurde — die ausgelieferte Obergrenze erreicht die
 unterscheidenden Zustände schlicht nie. Deshalb liegt die Schwelle jetzt als
-reine Funktion in `WaveStrengthGate` und wird direkt geprüft, an Zuständen, die
-eine Partie nicht auf Bestellung erzeugt. Beide Mutationen fallen jetzt.
+reine Funktion in `WaveStrengthGate` mit eigener Fixture, geprüft an Zuständen,
+die eine Partie nicht auf Bestellung erzeugt: mehr Einheiten am Leben als die
+Kappe erlaubt, eine gerade zerstörte Kaserne, eine Schwelle die statt der Decke
+bindet. Beide Mutationen fallen jetzt.
 
-## Was sich ändert
+</details>
+
+<details>
+<summary><b>Was sich ändert, und was ausdrücklich nicht drin ist</b></summary>
 
 | Datei | Was |
 |---|---|
-| `Assets/_Project/Scripts/AI/CombatStrength.cs` **(neu, + `.meta`)** | die Formel. Statische Klasse, kein System, kein Zustand |
-| `Assets/_Project/Scripts/AI/WaveStrengthGate.cs` **(neu, + `.meta`)** | die Schwellwert-Arithmetik als reine Funktion — eigener Typ, damit sie direkt prüfbar ist |
-| `Assets/_Project/Scripts/AI/SkirmishAiSystem.cs` | zweiter Zweig in `ResolveArmyPosture`; der Zählpfad bleibt unberührt daneben stehen |
-| `Assets/_Project/Scripts/AI/AiFactionProfile.cs` | reicht das neue Feld durch — Signatur unverändert, `MatchRunner` bleibt unangetastet |
-| `Assets/_Project/Scripts/AI.Data/AiProfile.cs` | Feld `WaveStrengthPoints`, Konstruktor, `Equals`, `GetHashCode` |
-| `Assets/_Project/Scripts/AI.Data/AiProfiles.cs` | `Ms1Canonical: 1200`, `LegacyDefaults: 0` |
-| `Assets/_Project/Scripts/AI.Data/AiBehaviorId.cs` | `Revision` 5 → **6**, neues Feld am Ende des Profil-Hashes |
-| `tools/Nova.SimRunner.Tests/CombatStrengthTests.cs` **(neu)** | die Formel gegen die Tabelle |
-| `tools/Nova.SimRunner.Tests/WaveStrengthGateTests.cs` **(neu)** | die Schwelle an den Zuständen, die eine Partie nicht erzeugt |
-| `tools/Nova.SimRunner.Tests/SkirmishAiTests.cs` | Wellentest über Positionen, Bezeichner-Pin nachgezogen |
-| `tools/Nova.SimRunner.Tests/AiProfileTests.cs` | Dormanz-Zusicherung und der Wächter über `MatchRunner`s vier Literale |
+| `Scripts/AI/CombatStrength.cs` **(neu)** | die Formel — statische Klasse, kein System, kein Zustand |
+| `Scripts/AI/WaveStrengthGate.cs` **(neu)** | die Schwellwert-Arithmetik als reine Funktion |
+| `Scripts/AI/SkirmishAiSystem.cs` | zweiter Zweig in `ResolveArmyPosture`; der Zählpfad bleibt unberührt daneben |
+| `Scripts/AI/AiFactionProfile.cs` | reicht das neue Feld durch — Signatur unverändert |
+| `Scripts/AI.Data/AiProfile.cs` | Feld `WaveStrengthPoints` samt `Equals`/`GetHashCode` |
+| `Scripts/AI.Data/AiProfiles.cs` | `Ms1Canonical: 1200`, `LegacyDefaults: 0` |
+| `Scripts/AI.Data/AiBehaviorId.cs` | `Revision` 5 → **6**, neues Feld am Ende des Profil-Hashes |
+| `tools/Nova.SimRunner.Tests/` | zwei neue Fixtures, drei erweitert |
 | `CHANGELOG.md` | ein Eintrag unter `[Unreleased]` |
+
+**Kein neues System, keine neue Tick-Position.** Alles liegt in
+`SkirmishAiSystem`, das zwischen Combat und Victory bereits eingeordnet ist.
+`MatchRunner` nicht angefasst, `ICommandTransport` und
+`ICommandSubmissionReadiness` benutzt und nicht geändert. Ganzzahlig durchgehend,
+kein `System.Random`, keine Wanduhr, keine Abhängigkeit von Iterationsreihenfolge.
 
 **Warum die Formel in `AI/` liegt und nicht in `AI.Data/`:** `Nova.AI.Data`
 referenziert nur `Nova.Core` — bewusst nicht `Nova.Simulation`, damit ein Profil
-keine `UnitRole` nennen und keine zweite Definitionstabelle werden kann. Die
-Formel braucht `UnitRole`, `FactionId` und `WeaponProfiles`. Verhalten in C#,
-Zahlen in `AI.Data`.
-
+keine `UnitRole` nennen und keine zweite Definitionstabelle werden kann.
 `AiProfile.SchemaVersion` bleibt **1**: ein Feld anhängen ist keine
 Bedeutungsänderung.
 
-## Kein neues System, keine neue Tick-Position
+Nicht drin: Armeeobergrenze (siehe Rückfrage), Nachschub-Doktrin,
+Fahrzeugfabrik, Schwierigkeitsgrade, und ein Panzerungs- oder Reichweitenterm im
+Kampfwert — der wird erst mit gemischten Armeen fällig, also mit den Fahrzeugen.
 
-Alles liegt in `SkirmishAiSystem`, das zwischen Combat und Victory bereits
-eingeordnet ist. `MatchRunner` nicht angefasst, Tick-Reihenfolge nicht,
-`ICommandTransport` und `ICommandSubmissionReadiness` werden benutzt und nicht
-geändert. Ganzzahlig durchgehend, kein `System.Random`, keine Wanduhr, keine
-Abhängigkeit von Iterationsreihenfolge.
-
-## Tests — 649/649 grün (vorher 619)
-
-1. **Formel gegen die Tabelle**, zwölf Werte, beide Fraktionen, inklusive der
-   Abschneidung — und ein verwundeter Wert, der **nicht** glatt aufgeht (50
-   Leben → 55), weil das der einzige Pfad ist, den das Tor im Spiel wirklich
-   läuft.
-2. **Unbewaffnet ⇒ 0** über *jede* Rolle beider Fraktionen, nicht über eine
-   Liste von Namen — die Regel folgt der Definitionstabelle.
-3. **Die Schwelle als reine Funktion**, an den Zuständen, die eine Partie nicht
-   auf Bestellung erzeugt: mehr Einheiten am Leben als die Kappe erlaubt, eine
-   zerstörte Kaserne, eine Schwelle die statt der Decke bindet, exakt erreichter
-   Schwellwert. Diese Fixture existiert wegen einer Mutationsprobe — mit der
-   Arithmetik im System vergraben blieb die Suite grün, wenn man den Clamp
-   löschte **oder** `waveStrengthPoints` ganz ignorierte.
-4. **Wellentor an Positionen, nicht an Intents** — Negativkontrolle: zwei Läufe,
-   die sich in **einem** Profilwert unterscheiden, Armeeobergrenze 36. Der
-   Zählpfad marschiert bei zwölf Rekruten, der Punktpfad später — **und vor
-   erschöpfter Kappe**, was die zweite Zusicherung festhält. Ohne sie misst der
-   Test „die Welle wartet auf eine volle Armee" und nennt es Schwellwert.
-5. **Der Bezeichner-Pin** hält Entscheidungstick 2.548 und Endzustand
-   `0x14472B2B943ED2BB` — **unverändert**.
-6. **Die Dormanz** als die Ungleichung, die sie wirklich trägt:
-   `(Kappe − 1) × stärkste produzierte Einheit < waveStrengthPoints`, also
-   `11 × 100 < 1200`. **Die Reserve ist neun Punkte pro Schütze**, deshalb
-   rechnet der Test sie aus `CombatStrength` statt aus einer abgeschriebenen
-   Zahl: Waffenwerte sind der Auftrag genau dieses Strangs, und ein Schadenspunkt
-   mehr beim Allianz-Schützen weckt das Tor.
-7. **Der Wächter über `MatchRunner`s vier Literale** (siehe „Rückfrage").
-
-**Keine der vier Determinismus-Baselines ist angefasst.** Sie fahren kein
-KI-System und bleiben grün.
-
-## Im laufenden Spiel gesehen
-
-**Nichts.** Alles oben ist im Labor gemessen — Diagnose, kein Nachweis. Der
-Abschnitt bleibt leer und als leer erkennbar, bis ein Mensch eine Partie
-gefahren hat; ausgefüllt wird er von einem Menschen, nicht von einem Agenten.
-
-Bei der ausgelieferten Obergrenze 12 gibt es hier auch nichts zu sehen — die
-Partie läuft nachweislich identisch. Zu sehen ist erst der PR, der die
-Obergrenze anfasst.
-
-## Rückfrage: die Armeeobergrenze liegt in eurer Datei
-
-Damit das Tor überhaupt greifen kann, muss die Armeeobergrenze bei mindestens
-**29** liegen: 1.200 Punkte sind 28 Legions-Rekruten zu je 44, und die
-Punktklausel entscheidet nur, solange noch ein Kopf frei ist. Diesen Wert
-überschreibt `MatchRunner` mit einem eigenen Literal
-([`MatchRunner.cs:254`](../../Project_Nova/Assets/_Project/Scripts/Gameplay/Match/MatchRunner.cs)),
-und `Scripts/Gameplay/Match/` ist Netzstrang. **Wir fassen das nicht an** und
-schlagen es stattdessen vor:
-
-```csharp
-new AiFactionProfile(_config.FactionPerSlot[aiSlot].ToString(),
-    targetPowerMargin: 0,
-    targetArmySize: 30,   // war 12
-    attackSquadThreshold: 6,
-    targetHarvesterCount: 2),
-```
-
-**Warum 30 und nicht die beste Zahl der Kurve.** Unter Obergrenze 29 greift die
-Schwelle nicht, und die Welle fällt dann *nicht* auf eine Kopfzahl zurück —
-sie degeneriert zu „sammle die gesamte Armeeobergrenze". Genau das sind die
-Zermürbungspartien bei 22, 24 und 28: die Legion sammelt erst alle 24 bzw. 28
-und hat dann nichts mehr in Produktion. **30** ist die erste Stellung, in der
-die Schwelle greift und trotzdem zwei Köpfe zum Nachbauen frei bleiben. Das ist
-aus dem Schwellwert abgeleitet, nicht aus der Kurve gewählt — und das ist
-wichtig, weil die Kurve trügt: Obergrenze **20 gewinnt, 19 und 21 verlieren**.
-Wer dort das Maximum nimmt, trifft eine Einzelpartie.
-
-| Obergrenze | Legion: Tick | Sieger | eig. Verl. | Austausch | APM |
-|---:|---:|---|---:|---:|---:|
-| **12** *(heute)* | 5.773 | Allianz | 51 | 45 | 13 |
-| 20 | 5.599 | **Legion** | 42 | 64 | 34 |
-| 24 | 17.350 | **Legion** | 178 | 69 | 35 |
-| 28 | 15.735 | **Legion** | 154 | 64 | 33 |
-| **30** | **5.005** | **Legion** | **23** | **139** | **29** |
-| 32 | 5.253 | **Legion** | 31 | 100 | 34 |
-| 36 | 7.747 | **Legion** | 63 | 90 | 43 |
-
-Bei 30 entscheidet die Legion **schneller als die heutige KI** (5.005 gegen
-5.773) mit 23 statt 51 eigenen Verlusten. Der Allianzsitz: 3.914 statt 5.773
-Ticks, 12 statt 23 Verluste, Austausch 225 gegen 221 — und APM 46 gegen 29, das
-ist der Preis. Nach oben wird nur die APM teurer; die Allianz sättigt bei 23
-Einheiten, ab Obergrenze 40 ist die Kappe reine Intent-Erzeugung.
-
-**Ein Nebenbefund, den dieser PR gleich mitschliesst:** `MatchRunner` holt
-fünfzehn der neunzehn Profilwerte über den historischen
-`AiFactionProfile`-Konstruktor aus `Ms1Canonical` — nur so kommt
-`waveStrengthPoints` überhaupt im Spiel an — und **überschreibt vier** mit
-eigenen Literalen. Diese vier konnten still auseinanderlaufen: der Profil-Hash
-rechnet über `Ms1Canonical`, der Endzustands-Pin spiegelt MatchRunners Literale,
-beide Wächter sehen also von je einer Seite an der Lücke vorbei. Aufgefallen ist
-es, weil der Pin nach einer Änderung an `Ms1Canonical` **nicht** wanderte.
-`AiProfileTests.MatchRunnerPassesTheSameFourNumbersTheShippedProfileCarries`
-liest jetzt euren Quelltext und wird rot, wenn die vier abweichen — gelesen,
-nicht geändert.
-
-## Was ausdrücklich **nicht** drin ist
-
-| Nicht drin | Warum |
-|---|---|
-| **Armeeobergrenze anheben** | Siehe oben — sie liegt in `MatchRunner`, also in fremdem Terrain. Der Vorschlag steht, die Änderung nicht |
-| **Nachschub-Doktrin** (nachschicken solange die Welle intakt ist, sammeln wenn sie gebrochen ist) | Zweite Verhaltensregel, eigener PR — sie braucht diese Schwelle als Bezugsgrösse. KAMPFSTAERKE.md §6 |
-| **Fahrzeugfabrik, Fahrzeuge, Kaufregel** | KAMPFSTAERKE.md §7/§8 |
-| **Schwierigkeitsgrade** | Reine Zahlen, kommen zuletzt |
-| **Panzerungs- oder Reichweitenterm im Kampfwert** | Bewusste Auslassung, KAMPFSTAERKE.md §3.3. Auslöser wären gemischte Armeen — also die Fahrzeuge, nicht dieser PR |
-
-## Checkliste
-
-- [x] Branch frisch von `upstream/main`, nicht aus `lab/` gecherrypickt
-- [x] `dotnet test tools/Nova.SimRunner.Tests/Nova.SimRunner.Tests.csproj -c Release` — 649/649
-- [x] Determinismus zuerst: `match --repeat 2 --hash-every 100` **im Labor-Repo**
-  (`arn-c0de/Nova.AiLab`, nicht `tools/Nova.SimRunner`), **Exit 0**
-- [x] Aus-Stellung bitgenau gegen die Referenz geprüft (Tick 5.773, `0x2B34B4E194257940`)
-- [x] `AiBehaviorId.Revision` auf 6, neues Feld im Profil-Hash
-- [x] Zeile unter `[Unreleased]` in `CHANGELOG.md`
-- [x] Journaleintrag V007 **mit** Abschnitt „Schlechter" und „Widerlegt"
-- [x] Keine der vier Determinismus-Baselines im selben PR geändert
-- [x] Abschnitt „Im laufenden Spiel gesehen" leer gelassen
-- [ ] Vor dem Push gefragt und das Ziel benannt: **FORK** `arn-c0de/Project_Nova`
+</details>
