@@ -154,7 +154,7 @@ namespace Nova.AiLab
     }
 
     /// <summary>One metric tick: the tick number and every slot's numbers.</summary>
-    public sealed class MetricSample
+    public sealed class MetricSample : INdjsonLine
     {
         public uint Tick;
         public SlotMetrics[] Slots;

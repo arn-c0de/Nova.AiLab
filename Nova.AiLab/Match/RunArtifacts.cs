@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -6,6 +7,23 @@ using Nova.AI.Data;
 
 namespace Nova.AiLab
 {
+    /// <summary>
+    /// One record of a stream that is written as NDJSON — one self-contained
+    /// JSON object per line, appendable and readable line by line, which is why
+    /// the four large streams use it instead of one big array.
+    /// <para>
+    /// It exists so <see cref="RunArtifacts"/> writes them through ONE method
+    /// rather than four copies of the same loop. The types keep writing their
+    /// own JSON by hand: that is the guarantee no float ever leaves the
+    /// simulation, and no interface changes it.
+    /// </para>
+    /// </summary>
+    public interface INdjsonLine
+    {
+        /// <summary>This record as exactly one line of JSON, without the newline.</summary>
+        string ToJsonLine();
+    }
+
     /// <summary>
     /// Writes one run's artifacts (plan section 3.2): <c>result.json</c>,
     /// <c>trace.ndjson</c> and <c>hashchain.json</c>.
@@ -38,15 +56,10 @@ namespace Nova.AiLab
 
             File.WriteAllText(Path.Combine(directory, ResultFileName), BuildResultJson(spec, result));
 
-            if (result.Trace.Count > 0)
-            {
-                var trace = new StringBuilder(result.Trace.Count * 256);
-                for (int i = 0; i < result.Trace.Count; i++)
-                {
-                    trace.Append(result.Trace[i].ToJsonLine()).Append('\n');
-                }
-                File.WriteAllText(Path.Combine(directory, TraceFileName), trace.ToString());
-            }
+            WriteNdjson(directory, TraceFileName, result.Trace, 256);
+            WriteNdjson(directory, ViewFileName, result.View, 512);
+            WriteNdjson(directory, TracksFileName, result.Tracks, 128);
+            WriteNdjson(directory, EventsFileName, result.Events, 128);
 
             if (result.HashChain.Count > 0)
             {
@@ -55,13 +68,6 @@ namespace Nova.AiLab
 
             if (result.View.Count > 0)
             {
-                var view = new StringBuilder(result.View.Count * 512);
-                for (int i = 0; i < result.View.Count; i++)
-                {
-                    view.Append(result.View[i].ToJsonLine()).Append('\n');
-                }
-                File.WriteAllText(Path.Combine(directory, ViewFileName), view.ToString());
-
                 // The player travels with the frames: an artifact directory is
                 // copyable as a unit and opens with a double-click.
                 File.WriteAllText(
@@ -69,30 +75,35 @@ namespace Nova.AiLab
                     HtmlPlayer.Build(spec.MapWidth, spec.MapHeight, spec.Slots.Length, result.Seed));
             }
 
-            if (result.Tracks.Count > 0)
-            {
-                var tracks = new StringBuilder(result.Tracks.Count * 128);
-                for (int i = 0; i < result.Tracks.Count; i++)
-                {
-                    tracks.Append(result.Tracks[i].ToJsonLine()).Append('\n');
-                }
-                File.WriteAllText(Path.Combine(directory, TracksFileName), tracks.ToString());
-            }
-
-            if (result.Events.Count > 0)
-            {
-                var events = new StringBuilder(result.Events.Count * 128);
-                for (int i = 0; i < result.Events.Count; i++)
-                {
-                    events.Append(result.Events[i].ToJsonLine()).Append('\n');
-                }
-                File.WriteAllText(Path.Combine(directory, EventsFileName), events.ToString());
-            }
-
             if (result.Units.Count > 0)
             {
                 File.WriteAllText(Path.Combine(directory, UnitsFileName), BuildUnitsJson(result));
             }
+        }
+
+        /// <summary>
+        /// One line of JSON per entry, or no file at all when there is nothing
+        /// to write — an empty artifact reads like a run that recorded and
+        /// found nothing, which is a different statement from "this stream was
+        /// switched off".
+        /// <para>
+        /// This was the same nine lines four times over, once per stream.
+        /// <paramref name="bytesPerLine"/> is the measured rough size of one
+        /// line and only sizes the buffer; it changes no output.
+        /// </para>
+        /// </summary>
+        private static void WriteNdjson<T>(
+            string directory, string fileName, IReadOnlyList<T> lines, int bytesPerLine)
+            where T : INdjsonLine
+        {
+            if (lines.Count == 0) return;
+
+            var ndjson = new StringBuilder(lines.Count * bytesPerLine);
+            for (int i = 0; i < lines.Count; i++)
+            {
+                ndjson.Append(lines[i].ToJsonLine()).Append('\n');
+            }
+            File.WriteAllText(Path.Combine(directory, fileName), ndjson.ToString());
         }
 
         /// <summary>

@@ -25,7 +25,7 @@ namespace Nova.AiLab
     /// position — standing still is the common case and costs nothing.
     /// </para>
     /// </summary>
-    public sealed class TrackFrame
+    public sealed class TrackFrame : INdjsonLine
     {
         public uint Tick;
 

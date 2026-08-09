@@ -85,7 +85,7 @@ namespace Nova.AiLab
     /// nothing reads this by hand, two renderers read it by code.
     /// </para>
     /// </summary>
-    public sealed class ViewFrame
+    public sealed class ViewFrame : INdjsonLine
     {
         public uint Tick;
         public List<ViewEntity> Entities = new List<ViewEntity>();
