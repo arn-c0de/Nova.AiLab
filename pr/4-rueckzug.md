@@ -6,10 +6,11 @@
 > [!NOTE]
 > **Der Diff hier ist KUMULATIV.** GitHub vergleicht gegen `main`, also
 > zeigt er auch die vorigen Stufen mit. Zu **dieser** Stufe gehören nur
-> diese Commits (351 Zeilen in 8 Dateien):
+> diese Commits (357 Zeilen in 8 Dateien):
 >
 > - `f7cfed1 feat(ai): wounded units disengage instead of dying in place`
 > - `1fd49d4 docs(changelog): Eintrag zum Rueckzug`
+> - `575d20a docs(changelog): gespielte Beobachtung zum Rueckzug nachtragen`
 >
 > Der saubere Diff ist `feat/ai-attack-waves...` gegen diesen Branch. Am einfachsten
 > von unten nach oben lesen: erst die vorige Stufe mergen, dann zeigt
