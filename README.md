@@ -92,6 +92,7 @@ dotnet run --project Nova.AiLab -c Release -- match --repeat 2 --hash-every 100
 dotnet run --project Nova.AiLab -c Release -- match --watch
 
 # aufzeichnen und danach im Browser zurückspulen: out/run1/player.html öffnen
+# — dort eine Einheit anklicken und ihre Laufroute, Angriffe und ihren Tod verfolgen
 dotnet run --project Nova.AiLab -c Release -- match --view-every 25 --fog --out out/run1
 
 # Seed-Matrix über alle Kerne, jeder 20. Lauf doppelt zur Selbstkontrolle
@@ -165,21 +166,24 @@ ohne etwas dafür zu bekommen.)
 | `MultiSlotAiHost.cs` | der Match-Host: `MatchRunner.InitializeMatch` von einem KI-Slot auf N verallgemeinert, sonst nichts |
 | `CountingAiPeerTransport.cs` | zählt Intent-Verdikte — die einzige Stelle, an der `intentsRejected` ehrlich entsteht |
 | `MatchRun.cs` | fährt eine Partie, liefert Outcome, Entscheidungstick, Hash-Kette, Trace |
-| `RunArtifacts.cs` | `result.json`, `trace.ndjson`, `hashchain.json`, `view.ndjson`, `player.html` |
+| `RunArtifacts.cs` | `result.json`, `trace.ndjson`, `hashchain.json`, `view.ndjson`, `tracks.ndjson`, `events.ndjson`, `units.json`, `player.html` |
 
 ### `Metrics/` — messen, ohne einzugreifen
 
 | Datei | Inhalt |
 |---|---|
 | `SlotMetrics.cs` / `TraceCollector.cs` | der Metrikkatalog aus §3.3, reiner Beobachter, nur Ganzzahlen |
+| `DebugEventLog.cs` | je Einheit und Tick: Spawn, Tod, Schaden, Befehl, Ziel, Angriff, Ernte, Bau, Steckenbleiben. Der Verursacher ist hergeleitet und als hergeleitet gekennzeichnet — `notes/schadensquelle.md` |
+| `RouteMetrics.cs` | eine Zeile je Einheit: Umwegfaktor, Stillstand trotz `Moving`, Ziel- und Befehlswechsel, Schaden. Kein `double`, auch nicht in der Wurzel |
 
 ### `View/` — hinsehen
 
 | Datei | Inhalt |
 |---|---|
-| `ViewFrame.cs` / `ViewRecorder.cs` | die Sichtframes aus §3.4 — Tätigkeit, nicht nur Position; reiner Beobachter |
+| `ViewFrame.cs` / `ViewRecorder.cs` | die Sichtframes aus §3.4 — Tätigkeit, nicht nur Position; reiner Beobachter. Seit der Laufroutenarbeit trägt jede Zeile die **Entity-ID** als zehnte Spalte, angehängt statt eingeschoben |
+| `EntityTrackRecorder.cs` | die Positionsspur, **jeder Tick**: Delta gegen die letzte Position, Keyframe alle 500 Ticks. Die Route ist absichtlich feiner als das Bild |
 | `TerminalView.cs` | ANSI-Liveansicht, beantwortet „läuft gerade etwas schief?" |
-| `HtmlPlayer.cs` | eine selbstständige Seite mit canvas: Scrubber, Einzeltick, Ebenen. Kein Build, kein Server |
+| `HtmlPlayer.cs` | eine selbstständige Seite mit canvas: Scrubber, Einzeltick, Ebenen — dazu Einheitenliste, Spur der Auswahl, Detailfeld und Ereignisband. Kein Build, kein Server |
 
 ### `Sweep/` — dieselbe Spec über viele Seeds
 

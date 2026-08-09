@@ -36,6 +36,7 @@ Antwort. Alle vier kosten zusammen unter zehn Sekunden.
 | Ist die Änderung deterministisch? | `match --repeat 2 --hash-every 100` | **Exit-Code** (siehe unten), nicht der Text |
 | Ist sie besser oder nur anders? | `compare --out <dir>` | `resultset.json`, `report.html`, je Kandidat ein PR-Entwurf |
 | Woran liegt es? | `match --view-every 25 --fog --out <dir>` | `player.html` + `view.ndjson`, dazu `dashboard.html` |
+| Woran liegt es **bei dieser einen Einheit**? | derselbe Lauf | `player.html`: Einheit anklicken → Laufroute, Ereignisband, Detailfeld. Roh in `tracks.ndjson`, `events.ndjson`, `units.json` |
 
 Vorspann für alle Kommandos, falls `dotnet` nicht im PATH ist:
 
@@ -77,7 +78,10 @@ vergleichbar statt schätzungsweise.
 | `result.json` | Lauf | `outcome`, `winnerSlot`, `decidedTick`, `finalStateHash`, `definitionsHash64` |
 | `hashchain.json` | *n* Ticks | erster abweichender Eintrag = Tick, ab dem sich Verhalten ändert |
 | `trace.ndjson` | Metriktick | 21 Kennzahlen je Slot plus `buildingsByRole[9]` |
-| `view.ndjson` | Sichtframe | Position, Tätigkeit, Ziel, Fog-Ebene — für `player.html` |
+| `view.ndjson` | Sichtframe | Position, Tätigkeit, Ziel, Fog-Ebene, **Entity-ID** (zehnte Spalte) — für `player.html` |
+| `tracks.ndjson` | Tick | Positionsspur je Einheit, verlustfrei: `a` absolut, `d` Delta, `x` beendet, `k` Keyframe |
+| `events.ndjson` | Ereignis | `spawn`, `death`, `damage`, `order`, `goal`, `moveStart/Stop`, `attackStart/Switch/Stop`, `harvest*`, `cargo*`, `site*`, `stuck`/`unstuck`, `retreat*` — mit exaktem Tick. `by` ist **hergeleitet**, `bySure` sagt wie sicher |
+| `units.json` | Einheit | `detourPercent`, `blockedTicks`, `orderChanges`, `damageTaken`, `pathLengthCells` — die Zahl hinter „kein gegenseitiges Blockieren" |
 | `duels.ndjson` | Duell (576) | `winner`, `decidedTick`, `noContact`, `parityWobbles`, `survivors*` |
 | `movement.ndjson` | Szenario × Fraktion (8) | `usableRangeOvershootCells` (nicht `overshootCells` — siehe unten), `blockedUnits`, `arrived`, `travelledCells`, `wallGapCells` |
 | `resultset.json` | Vergleichslauf | je Kandidat Siegquote, Mittelwerte, `changes`, plus Herkunft (Commit, Seeds, Hashes) |

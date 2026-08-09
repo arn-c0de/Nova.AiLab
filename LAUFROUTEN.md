@@ -1,108 +1,163 @@
-# Laufrouten in der Auswertung — Idee, nicht gebaut
+# Laufrouten in der Auswertung — gebaut
 
-**Notiert am:** 2026-08-09 · **Status:** Idee, kein Code, kein PR
+**Notiert am:** 2026-08-09 · **Status:** gebaut, im Labor · kein PR nach Project_Nova
 
 Frage, aus der das hier entstand: Kann man bei der Auswertung eines Laufs auch
 nachverfolgen, **wo eine Einheit langgelaufen ist** — nicht nur, wo sie zu einem
 Zeitpunkt stand?
 
-Antwort: ja, aber nicht rückwirkend sauber. Es fehlt genau eine Zahl.
+Antwort: ja. Es fehlte genau eine Zahl, und die ist jetzt da.
 
-## 1 · Warum es heute nicht geht
+## 1 · Warum es vorher nicht ging
 
-`view.ndjson` schreibt pro Frame je Entity neun Integer
-(`View/ViewFrame.cs:106-114`):
+`view.ndjson` schrieb pro Frame je Entity neun Integer:
 
 ```
 [slot, shape, x, y, healthPercent, flags, line, lineX, lineY]
 ```
 
-Position ist da, **Identität nicht**. Ohne eine ID lässt sich ein Eintrag in
-Frame *n* nicht mit einem Eintrag in Frame *n+1* verknüpfen. Was übrig bleibt,
-ist eine Punktwolke pro Tick — kein Weg.
+Position war da, **Identität nicht**. Ohne eine ID liess sich ein Eintrag in
+Frame *n* nicht mit einem Eintrag in Frame *n+1* verknüpfen. Was übrig blieb,
+war eine Punktwolke pro Tick — kein Weg.
 
-Was hingegen schon vorhanden wäre, sobald die Verknüpfung existiert:
+## 2 · Was gebaut wurde
 
-- `IsMoving` steckt als `ViewFlags.Moving` in `flags` (`ViewRecorder.cs:135`)
-- `GoalGridPos` wird als Endpunkt der blauen Move-Linie bereits mitgeschrieben
-  (`ViewRecorder.cs:166-171`)
+### Die ID, angehängt statt eingeschoben
 
-Man hätte pro Sample also **Ist-Position und Ziel nebeneinander**. Das ist genau
-das Paar, aus dem Umwegfaktor und Zielwechsel fallen.
+`ViewEntity.Id` trägt die rohe Entity-ID (`Index` + `Version`) als **zehnte**
+Spalte. Angehängt, damit eine `view.ndjson` von vorher in den ersten neun
+Spalten korrekt bleibt; die Seite schaltet die Spuren ab, wenn die zehnte
+fehlt, statt eine Route zu zeichnen, die sie nicht kennen kann.
 
-## 2 · Drei Wege, aufsteigend nach Aufwand
+Die Version macht einen wiederverwendeten Pool-Slot als **neue** Einheit
+erkennbar — dieselbe Eigenschaft, auf der `TraceCollector` seine
+Verlustzuordnung aufbaut.
 
-### A · Rückwirkend auf vorhandene Läufe, ohne Codeänderung
+### `tracks.ndjson` — jeder Tick, verlustfrei
 
-Routen offline aus `view.ndjson` rekonstruieren: Nearest-Neighbour zwischen
-zwei aufeinanderfolgenden Frames, getrennt nach `slot` + `shape`.
+`View/EntityTrackRecorder.cs`, aufgerufen in **jedem** Tick:
 
-Überschlag an `out/compare/runs/ms1-canonical/view.ndjson`: die Verschiebung
-liegt bei rund 2–3 Zellen pro 50-Tick-Frame. Für Harvester und Builder — weit
-verteilt, wenige pro Fläche — trägt das. In einem Armeeklumpen mit fünfzehn
-Einheiten auf vier Zellen vertauscht das Verfahren Spuren, **ohne dass man es
-der Zeichnung ansieht**. Eine falsch zusammengesetzte Route ist schlimmer als
-gar keine: sie sieht aus wie eine Beobachtung.
+```
+{"t":123,"a":[[id,x,y]],"d":[[id,dx,dy]],"x":[id]}
+```
 
-Taugt als Skizze auf bereits gerechneten Läufen. Nicht als Befund.
+`a` absolut (neue IDs und Keyframes), `d` Delta gegen die letzte Position
+derselben ID, `x` beendete Spuren. Wer sich nicht bewegt hat, steht in keiner
+Liste und behält seine Position. Alle 500 Ticks eine Keyframe-Zeile, damit die
+Seite springen kann, ohne von Tick 0 an nachzurechnen.
 
-### B · Die saubere Variante — `Id` ins Frame aufnehmen
+**Der Kompromiss aus der ursprünglichen Notiz war keiner.** Die Sorge galt der
+Dateigrösse — gemessen trägt ein entschiedener Lauf 28 bis 37 Einheiten, nicht
+Hunderte. Ein Lauf über 6000 Ticks kostet 840 KB Spur neben 855 KB Sichtframes.
+Deshalb wird verbatim aufgezeichnet: nicht geglättet, nicht interpoliert, kein
+Schwellwert. Die Nearest-Neighbour-Rekonstruktion aus der alten Fassung §2A
+bleibt verworfen — eine falsch zusammengesetzte Route sieht aus wie eine
+Beobachtung.
 
-Ein `uint` je Entity, die rohe Entity-ID. `UnitCommandStateView.ToRawEntityId(u.Id)`
-wird in `BuildEntity` ohnehin schon geholt (`ViewRecorder.cs:103`) und dort nur
-für die Baustellenabfrage benutzt. Sie kodiert Index und Version, ist über die
-Lebenszeit einer Einheit stabil und macht einen wiederverwendeten Pool-Slot als
-**neue** Einheit erkennbar — dieselbe Eigenschaft, auf der `TraceCollector`
-seine Verlustzuordnung aufbaut.
+`--track-every n` gibt es als Ausnahme für einen Lauf, der je unhandlich wird.
+Die **Ereignisse** ignorieren den Schalter: eine Flanke zwischen zwei Proben
+ist nicht spät, sie ist weg.
 
-Kosten: eine Zahl pro Entity pro Frame, grob +10 % Dateigrösse. Danach sind
-Routen exakt statt geraten, und der HTML-Player kann eine Trail-Ebene neben Fog
-bekommen: die letzten N Positionen einer Einheit als verblassende Linie,
-abschaltbar wie die anderen Ebenen.
+### `events.ndjson` — was passiert ist, mit exaktem Tick
 
-Zum Scope: Der Recorder bleibt reiner Beobachter — liest nach `StepTick()`,
-schreibt nie zurück, steht nicht in der Tickreihenfolge, nicht im State-Hash,
-nicht im Snapshot (`ViewRecorder.cs`, Klassenkommentar). Die Hashkette bleibt
-identisch, **keine Baseline wird davon rot**. Auch `--view-every 5` oder `10`
-ändert daran nichts — und für eine gezielte Bewegungsuntersuchung braucht es
-das, die voreingestellten 50 Ticks sind für eine Route grob.
+`Metrics/DebugEventLog.cs`, Flankenerkennung gegen den Zustand des Vortticks,
+in derselben Machart wie `TraceCollector.TrackReactions`: Schattenarrays über
+`Entities.Capacity`, aufsteigender Indexscan, keine Dictionary-Reihenfolge.
 
-### C · Die Auswertung, die es erst nützlich macht
+`spawn`, `death`, `damage`, `heal`, `order`, `goal`, `moveStart`/`moveStop`,
+`attackStart`/`attackSwitch`/`attackStop`, `harvestStart`/`harvestStop`,
+`cargoFull`/`cargoDelivered`, `siteOpen`/`siteDone`, `stuck`/`unstuck`,
+`retreatBelow`/`retreatAbove`.
 
-Aus den Spuren drei Integer-Spalten je Slot, in derselben Machart wie
-`Metrics/FeelMetrics.cs` — vier weitere Spalten, die ein Mensch liest, kein
-Score, keine Gewichtung:
+Benannte Schlüssel statt positionaler Arrays, gegen die Machart von
+`ViewFrame`: Ereignisse sind dünn, Grösse spielt keine Rolle, und die Datei
+soll sich mit `grep` lesen lassen.
+
+`order` benutzt genau die Definition, die `TraceCollector` schon als „Reaktion"
+zählt — die Ereignisspur spricht dieselbe Sprache wie die Spalte, die es
+bereits gab.
+
+**Der Verursacher ist hergeleitet, nicht beobachtet.** Die Simulation meldet
+keinen. Wie hergeleitet wird, wo es versagt und wie ein sauberer Hook im Spiel
+aussähe, steht in [`notes/schadensquelle.md`](notes/schadensquelle.md) — das
+ist der Vorschlag, nicht die Umsetzung.
+
+### `units.json` — die Zahlen je Einheit
+
+`Metrics/RouteMetrics.cs`, gerechnet am Laufende aus Spur und Ereignissen. Eine
+Zeile je Einheit, aufsteigend nach ID:
 
 | Spalte | Was sie beantwortet |
 |---|---|
-| **Umwegfaktor** — gelaufene Streckenlänge gegen Luftlinie Start→Ziel, in Prozent | „Bewegung, die am Ziel nicht dumm aussieht" |
-| **Stillstand trotz `Moving`** — Ticks mit gesetztem Flag und unveränderter Position | gegenseitiges Blockieren, gemessen statt vermutet |
-| **Richtungs- und Zielwechsel je Einheit** | Zappeln vor einer Gebäudeecke gegen einen sauberen Bogen |
+| `detourPercent` | „Bewegung, die am Ziel nicht dumm aussieht" — gelaufene Strecke gegen Luftlinie, je Segment |
+| `blockedTicks` von `movingTicks` | gegenseitiges Blockieren, **gemessen statt vermutet** |
+| `goalChanges`, `orderChanges` | Zappeln vor einer Gebäudeecke gegen einen sauberen Bogen |
+| `damageTaken`, `damageDealtDerived`, `killsDerived` | wer wie viel abbekommen und ausgeteilt hat |
 
-Die zweite Zeile ist der eigentliche Grund, das zu bauen: „kein gegenseitiges
-Blockieren" ist Auftrag (`CLAUDE.md` §1, `Simulation/Movement/`), und es gibt
-heute keine Zahl dafür.
+Nur Ganzzahlen; die Streckenlänge geht durch eine ganzzahlige Wurzel, damit auf
+dem Weg kein `double` existiert.
 
-Nebenbei wird damit Schritt 6 aus `NEXT-STEPS.md` („Annäherung über eine Route
-statt der Luftlinie", Messkriterium *zweimal dieselbe Partie, zwei verschiedene
-Wege*) überhaupt erst bewertbar — ohne Spuren lässt sich das Kriterium nicht
-prüfen.
+Die zweite Zeile war der eigentliche Grund, das zu bauen: „kein gegenseitiges
+Blockieren" ist Auftrag (`CLAUDE.md` §1, `Simulation/Movement/`), und es gab
+keine Zahl dafür. Jetzt gibt es sie — an einem Lauf über 6000 Ticks meldet sie
+drei `stuck`-Vorfälle.
 
-## 3 · Empfehlung
+### `player.html` — die Wiedergabe
 
-B und C. A nur, wenn vor einer Neurechnung sofort etwas auf den vorhandenen
-Läufen unter `out/compare/runs/` sichtbar sein soll — und dann mit dem Vermerk,
-dass die Zuordnung geraten ist.
+Vier Flächen, jede beantwortet etwas anderes: die Karte sagt **wo**, die
+Einheitenliste **wer**, das Detailfeld **was gerade**, das Ereignisband unter
+dem Scrubber **wann es sich geändert hat**.
 
-B ist eine kleine, in sich geschlossene Änderung an Frame, Recorder und Player.
-C ist die eigentliche Arbeit.
+- Auswahl per Klick in der Liste oder auf der Karte, tote Einheiten zuschaltbar
+- Spur der Auswahl, verblassend, 200 / 600 / 2000 Ticks oder der ganze Lauf;
+  zweite Ebene für alle Spuren eines Slots, mit hartem Zeichenlimit
+- `n` / `p` springen zum nächsten/vorherigen Ereignis der Auswahl, Klick ins
+  Band springt auf den Tick
+- Wer stirbt, verschwindet nicht still: die Todesstelle bleibt markiert
+- Die Auswahl steht im URL-Fragment (`#u=1043&t=1700`), also ist „schau dir
+  1043 um Tick 1700 an" ein Link und keine Anleitung
+- Weiter eine Seite, kein Build, kein Server, keine Abhängigkeit
 
-## 4 · Was hier offen bleibt
+**Der Gewinn:** Der Scrubber läuft auf Sichtframes (alle `--view-every` Ticks),
+die Spur kommt aus `tracks.ndjson` mit voller Tickauflösung. Die Route ist
+feiner als das Bild.
 
-- Trail-Länge im Player: feste Anzahl Frames oder feste Tickspanne? Bei
-  wechselndem `--view-every` bedeutet dasselbe N zwei verschiedene Dinge.
-- Umwegfaktor braucht einen Start: der Tick, an dem `Moving` gesetzt **und**
-  `GoalGridPos` zuletzt gewechselt hat. Ein Ziel, das mitten im Lauf umspringt,
-  ist ein neues Segment, kein Umweg — sonst misst die Spalte Zielwechsel statt
-  Wegqualität.
-- Nichts davon ist im laufenden Spiel gesehen. Es ist Papier.
+## 3 · Was das nicht kostet
+
+Die Aufzeichner sind reine Beobachter wie `ViewRecorder` und `TraceCollector`:
+sie lesen nach `StepTick()`, schreiben nie zurück, stehen nicht in der
+Tickreihenfolge, nicht im Zustands-Hash, nicht im Snapshot.
+`EntityTrackTests.RecordingTrackAndEvents_DoesNotChangeTheHashChain` hält das
+fest — gegen einen Lauf, der die Sichtframes ohnehin schreibt, damit nur Spur
+und Ereignisse übrig bleiben, falls sich etwas bewegt.
+
+**Keine Baseline in `Project_Nova` ist davon betroffen. Am Spiel wurde nichts
+geändert.**
+
+## 4 · Was offen war und wie es entschieden wurde
+
+- **Spurlänge im Player: Frames oder Tickspanne?** → Tickspanne. Bei
+  wechselndem `--view-every` bedeutet dieselbe Framezahl zwei verschiedene
+  Dinge, dieselbe Tickzahl nicht.
+- **Wo beginnt ein Umwegfaktor?** → Ein `goal`-Ereignis öffnet ein neues
+  Segment, `moveStop` und `death` schliessen es. Ein Ziel, das mitten im Lauf
+  umspringt, ist ein neues Segment und kein Umweg — sonst misst die Spalte
+  Zielwechsel statt Wegqualität.
+- **Wogegen wird die Luftlinie gemessen?** → Gegen den **tatsächlichen
+  Endpunkt** des Segments, nicht gegen die Zielzelle. Gegen die Zielzelle fällt
+  der Wert bei jeder normalen Ankunft unter 100 %, weil eine Einheit innerhalb
+  ihrer Ankunftstoleranz stehenbleibt — ein „Umweg" von 91 % ist Unsinn, der
+  sich wie ein Befund liest. Zwischen zwei Punkten, die die Einheit wirklich
+  besucht hat, kann das Verhältnis nie unter 100 fallen; ein Test hält das fest.
+
+## 5 · Was hier offen bleibt
+
+- **Im laufenden Spiel gesehen wurde davon nichts.** Es ist ein
+  Laborwerkzeug — die Spur zeigt, was die Simulation gerechnet hat, nicht, wie
+  es sich im DMG anfühlt.
+- Die Schadensquelle bleibt hergeleitet, solange kein Hook im Spiel existiert
+  (`notes/schadensquelle.md`). Bei grösseren Gefechten wird sie unschärfer: bei
+  3000 Ticks 92 % eindeutig, bei 6000 Ticks 84 %.
+- `stuck` steht auf einer Schwelle von 20 Ticks. Die Zahl ist begründet, aber
+  nicht gemessen — ob sie das echte Blockieren trifft, zeigt erst der Vergleich
+  zweier Bewegungsstände.
