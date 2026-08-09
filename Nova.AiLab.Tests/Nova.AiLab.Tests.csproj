@@ -27,14 +27,33 @@
     <Compile Include="$(NovaScripts)\AI\**\*.cs" Link="AI\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="$(NovaScripts)\AI.Data\**\*.cs" Link="AI.Data\%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- The lab under test, folder by folder (Match/, Metrics/, View/, Sweep/,
-         Duel/, Movement/, Compare/). Three exclusions, all load-bearing:
+         Duel/, Movement/, Compare/, Cli/). Two exclusions, both load-bearing:
          Program.cs is the entry point and would collide with the test host,
-         Cli/ is argument plumbing around that same entry point, and obj/ holds
-         generated AssemblyInfo.cs — pulling it in fails the build with
-         duplicate assembly attributes (CS0579). -->
+         and obj/ holds generated AssemblyInfo.cs — pulling it in fails the
+         build with duplicate assembly attributes (CS0579).
+
+         Cli/ USED TO BE EXCLUDED as "argument plumbing around that same entry
+         point". Only Program.cs is that; Options.cs is the rule about which
+         flag a mode may carry and what values it accepts, which is ordinary
+         logic and was the one part of the lab with no test at all. It is
+         internal, and compiling it into this assembly is what makes it
+         reachable from a test without opening it up to the world. -->
     <Compile Include="..\Nova.AiLab\**\*.cs"
-             Exclude="..\Nova.AiLab\bin\**\*.cs;..\Nova.AiLab\obj\**\*.cs;..\Nova.AiLab\Program.cs;..\Nova.AiLab\Cli\**\*.cs"
+             Exclude="..\Nova.AiLab\bin\**\*.cs;..\Nova.AiLab\obj\**\*.cs;..\Nova.AiLab\Program.cs"
              Link="AiLab\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- THE SAME EMBEDDED PAGES THE LAB CARRIES, AND NOT OPTIONAL.
+       This project compiles the lab's SOURCES rather than referencing its
+       assembly, so `typeof(HtmlPlayer).Assembly` resolves to THIS assembly
+       when a test runs. Without these two items the resource lookup finds
+       nothing and every test that writes a run's artifacts fails at run time
+       — the LogicalName has to match Nova.AiLab.csproj exactly. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Nova.AiLab\View\Player.template.html"
+                      LogicalName="Nova.AiLab.View.Player.template.html" />
+    <EmbeddedResource Include="..\Nova.AiLab\Compare\Report.head.html"
+                      LogicalName="Nova.AiLab.Compare.Report.head.html" />
   </ItemGroup>
 
   <ItemGroup>
