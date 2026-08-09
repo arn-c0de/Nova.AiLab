@@ -3,6 +3,18 @@
 > **Setzt Stufe 3 voraus** — ein Rückzug braucht einen Ort, zu dem er zurückläuft,
 > und das ist der Sammelpunkt von dort.
 
+> [!NOTE]
+> **Der Diff hier ist KUMULATIV.** GitHub vergleicht gegen `main`, also
+> zeigt er auch die vorigen Stufen mit. Zu **dieser** Stufe gehören nur
+> diese Commits (351 Zeilen in 8 Dateien):
+>
+> - `f7cfed1 feat(ai): wounded units disengage instead of dying in place`
+> - `1fd49d4 docs(changelog): Eintrag zum Rueckzug`
+>
+> Der saubere Diff ist `feat/ai-attack-waves...` gegen diesen Branch. Am einfachsten
+> von unten nach oben lesen: erst die vorige Stufe mergen, dann zeigt
+> GitHub hier von selbst nur noch das Neue.
+
 ## Was der Spieler bisher sah
 
 Man schiesst auf die KI, und sie merkt es nicht. Angeschlagene Einheiten kämpfen
@@ -83,8 +95,19 @@ Reichweite läuft näher an ihr eigenes HQ heran, als sie steht.
 
 ## Im laufenden Spiel gesehen
 
-**Nicht geprüft.** Was man sehen müsste: drehen angeschlagene Einheiten sichtbar
-ab, und sieht das nach Absicht aus oder nach Fehler.
+**Gespielt und bestätigt, in beiden Hälften.** Wörtlich: *„Angeschlagene drehen
+um und gehen in nächster Gruppe wieder mit los auf Angriff."*
+
+Die zweite Hälfte ist die, an der die Konstruktion hing. Ohne Heilung war die
+Sorge, dass Verwundete zu Hause versauern und die Armeeobergrenze belegen — genau
+dafür läuft die Dämpfung über Gefahr und Entfernung statt über Leben. Sie tun es
+nicht, sie ziehen mit der nächsten Welle wieder los. **Das lässt sich im Labor
+nicht sehen**, nur im Spiel.
+
+Kein Fall, in dem etwas kaputt aussah. Das Ködern mit einer einzelnen Einheit
+ist weiterhin ungemessen und ungesehen — es wurde nicht gezielt versucht.
+
+Gespielt wurde der Stand mit allen fünf Stufen, nicht diese allein.
 
 ## Checkliste
 
@@ -94,4 +117,4 @@ ab, und sieht das nach Absicht aus oder nach Fehler.
 
 ## Externe Beiträge
 
-- [ ] I agree to the Contributor License Agreement
+- [x] I agree to the Contributor License Agreement

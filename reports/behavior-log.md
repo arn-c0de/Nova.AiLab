@@ -35,6 +35,70 @@ beginnt.** Der Zweck ist nicht Buchhaltung, sondern zweierlei:
 
 ---
 
+## B002 · 2026-08-09 · **Gespielte Beobachtung** — Wellen und Rückzug bestätigt, Zielwahl nicht
+
+**Quelle:** Partie am Rechner, kein Laborlauf · **KI-Verhalten:** `r4.779A1B5B` ·
+**Stand:** `integration/ai-strang`, alle fünf Stufen zusammen
+
+> [!IMPORTANT]
+> Die zweite Eintragsart, die im Sinne des Repos etwas *beweist*. Alles mit `V`
+> davor ist Diagnose. Hier steht, was ein Mensch gesehen hat — und was er
+> **nicht** gesehen hat, was genauso zählt.
+
+Vier Beobachtungen, wörtlich und dann eingeordnet:
+
+**1. „Kam in Welle."**
+Bestätigt die Regel aus [V004](#v004--2026-08-09-wellen--angenommen-und-zwar-erst-in-der-fünften-fassung) an der Stelle, an der sie
+gebaut wurde: nicht als Laborkurve, sondern als das, was man sieht. Das
+Förderband aus NEXT-STEPS §1 ist im Spiel weg.
+
+**2. „Angeschlagene drehen um und gehen in nächster Gruppe wieder mit los auf
+Angriff."**
+Das ist der Rückzug aus [V005](#v005--2026-08-09-rückzug--angenommen-ohne-die-hysterese-die-der-plan-wollte) **vollständig** bestätigt — und
+zwar in beiden Hälften. Die zweite ist die, an der die Konstruktion hing: Ohne
+Heilung war die Sorge, dass Verwundete zu Hause versauern und die Armeeobergrenze
+belegen. Sie tun es nicht, sie ziehen mit der nächsten Welle wieder los. Genau
+dafür wurde die Hysterese über Gefahr statt über Leben gebaut, und genau das
+lässt sich im Labor nicht sehen.
+
+**3. „Zielwahl nicht eindeutig erkennbar bis dato."**
+**Die Zielwahl nach Score ist im Spiel NICHT bestätigt.** Sie ist im Labor
+deutlich messbar (V001: Entscheidung 33 % früher, beide Seiten verlieren
+weniger) und mit einem Test festgenagelt, der die alte Regel reisst — aber ein
+Zuschauer sieht sie nicht. Das ist kein Widerspruch und kein Defekt: Wer welches
+Ziel beschiesst, ist in einer Schlacht mit zwölf Einheiten mit blossem Auge kaum
+auseinanderzuhalten. Es heisst nur, dass diese Regel **weiterhin nur gemessen
+und nicht gesehen** ist, und so gehört sie in den PR-Text.
+
+**4. „Momentan sieht alles sehr gut aus für das aktuell gewünschte Verhalten."**
+Kein Fall, in dem etwas kaputt aussah — kein Hängenbleiben, kein sinnloses
+Zurücklaufen, kein zu langes Warten. Das ist die Antwort auf die Frage nach dem
+Gegenbeispiel, und sie ist diesmal leer. Aufgeschrieben, damit sie nicht später
+als „wurde nicht gefragt" gelesen wird.
+
+### Was daraus folgt
+
+- **Die Wellenregel bekommt ihre Fortsetzung, und sie steht schon fest:**
+  *„Automatischer Wechsel zu Tröpfeln, wenn die Armee bereits auf dem Angriffsweg
+  ist, als Unterstützung."* Damit ist die Absicht aus V004 („kein Endzustand,
+  die KI soll situationsabhängig entscheiden") vom Spieler selbst konkretisiert
+  worden — und zwar auf genau die Lage, die im Labor am schwersten zu messen
+  ist: Nachschub, während die Welle schon kämpft. Das ist der nächste Punkt für
+  NEXT-STEPS.
+- **Die Zielwahl braucht eine andere Art von Nachweis als das Auge.** Wenn sie
+  im Spiel nicht sichtbar ist, ist die Frage, ob ein Spieler sie überhaupt
+  merken *soll* — oder ob sie eine reine Effizienzregel bleibt, die man nur an
+  den Zahlen sieht. Offen.
+
+### Einschränkung, die zum Eintrag gehört
+
+Gespielt wurde der **Integrationsstand mit allen fünf Stufen**, nicht jede Stufe
+einzeln. Beobachtung 1 und 2 sind damit den jeweiligen Regeln zuzuordnen, weil
+sie ohne sie gar nicht auftreten könnten; eine Aussage darüber, wie sich Stufe 3
+**ohne** Stufe 4 anfühlt, ist damit nicht getroffen.
+
+---
+
 ## V006 · 2026-08-09 · **Nachmessung auf der neuen Basis** — beide Regeln halten, eine Annahme nicht
 
 **Lauf:** [`runs/20260809-0933-9c2817fe.md`](runs/20260809-0933-9c2817fe.md) ·
