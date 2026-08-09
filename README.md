@@ -95,6 +95,10 @@ dotnet run --project Nova.AiLab -c Release -- match --watch
 # — dort eine Einheit anklicken und ihre Laufroute, Angriffe und ihren Tod verfolgen
 dotnet run --project Nova.AiLab -c Release -- match --view-every 25 --fog --out out/run1
 
+# dasselbe ohne Kommandozeile: Branch wählen, messen, Player öffnen, zwei Läufe
+# nebeneinanderlegen, Historie durchsehen — alles in einer lokalen Seite
+./lab-gui.sh
+
 # Seed-Matrix über alle Kerne, jeder 20. Lauf doppelt zur Selbstkontrolle
 dotnet run --project Nova.AiLab -c Release -- sweep --seeds 24 --out out/sweep
 
@@ -227,6 +231,9 @@ ohne etwas dafür zu bekommen.)
 |---|---|
 | `Program.cs` | nur `Main` und die Modus-Weiche — rund 50 Zeilen, sonst nichts |
 | `lab.sh` | messen und berichten in einem Kommando; `--reports-only`, `--regenerate` |
+| `lab-gui.sh` | die Steuerseite: Branch wählen, messen, Player öffnen, Historie ansehen, zwei Läufe nebeneinanderlegen — alles im Browser. `--port`, `--repo`, `--no-browser` |
+| `report/gui_server.py` | die kleinstmögliche Gegenstelle dazu: nur Standardbibliothek, nur an `127.0.0.1`. Ein fremder Branch wird **nie** im Arbeitscheckout ausgecheckt, sondern in einem `git worktree` unter `.worktrees/` gemessen |
+| `report/gui.tpl.html` | die Seite dazu, in derselben Machart wie die anderen: eine Datei, kein Build, kein Netzzugriff |
 | `report/lab_data.py` | liest die Artefakte aller vier Laufarten und verdichtet sie zu **einem** Datenblock — die gemeinsame Quelle beider Berichtsformen, dazu Herkunft und Fingerabdruck eines Laufs |
 | `report/build_dashboard.py` | bettet diesen Block in die Seite `out/dashboard.html` — Kurven, Gegentabelle als Heatmap, Belagerung, Bewegung. Verdichtet nur, rechnet nichts dazu und vergibt keine Note |
 | `report/dashboard.tpl.html` | die Seite dazu: eine Datei, kein Build, kein Server, kein Netzzugriff |
