@@ -238,8 +238,8 @@ namespace Nova.AiLab
                 // Against a building the attacker still walks all the way in:
                 // the target does not move.
                 int meetX = spec.SiegeEchelon ? xB : (xA + xB) / 2;
-                result.RejectedOrders += Order(host, 0, unitsA, meetX, centreY);
-                if (!spec.SiegeEchelon) result.RejectedOrders += Order(host, 1, unitsB, meetX, centreY);
+                result.RejectedOrders += MoveOrders.Submit(host, 0, unitsA, meetX, centreY);
+                if (!spec.SiegeEchelon) result.RejectedOrders += MoveOrders.Submit(host, 1, unitsB, meetX, centreY);
             }
 
             CountSide(host, 0, out _, out result.StartHealthA);
@@ -332,44 +332,6 @@ namespace Nova.AiLab
             bool placed = host.Construction.PlaceCompletedBuilding(slot, def.DefinitionId, x, centreY).IsValid;
             spent = placed ? def.CostAE : 0;
             return placed ? 1 : 0;
-        }
-
-        /// <summary>
-        /// Issues the move order and returns how many intents the HOST intake
-        /// refused.
-        /// <para>
-        /// The verdict cannot come from <c>TrySubmitIntent</c>: at a peer
-        /// ingress that returns the SUBMISSION result, which is Accepted no
-        /// matter what the host made of the record. Only the transport sees the
-        /// intake verdict, so the count is a delta on the counting transport
-        /// around the submissions. The previous version declared a local
-        /// counter, never incremented it and returned zero — a refusal would
-        /// have left both sides standing still and the row would have read as a
-        /// stalemate finding instead of a broken setup.
-        /// </para>
-        /// </summary>
-        private static int Order(MultiSlotAiHost host, byte slot, List<uint> raws, int targetX, int targetY)
-        {
-            if (raws.Count == 0) return 0;
-            SlotPeer peer = host.PeerOf(slot);
-            if (peer == null) return 0;
-
-            int before = peer.IntentCounter?.Rejected ?? 0;
-
-            // Chunked to the command contract's per-payload entity limit; the
-            // sorted order keeps the split deterministic.
-            const int chunk = CommandLimits.MaxEntityIdsPerCommand;
-            for (int start = 0; start < raws.Count; start += chunk)
-            {
-                int length = Math.Min(chunk, raws.Count - start);
-                var ids = new uint[length];
-                raws.CopyTo(start, ids, 0, length);
-                peer.Ingress.TrySubmitIntent(
-                    CommandIntent.Create(new MovePayload(ids, SimFixed.FromInt(targetX), SimFixed.FromInt(targetY))),
-                    out _);
-            }
-
-            return (peer.IntentCounter?.Rejected ?? 0) - before;
         }
 
         /// <summary>

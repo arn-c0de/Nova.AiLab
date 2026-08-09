@@ -651,22 +651,19 @@ namespace Nova.AiLab
             }
         }
 
-        private static void Order(MultiSlotAiHost host, byte slot, List<uint> raws, int targetX, int targetY)
-        {
-            SlotPeer peer = host.PeerOf(slot);
-            if (peer == null || raws.Count == 0) return;
-
-            const int chunk = CommandLimits.MaxEntityIdsPerCommand;
-            for (int start = 0; start < raws.Count; start += chunk)
-            {
-                int length = Math.Min(chunk, raws.Count - start);
-                var ids = new uint[length];
-                raws.CopyTo(start, ids, 0, length);
-                peer.Ingress.TrySubmitIntent(
-                    CommandIntent.Create(new MovePayload(ids, SimFixed.FromInt(targetX), SimFixed.FromInt(targetY))),
-                    out _);
-            }
-        }
+        /// <summary>
+        /// The scenario's move order, through <see cref="MoveOrders"/> like the
+        /// arena's.
+        /// <para>
+        /// The refusal count it returns is deliberately dropped here:
+        /// <see cref="Run"/> reads <c>RejectedOrders</c> off the counting
+        /// transports once at the end, which catches every refusal in the run
+        /// and not only the ones this method caused. A per-call sum beside it
+        /// would count the same refusals twice.
+        /// </para>
+        /// </summary>
+        private static void Order(MultiSlotAiHost host, byte slot, List<uint> raws, int targetX, int targetY) =>
+            MoveOrders.Submit(host, slot, raws, targetX, targetY);
 
         private static bool TryReadUnit(MultiSlotAiHost host, uint raw, out UnitState unit)
         {
