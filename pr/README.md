@@ -38,7 +38,7 @@ Der Einheitenstrang oben ist gemergt. Was darauf folgt, steht in
 
 | # | Branch | Verhalten | Stand |
 |---|---|---|---|
-| 6 | `feat/ai-strength-wave-gate` | `r5` → `r6` — die Welle **kann** auf Kampfstärke messen statt auf Kopfzahl. Bei Obergrenze 12 nachweislich verhaltensneutral: eine Entkopplung, keine Verbesserung | [`6-staerketor.md`](6-staerketor.md) · **649/649 grün, im Fork gepusht (`308d8cf`), PR noch nicht offen** |
+| 6 | `feat/ai-strength-wave-gate-de` | `r5` → `r6` — die Welle **kann** auf Kampfstärke messen statt auf Kopfzahl. Bei Obergrenze 12 nachweislich verhaltensneutral: eine Entkopplung, keine Verbesserung | [`6-staerketor.md`](6-staerketor.md) · **649/649 grün, PR noch nicht offen** |
 | 7 | `feat/ai-abort-on-threat` | **neu und vorgezogen:** die Welle bricht das Sammeln ab, wenn die eigene Basis angegriffen wird. Grund ist eine Beobachtung am Player (B003), nicht ein Plan-Punkt | offen |
 | 8 | `fix/ai-army-cap` | Armeeobergrenze — **erst nach 7**, weil sie die Aussetzzeit am Sammelpunkt verdreifacht (B003). Und sie liegt in `MatchRunner`, also in fremdem Terrain: eine Rückfrage, kein PR | offen — Journal V007 |
 | 8 | `feat/ai-reinforce-doctrine` | nachschicken, solange die Welle intakt ist; sammeln, wenn sie gebrochen ist | offen |

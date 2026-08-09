@@ -1,12 +1,35 @@
-# PR-Beschreibung — `feat/ai-strength-wave-gate`
+# PR-Beschreibung — `feat/ai-strength-wave-gate-de`
 
 > **Diese Datei ist der PR-Text zum Einfügen, 1:1.** Sie folgt der Vorlage des
 > Repos; alles unterhalb der Checkliste ist eingeklappt, damit der PR kurz
 > bleibt und die Belege trotzdem dranhängen.
 >
-> **Vom FORK** `arn-c0de/Project_Nova` (`feat/ai-strength-wave-gate`, `308d8cf`)
-> **ins HAUPTREPO** `VibecodingGermany/HashKrieg` → `main`.
+> **Vom FORK** `arn-c0de/Project_Nova` (`feat/ai-strength-wave-gate-de`,
+> `9079c7d`) **ins HAUPTREPO** `VibecodingGermany/HashKrieg` → `main`.
 > Bezeichner `r5.779A1B5B` → `r6.E34435F9`.
+
+## Titel des PR
+
+```
+KI: Die Welle misst Kampfstärke statt Kopfzahl (r6)
+```
+
+> [!IMPORTANT]
+> **Die Beschreibung muss ersetzt werden.** GitHub füllt sie beim Öffnen mit
+> dem Rumpf der Commit-Nachricht vor; der ist zwar deutsch, folgt aber nicht der
+> PR-Vorlage. Alles ab „Was & Warum" hier einsetzen. Der Titel oben ist kürzer
+> als die Commit-Zeile und passt besser in eine PR-Liste.
+
+> [!NOTE]
+> **Warum die Commit-Nachricht deutsch ist, obwohl `CLAUDE.md` §6 Englisch
+> vorsieht.** §6 teilt die Sprachen auf — Deutsch für Projektinhalte und
+> PR-Texte, Englisch für Code, Identifier, Pfade und Commit-Messages. Hier ist
+> das auf ausdrückliche Entscheidung des Beitragenden anders. Der Branchname
+> bleibt englisch, weil er ein Identifier ist.
+>
+> Der ältere Branch `feat/ai-strength-wave-gate` (`308d8cf`) liegt mit
+> englischer Nachricht noch im Fork und trägt **denselben Baum, byteweise**.
+> Er ist gegenstandslos, sobald dieser hier verwendet wird.
 
 ---
 
