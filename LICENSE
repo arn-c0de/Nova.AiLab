@@ -20,6 +20,13 @@ Insbesondere nicht: Vervielfältigung, Verbreitung, öffentliche Zugänglichmach
 Unterlizenzierung, Verwertung, Bearbeitung oder das Erstellen abgeleiteter Werke.
 Die Einsichtnahme in den Quelltext begründet für sich genommen kein Nutzungsrecht.
 
+Unberührt bleiben die Rechte, die andere GitHub-Nutzer nach den
+[GitHub-Nutzungsbedingungen](https://docs.github.com/site-policy/github-terms/github-terms-of-service)
+an einem öffentlichen Repository erwerben — Ansehen und Forken innerhalb von
+GitHub. Dieses Repository ist absichtlich öffentlich: Wer die Messungen liest,
+soll das Werkzeug daneben legen können. Öffentlich einsehbar heisst aber nicht
+gemeinfrei; ausserhalb von GitHub gilt der vorstehende Absatz unverändert.
+
 ## 2. Nutzungserlaubnis für Project Nova
 
 Dem Project Owner von `VibecodingGermany/Project_Nova` (Dennis Westermann) sowie
@@ -83,3 +90,4 @@ erlaubte Nutzungen.
 | Version | Datum | Änderung |
 |---|---|---|
 | 1.0.0 | 2026-08-09 | Erstfassung: Rechte am Labor bei arn-c0de, Nutzungserlaubnis für Project Nova, Abgrenzung zu eingereichten Beiträgen |
+| 1.0.1 | 2026-08-09 | §1 klargestellt: die GitHub-Rechte an einem öffentlichen Repository bleiben unberührt |
