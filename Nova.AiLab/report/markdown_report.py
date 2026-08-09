@@ -41,12 +41,27 @@ python3 tools/Nova.AiLab/report/build_reports.py tools/Nova.AiLab/out
 # Endwerte stehen ohnehin exakt in der Kennzahlentabelle darueber.
 CHART_POINTS = 48
 
+# VictorySystem.NoWinnerSlot. Ein Unentschieden traegt 255, nicht -1: das Feld
+# ist ein Byte und kann gar nicht negativ werden. Eine Pruefung auf `>= 0` ist
+# deshalb immer wahr, und `slots[255]` gibt es nicht — genau daran ist die
+# Berichtserzeugung bei jeder unentschiedenen Partie abgebrochen.
+NO_WINNER_SLOT = 0xFF
+
 
 # ── Kleinkram ────────────────────────────────────────────────────────────────
 
 def fmt(value):
     """Tausenderpunkt wie im Dashboard. Ganzzahlen bleiben Ganzzahlen."""
     return f'{value:,}'.replace(',', '.') if isinstance(value, int) else str(value)
+
+
+def has_winner(slot, slot_count=None):
+    """Ob `winnerSlot` einen Sieger benennt. Ein Unentschieden traegt
+    `NO_WINNER_SLOT`; `slot_count` faengt zusaetzlich einen Wert ab, der auf
+    keinen Slot dieses Laufs zeigt."""
+    if slot is None or slot == NO_WINNER_SLOT:
+        return False
+    return slot_count is None or 0 <= slot < slot_count
 
 
 def row(cells):
@@ -115,7 +130,11 @@ def _match_section(record):
     trace = record['match']['trace']
     slots, ticks = trace['slots'], trace['ticks']
     names = [f"Slot {s['slot']} · {s['faction']}" for s in result['slots']]
-    ticks_per_second = round(result['finalTick'] / result['elapsedMilliseconds'] * 1000)
+    elapsed = result['elapsedMilliseconds']
+    # Ein Lauf unter einer Millisekunde ist keine Division wert; die Rechenzeit
+    # steht daneben und sagt dasselbe ehrlicher als eine erfundene Rate.
+    ticks_per_second = round(result['finalTick'] / elapsed * 1000) if elapsed > 0 else None
+    winner = result['winnerSlot']
 
     out = ['## Laufart 1 · `match` — die Partie: KI gegen KI', '',
            'Eine kanonische Partie über beide Slots, Metriken alle '
@@ -123,12 +142,12 @@ def _match_section(record):
            'Trace liefert dieselbe Hash-Kette.', '',
            table(['Kennzahl', 'Wert', 'Kontext'], [
                ['Ausgang', result['outcome'],
-                f"Slot {result['winnerSlot']} · {result['slots'][result['winnerSlot']]['faction']}"
-                if result['winnerSlot'] >= 0 else 'kein Sieger'],
+                f"Slot {winner} · {result['slots'][winner]['faction']}"
+                if has_winner(winner, len(result['slots'])) else 'kein Sieger'],
                ['Entschieden bei Tick', fmt(result['decidedTick']),
                 f"von {fmt(result['tickBudget'])} Budget"],
-               ['Rechenzeit', f"{fmt(result['elapsedMilliseconds'])} ms",
-                f'{fmt(ticks_per_second)} Ticks/s'],
+               ['Rechenzeit', f"{fmt(elapsed)} ms",
+                f'{fmt(ticks_per_second)} Ticks/s' if ticks_per_second is not None else 'unter 1 ms'],
                ['Metrikproben', fmt(result['traceSamples']),
                 f"alle {result['traceIntervalTicks']} Ticks"],
                ['Hash-Kette', fmt(result['hashChainEntries']),
@@ -216,6 +235,25 @@ def _compare_section(record):
     ])
 
 
+def budget_cell(duel):
+    """Das AE-Budget ist PRO PAARUNG bemessen (`DuelArena.DeriveBudget`): es
+    sizt so, dass die teure Seite `unitsPerSide` Einheiten stellt. Eine einzelne
+    Zahl waere die einer beliebigen Paarung — und genau so stand sie hier
+    frueher, als "Budget je Seite" ueber der ganzen Tabelle.
+
+    Aeltere Messbloecke (Schema 1) tragen nur diese eine Zahl. Sie wird als
+    genau das ausgewiesen, statt sie zu einer Spanne aufzublasen, die nie
+    gemessen wurde."""
+    span = duel.get('budgetRange')
+    if not span:
+        legacy = duel.get('budget')
+        return f'{fmt(legacy)} AE (eine Paarung)' if legacy is not None else '—'
+    low, high = span
+    if low == high:
+        return f'{fmt(low)} AE'
+    return f'{fmt(low)}–{fmt(high)} AE ({duel.get("budgetValues", "?")} Werte)'
+
+
 def _duel_section(record):
     duel = record['duel']
     units = duel['units']
@@ -256,10 +294,14 @@ def _duel_section(record):
         table(['Zeile gewinnt ↓ / Spalte →'] + units, rows, 'l' + 'r' * len(units)), '',
         '`·` — in keinem Abstand Kontakt · `⚠` — kein Kontakt in mindestens einem Abstand', '',
         table(['Duelle', 'entschieden', 'ins Tickbudget', 'ohne Kontakt', 'wackelnde Parität',
-               'Budget je Seite'],
+               'AE-Budget je Paarung'],
               [[fmt(counts['total']), fmt(counts['decided']), fmt(counts['timeout']),
-                fmt(counts['noContact']), fmt(counts['wobble']), f"{fmt(duel['budget'])} AE"]],
+                fmt(counts['noContact']), fmt(counts['wobble']), budget_cell(duel)]],
               'rrrrrr'), '',
+        '**Das Budget gilt je Paarung, nicht für die Tabelle.** Es ist so bemessen, dass die '
+        'teurere Seite die eingestellte Stückzahl aufstellt — die billigere stellt, was dieselben '
+        'AE kaufen. Ein globales Budget wäre falsch: bei 10.000 AE stellte eine billige Paarung '
+        '83 Einheiten je Seite und maß damit Formation und Pathfinding, nicht die Waffe.', '',
         f"**{fmt(counts['noContact'])} Duelle ohne einen einzigen Schuss.** Wo die Waffenreichweite "
         'über der Sichtweite liegt, kann sie ohne Aufklärung nicht benutzt werden — `CombatSystem` '
         'verlangt das Ziel als sichtbar in der committed Team-Sicht. Das ist ein Balance-Befund, '
@@ -459,7 +501,7 @@ def index_markdown(summaries):
             f"[`{s['id']}`](runs/{s['id']}.md)",
             s['timestamp'][:16].replace('T', ' '),
             f"`{s['commitShort']}`{marker}",
-            f"Slot {s['winnerSlot']}" if s['winnerSlot'] >= 0 else '—',
+            f"Slot {s['winnerSlot']}" if has_winner(s['winnerSlot']) else 'unentschieden',
             fmt(s['decidedTick']),
             f"{s['duelDecided']}/{s['duelTotal']}",
             fmt(s['duelNoContact']),
@@ -503,7 +545,8 @@ def index_markdown(summaries):
                 ['KI-Verhalten', f"`{newest.get('aiBehaviorId') or '—'}`"],
                 ['Partie entschieden bei Tick',
                  f"{fmt(newest['decidedTick'])} — Slot {newest['winnerSlot']}"
-                 if newest['winnerSlot'] >= 0 else fmt(newest['decidedTick'])],
+                 if has_winner(newest['winnerSlot'])
+                 else f"{fmt(newest['decidedTick'])} — unentschieden"],
                 ['Duelle entschieden', f"{fmt(newest['duelDecided'])} von "
                                        f"{fmt(newest['duelTotal'])}, "
                                        f"{fmt(newest['duelNoContact'])} ohne Kontakt"],

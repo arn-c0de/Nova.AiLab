@@ -40,15 +40,21 @@ namespace Nova.AiLab
             Console.WriteLine($"{set.Candidates.Count} candidates in {watch.ElapsedMilliseconds} ms");
 
             // An archived set is only comparable when its provenance matches.
-            // The refusal is the product here, not an error path.
+            // The refusal is the product here, not an error path — but so is
+            // the comparison when it IS allowed: a cleared archive goes into
+            // the report and shows its numbers beside the new ones. Loading it,
+            // clearing it and then building the report without it produced a
+            // yes/no verdict where the caller asked for a comparison.
             string refusal = null;
+            ResultSet archived = null;
             if (options.AgainstFile != null)
             {
-                ResultSet archived = ResultSetFile.Load(options.AgainstFile);
+                archived = ResultSetFile.Load(options.AgainstFile);
                 refusal = set.WhyNotComparableWith(archived);
                 Console.WriteLine(refusal == null
-                    ? $"archived set {options.AgainstFile} is comparable"
+                    ? $"archived set {options.AgainstFile} is comparable — its numbers are in the report"
                     : $"COMPARISON REFUSED against {options.AgainstFile}: {refusal}");
+                if (refusal != null) archived = null;
             }
 
             if (options.OutputDirectory != null)
@@ -58,7 +64,7 @@ namespace Nova.AiLab
                 File.WriteAllText(
                     Path.Combine(options.OutputDirectory, ComparisonReport.FileName),
                     refusal == null
-                        ? ComparisonReport.Build(set, referenceId)
+                        ? ComparisonReport.Build(set, referenceId, archived)
                         : ComparisonReport.BuildRefusal(refusal, set));
 
                 foreach (CandidateResult c in set.Candidates)

@@ -26,7 +26,11 @@ TRACE_KEYS = [
 # Version des archivierten Datenblocks. Wird sie erhoeht, muessen die
 # historischen Berichte neu gerendert werden — genau dafuer liegt neben jedem
 # Bericht sein Datenblock (`build_reports.py --regenerate`).
-REPORT_SCHEMA_VERSION = 1
+#
+# 2 — `duel.budget` (eine Zahl) wurde zu `duel.budgetRange` (Spanne ueber alle
+#     Paarungen). Die eine Zahl war die einer beliebigen Paarung und stand als
+#     "Budget je Seite" ueber der ganzen Tabelle.
+REPORT_SCHEMA_VERSION = 2
 
 
 def read_ndjson(path):
@@ -87,10 +91,18 @@ def collect_duels(root):
         'winner': d['winner'],
     } for d in duels if d['siege']]
 
+    # DAS BUDGET IST PRO PAARUNG BEMESSEN, nicht global (DuelArena.DeriveBudget:
+    # es sizt so, dass die TEURE Seite `unitsPerSide` Einheiten stellt). Hier
+    # stand frueher `duels[0]['budgetAE']` — die Zahl einer beliebigen Paarung,
+    # ueber der ganzen Tabelle als "Budget je Seite" ausgewiesen. Bei einem
+    # echten Lauf sind das zwoelf verschiedene Werte und gedruckt wurde einer.
+    budgets = sorted({d['budgetAE'] for d in duels})
+
     table = {
         'units': units,
         'cells': [dict(a=a, b=b, **v) for (a, b), v in cells.items()],
-        'budget': duels[0]['budgetAE'],
+        'budgetRange': [budgets[0], budgets[-1]],
+        'budgetValues': len(budgets),
         'counts': {
             'total': len(duels),
             'decided': sum(1 for d in duels if d['decided']),

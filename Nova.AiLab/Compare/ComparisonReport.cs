@@ -32,13 +32,21 @@ namespace Nova.AiLab
     {
         public const string FileName = "report.html";
 
-        public static string Build(ResultSet set, string referenceProfileId)
+        /// <summary>
+        /// <paramref name="archived"/> is the set <c>--against</c> named, and
+        /// only ever a set that <see cref="ResultSet.WhyNotComparableWith"/>
+        /// already cleared. Its values appear as a second, smaller number in
+        /// every cell.
+        /// <para>
+        /// It used to be loaded, checked and then thrown away: the report was
+        /// built from the new set alone, so a comparison the caller explicitly
+        /// asked for produced a yes/no verdict and no comparison. An archive
+        /// that is only allowed to say "comparable" is not being compared.
+        /// </para>
+        /// </summary>
+        public static string Build(ResultSet set, string referenceProfileId, ResultSet archived = null)
         {
-            CandidateResult reference = null;
-            foreach (CandidateResult c in set.Candidates)
-            {
-                if (string.Equals(c.ProfileId, referenceProfileId, StringComparison.Ordinal)) reference = c;
-            }
+            CandidateResult reference = Find(set, referenceProfileId);
 
             var html = new StringBuilder(16 * 1024);
             html.Append(HeadAndStyle);
@@ -53,6 +61,16 @@ namespace Nova.AiLab
                 .Append("<div class=\"warn\">DIAGNOSIS, never proof — nothing here was seen in the running game. ")
                 .Append("There is no ranking on purpose: read the columns, then look at the run.</div>")
                 .Append("</header>\n");
+
+            if (archived != null)
+            {
+                html.Append("<div class=\"note\">Every cell carries a second number: <span class=\"was\">was N</span> ")
+                    .Append("is what the archived set measured at commit ")
+                    .Append(Escape(Short(archived.Commit)))
+                    .Append(". The two are shown because their provenance matches — same spec version, ")
+                    .Append("same definition table, same seed list, same commit. Nothing is subtracted into ")
+                    .Append("a verdict; the archive is one more column, like every other.</div>\n");
+            }
 
             if (set.Seeds.Length > 1)
             {
@@ -72,6 +90,7 @@ namespace Nova.AiLab
             foreach (CandidateResult c in set.Candidates)
             {
                 bool isReference = ReferenceEquals(c, reference);
+                CandidateResult old = Find(archived, c.ProfileId);
                 html.Append(isReference ? "<tr class=\"ref\">" : "<tr>");
                 html.Append("<td class=\"name\">").Append(Escape(c.ProfileId))
                     .Append(isReference ? " <span class=\"tag\">reference</span>" : "").Append("</td>");
@@ -81,14 +100,14 @@ namespace Nova.AiLab
                         : Escape(string.Join(" · ", c.DifferencesFromReference)))
                     .Append("</td>");
 
-                Cell(html, c.WinPercent, reference?.WinPercent, isReference, suffix: "%");
+                Cell(html, c.WinPercent, reference?.WinPercent, isReference, old?.WinPercent, suffix: "%");
                 html.Append("<td>").Append(c.Wins).Append('/').Append(c.Losses).Append('/').Append(c.Draws).Append("</td>");
-                Cell(html, c.AverageDecidedTick, reference?.AverageDecidedTick, isReference);
-                Cell(html, c.AverageCredits, reference?.AverageCredits, isReference);
-                Cell(html, c.AverageArmySize, reference?.AverageArmySize, isReference);
-                Cell(html, c.AverageUnitsLost, reference?.AverageUnitsLost, isReference);
-                Cell(html, c.IntentsSubmittedSum, reference?.IntentsSubmittedSum, isReference);
-                Cell(html, c.IntentsRejectedSum, reference?.IntentsRejectedSum, isReference);
+                Cell(html, c.AverageDecidedTick, reference?.AverageDecidedTick, isReference, old?.AverageDecidedTick);
+                Cell(html, c.AverageCredits, reference?.AverageCredits, isReference, old?.AverageCredits);
+                Cell(html, c.AverageArmySize, reference?.AverageArmySize, isReference, old?.AverageArmySize);
+                Cell(html, c.AverageUnitsLost, reference?.AverageUnitsLost, isReference, old?.AverageUnitsLost);
+                Cell(html, c.IntentsSubmittedSum, reference?.IntentsSubmittedSum, isReference, old?.IntentsSubmittedSum);
+                Cell(html, c.IntentsRejectedSum, reference?.IntentsRejectedSum, isReference, old?.IntentsRejectedSum);
 
                 html.Append("<td>");
                 if (!string.IsNullOrEmpty(c.SampleRunDirectory))
@@ -127,17 +146,18 @@ namespace Nova.AiLab
             foreach (CandidateResult c in set.Candidates)
             {
                 bool isReference = ReferenceEquals(c, reference);
+                CandidateResult old = Find(archived, c.ProfileId);
                 html.Append(isReference ? "<tr class=\"ref\">" : "<tr>");
                 html.Append("<td class=\"name\">").Append(Escape(c.ProfileId))
                     .Append(isReference ? " <span class=\"tag\">reference</span>" : "").Append("</td>");
 
-                Cell(html, c.AverageExchangeRatio, reference?.AverageExchangeRatio, isReference);
-                Cell(html, c.AverageCombatIntervals, reference?.AverageCombatIntervals, isReference);
-                Cell(html, c.AverageLargestLossJump, reference?.AverageLargestLossJump, isReference);
-                Cell(html, c.AverageReactionLatency, reference?.AverageReactionLatency, isReference);
-                Cell(html, c.AverageUnansweredDamage, reference?.AverageUnansweredDamage, isReference);
-                Cell(html, c.AverageActionsPerMinute, reference?.AverageActionsPerMinute, isReference);
-                Cell(html, c.ReplayValue, reference?.ReplayValue, isReference);
+                Cell(html, c.AverageExchangeRatio, reference?.AverageExchangeRatio, isReference, old?.AverageExchangeRatio);
+                Cell(html, c.AverageCombatIntervals, reference?.AverageCombatIntervals, isReference, old?.AverageCombatIntervals);
+                Cell(html, c.AverageLargestLossJump, reference?.AverageLargestLossJump, isReference, old?.AverageLargestLossJump);
+                Cell(html, c.AverageReactionLatency, reference?.AverageReactionLatency, isReference, old?.AverageReactionLatency);
+                Cell(html, c.AverageUnansweredDamage, reference?.AverageUnansweredDamage, isReference, old?.AverageUnansweredDamage);
+                Cell(html, c.AverageActionsPerMinute, reference?.AverageActionsPerMinute, isReference, old?.AverageActionsPerMinute);
+                Cell(html, c.ReplayValue, reference?.ReplayValue, isReference, old?.ReplayValue);
 
                 html.Append("</tr>\n");
             }
@@ -177,8 +197,16 @@ namespace Nova.AiLab
             return html.ToString();
         }
 
-        /// <summary>A metric cell, coloured by how far it sits from the reference.</summary>
-        private static void Cell(StringBuilder html, long value, long? referenceValue, bool isReference, string suffix = "")
+        /// <summary>
+        /// A metric cell, coloured by how far it sits from the reference ROW,
+        /// and carrying what the archived set measured for the same candidate.
+        /// The two comparisons are different questions — "how does this
+        /// candidate differ from the reference" and "how did this candidate
+        /// move since it was last measured" — so the archive gets its own
+        /// unobtrusive number and never touches the colouring.
+        /// </summary>
+        private static void Cell(StringBuilder html, long value, long? referenceValue, bool isReference,
+            long? archivedValue = null, string suffix = "")
         {
             string cls = "";
             string delta = "";
@@ -200,7 +228,23 @@ namespace Nova.AiLab
             }
 
             html.Append("<td class=\"num ").Append(cls).Append("\">")
-                .Append(value).Append(suffix).Append(delta).Append("</td>");
+                .Append(value).Append(suffix).Append(delta);
+            if (archivedValue.HasValue && archivedValue.Value != value)
+            {
+                html.Append("<span class=\"was\">was ").Append(archivedValue.Value).Append(suffix).Append("</span>");
+            }
+            html.Append("</td>");
+        }
+
+        /// <summary>The candidate under this id, or null — also null for a null set.</summary>
+        private static CandidateResult Find(ResultSet set, string profileId)
+        {
+            if (set == null || profileId == null) return null;
+            foreach (CandidateResult c in set.Candidates)
+            {
+                if (string.Equals(c.ProfileId, profileId, StringComparison.Ordinal)) return c;
+            }
+            return null;
         }
 
         private static string Short(string commit) =>
@@ -261,6 +305,7 @@ namespace Nova.AiLab
   .name { color:#e6edf3; }
   .dim { color:#484f58; }
   td.num .d { color:#8b949e; font-size:10px; margin-left:5px; }
+  td.num .was, .was { color:#6e7681; font-size:10px; margin-left:5px; }
   td.small { color:#d29922; }
   td.big { color:#f85149; }
   .legend { margin-top:18px; color:#8b949e; font-size:12px; max-width:70ch; }
