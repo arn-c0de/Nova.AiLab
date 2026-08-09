@@ -45,6 +45,13 @@ NovaRepo=/pfad/zu/checkout ./lab.sh        # dasselbe über die Umgebung
 Ein zweiter Checkout (oder ein `git worktree`) ist der bequeme Weg, zwei
 Branches nebeneinander zu messen, ohne dauernd umzuschalten.
 
+**Wem was gehört:** Das Labor gehört mir ([`LICENSE`](LICENSE)) — der Maintainer
+und die Mitwirkenden von Project Nova dürfen es benutzen, um Branches zu
+vermessen, nur nicht weitergeben. Was ich am *Spiel* ändere und per Pull Request
+einreiche, richtet sich dagegen nach den Bedingungen des Hauptrepos, und zwar
+nur der eingereichte Diff. Beide Richtungen und ihre Grenze stehen in
+[`CONTRIBUTIONS.md`](CONTRIBUTIONS.md).
+
 **Was im Spiel-Repo bleibt:** die In-Game-Debughilfen, weil sie Spielcode sind
 — der Bezeichner im F3-Panel, das Aufdecken der Karte, der Zeitraffer. Die
 liegen weiterhin auf `lab/ai-simulation` und gehören in keinen `feat/`-Branch.
