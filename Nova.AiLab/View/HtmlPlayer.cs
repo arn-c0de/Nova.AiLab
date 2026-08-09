@@ -69,77 +69,94 @@ namespace Nova.AiLab
 <meta charset=""utf-8"">
 <title>Nova AI Lab — view player (seed __SEED__)</title>
 <style>
+  /* AN APP SHELL, NOT A DOCUMENT.
+     The page used to be a document that grew downwards: the map sat in the
+     flow, the panels underneath it, and the window scrolled. With a map that
+     is the whole point of opening the page that is exactly backwards — the
+     thing one looks at scrolled away while the panels stayed. Now the body is
+     the window: nothing scrolls except a panel's own contents, the map takes
+     the room that is left, and the side panel folds out of the way. */
   :root { color-scheme: dark; }
-  body { margin:0; background:#0d1117; color:#c9d1d9;
+  html, body { height:100%; }
+  body { margin:0; background:#0d1117; color:#c9d1d9; overflow:hidden;
+         display:flex; flex-direction:column;
          font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
-  header { padding:10px 14px; border-bottom:1px solid #21262d; }
-  h1 { font-size:14px; margin:0 0 2px; font-weight:600; }
+  header { padding:6px 12px; border-bottom:1px solid #21262d; flex:0 0 auto;
+           display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  h1 { font-size:13px; margin:0; font-weight:600; }
   .sub { color:#8b949e; font-size:12px; }
   .warn { color:#d29922; }
   .ok { color:#3fb950; }
   .derived { color:#d29922; font-style:italic; }
-  main { display:flex; gap:14px; padding:0 14px 14px; align-items:flex-start; }
-  canvas#map { background:#010409; border:1px solid #21262d; border-radius:4px;
-           image-rendering:pixelated; display:block; cursor:crosshair; }
+
+  .bar { display:flex; gap:6px; align-items:center; padding:6px 12px 4px; flex:0 0 auto; }
+  #bandWrap { padding:0 12px 6px; flex:0 0 auto; }
+  main { flex:1 1 auto; display:flex; gap:10px; padding:0 12px 10px; min-height:0; }
+
   /* flex-basis 0, not auto: with auto the column measures itself against the
      canvas inside it, the canvas is then sized from the column, and the two
      chase each other a pixel at a time on every redraw. */
-  .mapcol { flex:1 1 0; min-width:0; }
-  aside#side { display:flex; gap:14px; flex:0 0 auto; flex-wrap:wrap; }
-  .col { width:420px; max-width:100%; }
+  .mapcol { flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column;
+            align-items:center; justify-content:flex-start; }
+  canvas#map { background:#010409; border:1px solid #21262d; border-radius:4px;
+           image-rendering:pixelated; display:block; cursor:crosshair; flex:0 0 auto; }
+  aside#side { flex:0 0 430px; width:430px; min-height:0; display:flex; flex-direction:column; }
   body.collapsed aside#side { display:none; }
-  .bar { display:flex; gap:6px; align-items:center; padding:8px 14px 4px; flex-wrap:wrap; }
-  input[type=range] { flex:1; min-width:240px; }
+
+  .tabs { display:flex; gap:4px; flex:0 0 auto; margin-bottom:6px; }
+  .tabs button { border-radius:4px 4px 0 0; }
+  .tabs button.on { background:#1f6feb2e; border-color:#1f6feb; color:#e6edf3; }
+  .panel { flex:1 1 auto; min-height:0; border:1px solid #21262d; border-radius:5px;
+           padding:8px 10px; display:flex; flex-direction:column; overflow:hidden; }
+  .panel[hidden] { display:none; }
+  .panel > .scroll { flex:1 1 auto; min-height:0; overflow:auto; }
+
+  input[type=range] { flex:1; min-width:200px; }
   button, label.file, select { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
            border-radius:4px; padding:4px 9px; cursor:pointer; font:inherit; }
   button:hover, label.file:hover { background:#30363d; }
-  button.wide { min-width:52px; }
+  button.wide { min-width:48px; }
   table { border-collapse:collapse; width:100%; font-size:12px; }
   th,td { text-align:right; padding:3px 7px; border-bottom:1px solid #21262d; }
   th:first-child, td:first-child { text-align:left; }
-  .layers { margin-top:10px; display:flex; flex-direction:column; gap:3px; font-size:12px; }
-  .legend { margin-top:12px; color:#8b949e; font-size:12px; line-height:1.7; padding:0 14px 20px; }
+  .layers { display:flex; flex-direction:column; gap:3px; font-size:12px; margin-top:10px; }
+  .legend { color:#8b949e; font-size:12px; line-height:1.8; }
   .sw { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; }
-  #drop { padding:12px 14px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  #bandWrap { padding:0 14px 8px; }
-  canvas#band { width:100%; height:30px; display:block; background:#010409;
+  canvas#band { width:100%; height:26px; display:block; background:#010409;
                 border:1px solid #21262d; border-radius:4px; cursor:pointer; }
-  #unitList { max-height:230px; overflow-y:auto; border:1px solid #21262d; border-radius:4px; }
   #unitList tr { cursor:pointer; }
   #unitList tr:hover td { background:#161b22; }
   #unitList tr.sel td { background:#1f6feb33; }
   #unitList tr.dead td { opacity:0.45; }
-  #detail { margin-top:10px; border:1px solid #21262d; border-radius:4px; padding:8px 10px;
-            font-size:12px; min-height:90px; }
+  #detail { flex:0 0 auto; margin-top:8px; border-top:1px solid #21262d; padding-top:8px;
+            font-size:12px; max-height:44%; overflow:auto; }
   #detail h2 { font-size:12px; margin:0 0 6px; font-weight:600; }
   #detail dl { display:grid; grid-template-columns:auto 1fr; gap:1px 10px; margin:0; }
   #detail dt { color:#8b949e; }
   #detail dd { margin:0; }
-  #logBox { border:1px solid #21262d; border-radius:4px; height:640px; overflow-y:auto;
-            font-size:11px; padding:2px 0; }
-  #logBox div.row { white-space:nowrap; padding:0 8px; cursor:pointer; }
+  #logBox { font-size:11px; }
+  #logBox div.row { white-space:nowrap; padding:0 4px; cursor:pointer; }
   #logBox div.row:hover { background:#161b22; }
   #logBox div.past { color:#6e7681; }
   #logBox div.now { background:#1f6feb26; color:#e6edf3; }
   #logBox div.future { color:#484f58; }
-  #logBox div.sel { border-left:2px solid #ffffff; padding-left:6px; }
+  #logBox div.sel { border-left:2px solid #ffffff; padding-left:2px; }
   #logBox b.id { color:#8b949e; font-weight:400; }
-  .filters { display:flex; gap:5px; align-items:center; margin-bottom:6px; flex-wrap:wrap; font-size:12px; }
-  .hint { color:#8b949e; font-size:11px; margin-top:4px; }
+  .filters { display:flex; gap:5px; align-items:center; margin-bottom:6px; flex:0 0 auto;
+             flex-wrap:wrap; font-size:12px; }
+  .hint { color:#8b949e; font-size:11px; margin-top:4px; flex:0 0 auto; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Nova AI Lab — view player</h1>
-  <div class=""sub"">seed __SEED__ · map __MAP_WIDTH__×__MAP_HEIGHT__ · __SLOT_COUNT__ slots ·
-    <span class=""warn"">diagnosis, never proof — what was not seen in the running game is unseen</span></div>
-</header>
-
-<div id=""drop"">
+  <h1>Nova AI Lab</h1>
+  <span class=""sub"">seed __SEED__ · __MAP_WIDTH__×__MAP_HEIGHT__ · __SLOT_COUNT__ slots</span>
   <label class=""file"">open the run's files<input type=""file"" id=""file"" multiple
     accept="".ndjson,.json,.txt"" hidden></label>
-  <span class=""sub"" id=""status"">loading from beside this page…</span>
-</div>
+  <span class=""sub"" id=""status"">loading…</span>
+  <span style=""flex:1""></span>
+  <span class=""warn"" style=""font-size:12px"">diagnosis, never proof — what was not seen in the running game is unseen</span>
+</header>
 
 <div class=""bar"">
   <button id=""first"" title=""tick 0"">⏮</button>
@@ -157,7 +174,7 @@ namespace Nova.AiLab
   </select>
   <input type=""range"" id=""scrub"" min=""0"" max=""0"" value=""0"" step=""1"">
   <span id=""tickLabel"" class=""sub"">—</span>
-  <button id=""sideToggle"" title=""Bedienleiste ein- und ausklappen (s)"">»</button>
+  <button id=""sideToggle"" title=""fold the side panel away (s)"">»</button>
 </div>
 
 <div id=""bandWrap"">
@@ -173,31 +190,15 @@ namespace Nova.AiLab
   </div>
 
   <aside id=""side"">
-  <div class=""col"">
-    <table id=""headers""><thead><tr>
-      <th>slot</th><th>credits</th><th>power</th><th>army</th><th>sees</th>
-    </tr></thead><tbody></tbody></table>
-
-    <div class=""layers"">
-      <label><input type=""checkbox"" id=""layerLines"" checked> order lines</label>
-      <label><input type=""checkbox"" id=""layerHealth"" checked> health as brightness</label>
-      <label><input type=""checkbox"" id=""layerTrail"" checked> trail of the selected unit</label>
-      <label><input type=""checkbox"" id=""layerAllTrails""> trails of every unit of slot
-        <select id=""trailSlot""></select></label>
-      <label><input type=""checkbox"" id=""layerFog""> fog of war of slot
-        <select id=""fogSlot""></select></label>
-      <label>trail length
-        <select id=""trailSpan"">
-          <option value=""200"">200 ticks</option>
-          <option value=""600"" selected>600 ticks</option>
-          <option value=""2000"">2000 ticks</option>
-          <option value=""0"">the whole run</option>
-        </select></label>
+    <div class=""tabs"">
+      <button data-tab=""units"" class=""on"">units</button>
+      <button data-tab=""log"">log</button>
+      <button data-tab=""layers"">layers</button>
+      <button data-tab=""legend"">legend</button>
     </div>
 
-    <div style=""margin-top:10px"">
+    <div class=""panel"" id=""tab-units"">
       <div class=""filters"">
-        <b>units</b>
         <select id=""filterSlot""><option value=""-1"">every slot</option></select>
         <select id=""filterShape"">
           <option value=""-1"">every shape</option>
@@ -209,49 +210,80 @@ namespace Nova.AiLab
         </select>
         <label><input type=""checkbox"" id=""filterDead""> the dead</label>
       </div>
-      <div id=""unitList""><table><tbody></tbody></table></div>
+      <div class=""scroll"" id=""unitList""><table><tbody></tbody></table></div>
       <div id=""detail""><span class=""sub"">no unit selected — click one in the list or on the map</span></div>
     </div>
-  </div>
 
-  <div class=""col"">
-    <div class=""filters"">
-      <b>match log</b>
-      <select id=""logSlot""><option value=""-1"">every slot</option></select>
-      <select id=""logKind"">
-        <option value=""all"">everything</option>
-        <option value=""combat"">combat</option>
-        <option value=""movement"">movement</option>
-        <option value=""economy"">economy</option>
-        <option value=""life"">life and building</option>
-      </select>
-      <label><input type=""checkbox"" id=""logOnlySelected""> only the selection</label>
-      <label><input type=""checkbox"" id=""logFollow"" checked> follow</label>
+    <div class=""panel"" id=""tab-log"" hidden>
+      <div class=""filters"">
+        <select id=""logSlot""><option value=""-1"">every slot</option></select>
+        <select id=""logKind"">
+          <option value=""all"">everything</option>
+          <option value=""combat"">combat</option>
+          <option value=""movement"">movement</option>
+          <option value=""economy"">economy</option>
+          <option value=""life"">life and building</option>
+        </select>
+        <label><input type=""checkbox"" id=""logOnlySelected""> only the selection</label>
+        <label><input type=""checkbox"" id=""logFollow"" checked> follow</label>
+      </div>
+      <div class=""scroll"" id=""logBox""></div>
+      <div class=""hint"" id=""logNote"">—</div>
     </div>
-    <div id=""logBox""></div>
-    <div class=""hint"" id=""logNote"">—</div>
-  </div>
+
+    <div class=""panel"" id=""tab-layers"" hidden>
+      <div class=""scroll"">
+        <table id=""headers""><thead><tr>
+          <th>slot</th><th>credits</th><th>power</th><th>army</th><th>sees</th>
+        </tr></thead><tbody></tbody></table>
+
+        <div class=""layers"">
+          <label><input type=""checkbox"" id=""layerLines"" checked> order lines</label>
+          <label><input type=""checkbox"" id=""layerHealth"" checked> health as brightness</label>
+          <label><input type=""checkbox"" id=""layerTrail"" checked> trail of the selected unit</label>
+          <label><input type=""checkbox"" id=""layerAllTrails""> trails of every unit of slot
+            <select id=""trailSlot""></select></label>
+          <label><input type=""checkbox"" id=""layerFog""> fog of war of slot
+            <select id=""fogSlot""></select></label>
+          <label>trail length
+            <select id=""trailSpan"">
+              <option value=""200"">200 ticks</option>
+              <option value=""600"" selected>600 ticks</option>
+              <option value=""2000"">2000 ticks</option>
+              <option value=""0"">the whole run</option>
+            </select></label>
+        </div>
+        <div class=""hint"" id=""mapNote"">—</div>
+      </div>
+    </div>
+
+    <div class=""panel"" id=""tab-legend"" hidden>
+      <div class=""scroll legend"">
+        <b>shape</b> ▣ building · ▢ site · ✚ builder · ● harvester · ▲ combat<br>
+        <b>line</b> <span class=""sw"" style=""background:#f85149""></span> attack ·
+        <span class=""sw"" style=""background:#3fb950""></span> harvest ·
+        <span class=""sw"" style=""background:#58a6ff""></span> move<br>
+        <b>event</b> <span class=""sw"" style=""background:#f85149""></span> damage/death ·
+        <span class=""sw"" style=""background:#ff9e64""></span> attack ·
+        <span class=""sw"" style=""background:#58a6ff""></span> order/goal ·
+        <span class=""sw"" style=""background:#d29922""></span> stuck ·
+        <span class=""sw"" style=""background:#3fb950""></span> harvest/cargo ·
+        <span class=""sw"" style=""background:#bc8cff""></span> spawn/site<br>
+        <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold ·
+        <b>yellow rim</b> stuck · <b>red circles</b> hits landing ·
+        <b>fading cross</b> died just now<br><br>
+        <b>keys</b><br>
+        ← → one tick · shift for 25 · space plays<br>
+        n / p the selection's events · N / P every event<br>
+        s the side panel · 1–4 the tabs · Esc clears the selection · Home / End<br><br>
+        <span class=""warn"">fog is the most common reason an AI ""did not react"" — check it
+        before blaming the logic.</span><br><br>
+        <span class=""derived"">who fired is DERIVED from state and is never reported by the
+        simulation — see notes/schadensquelle.md.</span>
+      </div>
+    </div>
   </aside>
 </main>
-
-<div class=""legend"">
-  <b>shape</b> ▣ building · ▢ site · ✚ builder · ● harvester · ▲ combat<br>
-  <b>line</b> <span class=""sw"" style=""background:#f85149""></span> attack ·
-  <span class=""sw"" style=""background:#3fb950""></span> harvest ·
-  <span class=""sw"" style=""background:#58a6ff""></span> move<br>
-  <b>event</b> <span class=""sw"" style=""background:#f85149""></span> damage/death ·
-  <span class=""sw"" style=""background:#ff9e64""></span> attack ·
-  <span class=""sw"" style=""background:#58a6ff""></span> order/goal ·
-  <span class=""sw"" style=""background:#d29922""></span> stuck ·
-  <span class=""sw"" style=""background:#3fb950""></span> harvest/cargo ·
-  <span class=""sw"" style=""background:#bc8cff""></span> spawn/site<br>
-  <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold ·
-  <b>yellow rim</b> stuck · <b>red circles</b> hits landing · <b>fading cross</b> died just now<br>
-  <b>keys</b> ← → one tick · shift+← → 25 ticks · space play · n/p the selection's events ·
-  N/P every event · s the side panel · Home/End<br>
-  <span class=""warn"">fog is the most common reason an AI ""did not react"" — check it before blaming the logic.</span><br>
-  <span class=""derived"">who fired is DERIVED from state, never reported by the simulation — see notes/schadensquelle.md.</span>
-</div>
 
 <script>
 const MAP_W = __MAP_WIDTH__, MAP_H = __MAP_HEIGHT__;
@@ -685,9 +717,10 @@ function drawTrails() {
  */
 function fitCanvas() {
   const column = document.querySelector('.mapcol');
-  const available = Math.max(320, column.clientWidth);
-  const room = Math.max(320, window.innerHeight - column.getBoundingClientRect().top - 46);
-  const size = Math.round(Math.min(available, room, 1800));
+  // The column is a flex item with a real height now, so the room it has is
+  // its own — no arithmetic against window.innerHeight that goes wrong the
+  // moment anything above the map changes height.
+  const size = Math.round(Math.max(320, Math.min(column.clientWidth, column.clientHeight, 1800)));
   if (canvas.width !== size) { canvas.width = size; canvas.height = size; }
 }
 
@@ -1121,7 +1154,10 @@ function renderLog() {
 
   if (document.getElementById('logFollow').checked) {
     const current = box.querySelector('.now') || box.querySelector('.future');
-    if (current) current.scrollIntoView({ block:'center' });
+    // scrollTop, NOT scrollIntoView: that one scrolls every ancestor that can
+    // scroll, so with the page inside a frame it dragged the whole window
+    // around on every redraw — sixteen times a second while playing.
+    if (current) box.scrollTop = current.offsetTop - box.clientHeight / 2 + current.offsetHeight / 2;
   }
 }
 
@@ -1199,6 +1235,21 @@ function toggleSide() {
 document.getElementById('sideToggle').addEventListener('click', toggleSide);
 addEventListener('resize', draw);
 
+// Reiter statt Spalten nebeneinander: vier Flächen, die sich denselben Platz
+// teilen, statt einer Seite, die nach unten wächst und die Karte wegschiebt.
+const TABS = ['units', 'log', 'layers', 'legend'];
+
+function showTab(name) {
+  for (const tab of TABS) document.getElementById('tab-' + tab).hidden = tab !== name;
+  for (const button of document.querySelectorAll('.tabs button')) {
+    button.classList.toggle('on', button.dataset.tab === name);
+  }
+  draw();                                    // das Protokoll muss neu mitlaufen
+}
+for (const button of document.querySelectorAll('.tabs button')) {
+  button.addEventListener('click', () => showTab(button.dataset.tab));
+}
+
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   const big = e.shiftKey ? 25 : 1;
@@ -1212,6 +1263,7 @@ addEventListener('keydown', e => {
   else if (e.key === 'N') jumpEvent(1, false);
   else if (e.key === 'P') jumpEvent(-1, false);
   else if (e.key === 's') toggleSide();
+  else if (e.key >= '1' && e.key <= '4') showTab(TABS[+e.key - 1]);
   else if (e.key === 'Escape') { selected = null; draw(); }
 });
 </script>
