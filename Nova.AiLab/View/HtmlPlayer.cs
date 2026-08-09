@@ -174,6 +174,11 @@ namespace Nova.AiLab
   </select>
   <input type=""range"" id=""scrub"" min=""0"" max=""0"" value=""0"" step=""1"">
   <span id=""tickLabel"" class=""sub"">—</span>
+  <button id=""zoomOut"" title=""zoom out (-)"">−</button>
+  <span id=""zoomLabel"" class=""sub"">1.0×</span>
+  <button id=""zoomIn"" title=""zoom in (+)"">+</button>
+  <button id=""fit"" title=""whole map (0, or double-click)"">fit</button>
+  <button id=""focus"" title=""centre the selected unit (f)"">focus</button>
   <button id=""sideToggle"" title=""fold the side panel away (s)"">»</button>
 </div>
 
@@ -272,6 +277,9 @@ namespace Nova.AiLab
         <b>hollow</b> returning cargo · <b>white rim</b> below retreat threshold ·
         <b>yellow rim</b> stuck · <b>red circles</b> hits landing ·
         <b>fading cross</b> died just now<br><br>
+        <b>map</b><br>
+        wheel zooms on the pointer · drag moves · double-click fits<br>
+        + − zoom · 0 fits · f centres the selection<br><br>
         <b>keys</b><br>
         ← → one tick · shift for 25 · space plays<br>
         n / p the selection's events · N / P every event<br>
@@ -616,14 +624,89 @@ function frameAt(atTick) {
 
 // ---------------------------------------------------------------- drawing
 
-const px = raw => (raw / ONE) * (canvas.width / MAP_W);
-const py = raw => canvas.height - (raw / ONE) * (canvas.height / MAP_H);
+/**
+ * The camera. A 128×128 map in 700 pixels puts a cell at five and a half of
+ * them and a unit at three — at that size a wave and a traffic jam look the
+ * same, which is the one distinction the whole tool exists to make. So the
+ * map is scalable and draggable, and the numbers below are what the screen
+ * shows, never what is recorded.
+ */
+const view = { zoom: 1, cx: MAP_W / 2, cy: MAP_H / 2 };
+const MIN_ZOOM = 0.5, MAX_ZOOM = 40;
+
+const pxPerCell = () => (canvas.width / MAP_W) * view.zoom;
+const px = raw => (raw / ONE - view.cx) * pxPerCell() + canvas.width / 2;
+const py = raw => canvas.height / 2 - (raw / ONE - view.cy) * pxPerCell();
+
+/** Screen back to map cells — for the wheel, the drag and picking a unit. */
+function toCell(sx, sy) {
+  const scale = pxPerCell();
+  return [(sx - canvas.width / 2) / scale + view.cx, view.cy - (sy - canvas.height / 2) / scale];
+}
+
+function fitMap() {
+  view.zoom = 1; view.cx = MAP_W / 2; view.cy = MAP_H / 2;
+  draw();
+}
+
+/** Puts the selected unit in the middle without changing the scale. */
+function focusSelected() {
+  if (selected === null) return;
+  const p = posAt(selected, tick);
+  if (!p) return;
+  view.cx = p[0] / ONE; view.cy = p[1] / ONE;
+  draw();
+}
+
+canvas.addEventListener('wheel', event => {
+  event.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const sx = (event.clientX - rect.left) * (canvas.width / rect.width);
+  const sy = (event.clientY - rect.top) * (canvas.height / rect.height);
+
+  // The cell under the pointer stays under the pointer — anything else and
+  // zooming into a corner walks the map out from under you.
+  const before = toCell(sx, sy);
+  const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+  view.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.zoom * factor));
+  const after = toCell(sx, sy);
+  view.cx += before[0] - after[0];
+  view.cy += before[1] - after[1];
+  draw();
+}, { passive: false });
+
+let dragFrom = null, dragged = 0;
+
+canvas.addEventListener('pointerdown', event => {
+  dragFrom = [event.clientX, event.clientY, view.cx, view.cy];
+  dragged = 0;
+  canvas.setPointerCapture(event.pointerId);
+});
+
+canvas.addEventListener('pointermove', event => {
+  if (!dragFrom) return;
+  const rect = canvas.getBoundingClientRect();
+  const scale = pxPerCell() * (rect.width / canvas.width);
+  const dx = event.clientX - dragFrom[0], dy = event.clientY - dragFrom[1];
+  dragged = Math.max(dragged, Math.abs(dx) + Math.abs(dy));
+  view.cx = dragFrom[2] - dx / scale;
+  view.cy = dragFrom[3] + dy / scale;
+  draw();
+});
+
+for (const kind of ['pointerup', 'pointercancel', 'pointerleave']) {
+  canvas.addEventListener(kind, () => { dragFrom = null; });
+}
+
+canvas.addEventListener('dblclick', fitMap);
+
+const markerScale = () => Math.min(3, Math.max(1, Math.sqrt(view.zoom)));
 
 function drawFog(frame) {
   if (!frame || !frame.fog) return;
   const runs = frame.fog[+fogSlot.value];
   if (!runs) return;
-  const cw = canvas.width / MAP_W, ch = canvas.height / MAP_H;
+  const cw = pxPerCell();
   let cell = 0;
   for (let i = 0; i < runs.length; i += 2) {
     const count = runs[i], state = runs[i + 1];
@@ -631,7 +714,7 @@ function drawFog(frame) {
       ctx.fillStyle = state === 0 ? 'rgba(0,0,0,0.82)' : 'rgba(0,0,0,0.45)';
       for (let k = 0; k < count; k++) {
         const c = cell + k, x = c % MAP_W, y = (c / MAP_W) | 0;
-        ctx.fillRect(x * cw, canvas.height - (y + 1) * ch, cw + 0.5, ch + 0.5);
+        ctx.fillRect(px(x * ONE), py((y + 1) * ONE), cw + 0.5, cw + 0.5);
       }
     }
     cell += count;
@@ -734,6 +817,13 @@ function draw() {
   ctx.fillStyle = '#010409';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // Wo die Karte aufhört. Sobald man hineinzoomt, ist der leere Rand sonst
+  // nicht vom unerkundeten Gelände zu unterscheiden.
+  ctx.save();
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
+  ctx.strokeRect(px(0), py(MAP_H * ONE), MAP_W * pxPerCell(), MAP_H * pxPerCell());
+  ctx.restore();
+
   const showLines = document.getElementById('layerLines').checked;
   const showHealth = document.getElementById('layerHealth').checked;
 
@@ -778,6 +868,7 @@ function draw() {
     ', the newest one at or before it';
 
   tickLabel.textContent = 'tick ' + tick + ' / ' + lastTick;
+  document.getElementById('zoomLabel').textContent = view.zoom.toFixed(1) + '×';
   scrub.value = tick;
 
   renderUnits();
@@ -809,7 +900,10 @@ function paintUnit(u, cx, cy, hp, flags, healthDims, fade) {
 
   const hollow = (flags & 1) !== 0;
   const weak   = (flags & 2) !== 0;
-  const r = shape === 0 ? 5 : shape === 1 ? 4.5 : 3.2;
+  // Markers grow with the scale, but slower than it: a building drawn at true
+  // size fills the screen at zoom 20, and one drawn at a fixed size stops
+  // telling a bunker from a soldier.
+  const r = (shape === 0 ? 5 : shape === 1 ? 4.5 : 3.2) * markerScale();
 
   ctx.beginPath();
   if (shape === 0 || shape === 1) {
@@ -1186,6 +1280,7 @@ function jumpEvent(direction, mine) {
 }
 
 canvas.addEventListener('click', ev => {
+  if (dragged > 4) return;                   // das war ein Verschieben, keine Auswahl
   const rect = canvas.getBoundingClientRect();
   const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
   const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
@@ -1208,6 +1303,15 @@ document.getElementById('back25').addEventListener('click', () => step(-25));
 document.getElementById('back1').addEventListener('click', () => step(-1));
 document.getElementById('fwd1').addEventListener('click', () => step(1));
 document.getElementById('fwd25').addEventListener('click', () => step(25));
+
+function zoomBy(factor) {
+  view.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.zoom * factor));
+  draw();
+}
+document.getElementById('zoomIn').addEventListener('click', () => zoomBy(1.4));
+document.getElementById('zoomOut').addEventListener('click', () => zoomBy(1 / 1.4));
+document.getElementById('fit').addEventListener('click', fitMap);
+document.getElementById('focus').addEventListener('click', focusSelected);
 
 for (const id of ['layerLines','layerHealth','layerFog','layerTrail','layerAllTrails',
                   'trailSpan','filterShape','filterDead','logKind','logOnlySelected','logFollow']) {
@@ -1265,6 +1369,10 @@ addEventListener('keydown', e => {
   else if (e.key === 'N') jumpEvent(1, false);
   else if (e.key === 'P') jumpEvent(-1, false);
   else if (e.key === 's') toggleSide();
+  else if (e.key === 'f') focusSelected();
+  else if (e.key === '+' || e.key === '=') zoomBy(1.4);
+  else if (e.key === '-') zoomBy(1 / 1.4);
+  else if (e.key === '0') fitMap();
   else if (e.key >= '1' && e.key <= '4') showTab(TABS[+e.key - 1]);
   else if (e.key === 'Escape') { selected = null; draw(); }
 });
