@@ -1,7 +1,9 @@
 # Nächste Schritte am KI-Verhalten — sortiert danach, was ein Spieler merkt
 
-**Stand:** KI-Verhalten **`r4.779A1B5B`** · Referenzpartie Tick **5.931**,
-Endzustand **`0x8E054C63DE80BDD6`** ·
+**Stand:** KI-Verhalten **`r4.779A1B5B`** · Referenzpartie Tick **9.164**,
+Endzustand **`0x8054A759F73E1F81`**, gemessen auf `feat/ai-waves-and-retreat`
+über dem neuen `upstream/main` (Journal V006 — die älteren Zahlen stammen von
+vor dem Merge-Fenster und sind nicht mit diesen vergleichbar) ·
 Messgrundlage: [`reports/latest.md`](reports/latest.md) ·
 Historie: [`reports/behavior-log.md`](reports/behavior-log.md) ·
 Für die gespielte Partie: [`PLAYTEST-CHECKLIST.md`](PLAYTEST-CHECKLIST.md)

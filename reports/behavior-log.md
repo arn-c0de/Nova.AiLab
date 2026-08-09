@@ -35,6 +35,92 @@ beginnt.** Der Zweck ist nicht Buchhaltung, sondern zweierlei:
 
 ---
 
+## V006 · 2026-08-09 · **Nachmessung auf der neuen Basis** — beide Regeln halten, eine Annahme nicht
+
+**Lauf:** [`runs/20260809-0933-9c2817fe.md`](runs/20260809-0933-9c2817fe.md) ·
+**Status:** im Labor gemessen, **im laufenden Spiel ungesehen** ·
+**KI-Verhalten:** `r4.779A1B5B` · **Commit:** `9c2817fe` (`feat/ai-waves-and-retreat`
+auf dem neuen `upstream/main`) · **Definitionstabelle:** `0x6326FA3E56CFF5A3`
+
+Kein Eingriff, eine Nachmessung. Zwei Dinge haben sich seit V004/V005 geändert,
+und beide zwingen dazu:
+
+1. **Das Spiel hat sich bewegt.** Der Maintainer hat gemergt, unter anderem
+   „die fertige Raffinerie stellt ihren ersten Sammler kostenlos hin" — eine
+   Simulationsänderung. Damit sind **alle** Zahlen aus V004 und V005 an einem
+   Commit gemessen, den es so nicht mehr gibt. Die Regel des Labors dazu ist
+   eindeutig: nach einem Merge-Fenster wird **neu vermessen, nicht über die
+   Grenze hinweg verglichen.**
+2. **Das Labor liegt jetzt neben dem Spiel** statt darin. Dieser Lauf ist der
+   erste, der einen Branch misst, in dem das Messwerkzeug **nicht** liegt —
+   vorher war genau das unmöglich, und deshalb war der PR-Stand bis hierher
+   unvermessen.
+
+### Die Referenzpartie
+
+Tick **9.164**, Endzustand **`0x8054A759F73E1F81`**, Determinismus Exit 0.
+Slot 0: Austausch 230, 19 von 183 Intervallen mit Verlusten, 41 unbeantwortete
+Schadensereignisse, 18 Aktionen pro Minute.
+
+### Besser — beide Regeln bestätigen sich einseitig
+
+Jeder Kandidat spielt gegen die ausgelieferte Referenz, beide Fraktionsrollen:
+
+| Kandidat | Austausch | Verluste | Gefechtsintervalle | APM |
+|---|---:|---:|---:|---:|
+| **ausgeliefert** (`waveSize 12`, `retreat 60`) | **131** | **62** | **18** | **18** |
+| `wave-off` (`waveSize 1`) | 84 | 143 | 59 | 26 |
+| `retreat-off` (`retreatHealthPercent 0`) | 89 | 56 | 15 | 16 |
+
+Wellen: Austausch +56 %, Verluste −57 %, und die Verlustkurve fällt von 59 auf
+18 Intervalle. Rückzug: Austausch +47 %. Die Richtungen sind dieselben wie in
+V004 und V005, die Beträge nicht — was genau der Grund ist, warum man nach
+einem Merge-Fenster nachmisst statt umzurechnen.
+
+### Widerlegt — und das ist der Ertrag dieses Laufs
+
+> **„Die Wellengrösse wirkt monoton." Auf der neuen Basis nicht mehr.** V004 hat
+> über fünf Grössen eine monoton steigende Kurve gemessen und daraus geschlossen,
+> das Optimum liege am Rand. Jetzt liegt `wave-6` mit Austausch **74** und 186
+> Verlusten **unter** `wave-off` (84 / 143) — eine halbvolle Welle ist schlechter
+> als gar keine. Das ist plausibel und war vorher nicht sichtbar: Sechs Einheiten
+> warten lange genug, um den Nachschub zu bremsen, und sind zu wenige, um die
+> Schlacht zu entscheiden. Sie kommen zu spät und zu schwach.
+>
+> **Folge:** `waveSize` ist kein Regler, an dem man vorsichtig dreht. Entweder
+> ganze Armee oder aus. Wer ihn „auf einen mittleren Wert" stellt, wählt die
+> schlechteste Stellung von allen.
+
+> **Der Rückzug kostet Tempo, nicht Einheiten — und zwar messbar.**
+> `retreat-off` entscheidet bei Tick 7.125 statt 9.164 und verliert dabei
+> *weniger* eigene Einheiten (56 gegen 62). Bezahlt wird das mit dem Austausch
+> (89 gegen 131): Ohne Rückzug stirbt die Armee schneller und nimmt weniger mit.
+> Die Regel macht die Partie also länger und teurer für beide — das ist ein
+> Handel, kein reiner Gewinn, und in V005 stand er noch nicht so deutlich da.
+
+> **`retreat-75` schlägt die ausgelieferte 60 im Austausch — und bleibt trotzdem
+> falsch.** 166 gegen 131, aber bei 0 % Siegen und 17.770 Ticks. Dieselbe Form wie
+> auf der alten Basis: Der höhere Wert wird mit einer Partie erkauft, die nicht
+> mehr endet. Eine Kennzahl allein hätte hier die schlechtere KI gewählt.
+
+### Unverändert
+
+- `intentsRejected` bleibt **0** über alle 14 Kandidaten.
+- Determinismus Exit 0; Duell-Arena und Bewegungsszenarien unauffällig.
+- Die Definitionstabelle ist dieselbe (`0x6326FA3E56CFF5A3`) — der Merge hat
+  Verhalten geändert, keine Einheitenwerte.
+
+### Offen
+
+- **Immer noch keine gespielte Partie.** Die Prüfliste steht in
+  [`../PLAYTEST-CHECKLIST.md`](../PLAYTEST-CHECKLIST.md); gespielt ist zuletzt
+  `r2`, und alles seither ist ungesehen.
+- Ob die halbvolle Welle auch dann verliert, wenn die Armeeobergrenze steigt,
+  ist ungemessen — `waveSize 6` bei `targetArmySize 24` wäre eine andere Frage
+  als `6` bei `12`.
+
+---
+
 ## V005 · 2026-08-09 · Rückzug — **angenommen**, ohne die Hysterese, die der Plan wollte
 
 **Lauf:** `runs/` (letzter Eintrag) · **Status:** im Labor gemessen,
