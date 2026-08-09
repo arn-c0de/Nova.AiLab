@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Nova AI Lab — Steuerseite</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0d1117; color:#c9d1d9;
+         font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  header { padding:10px 16px; border-bottom:1px solid #21262d; }
+  h1 { font-size:14px; margin:0 0 2px; font-weight:600; }
+  h2 { font-size:13px; margin:0 0 8px; font-weight:600; }
+  .sub { color:#8b949e; font-size:12px; }
+  .warn { color:#d29922; }
+  .bad { color:#f85149; }
+  .ok { color:#3fb950; }
+  main { display:flex; gap:14px; padding:14px 16px; align-items:flex-start; flex-wrap:wrap; }
+  section { border:1px solid #21262d; border-radius:5px; padding:10px 12px; }
+  #left { flex:1 1 420px; min-width:380px; max-width:560px; display:flex; flex-direction:column; gap:14px; }
+  #right { flex:2 1 640px; min-width:420px; display:flex; flex-direction:column; gap:14px; }
+  label.f { display:flex; gap:8px; align-items:center; margin:3px 0; }
+  label.f > span { color:#8b949e; width:130px; flex:0 0 130px; }
+  input, select, button { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
+           border-radius:4px; padding:4px 8px; font:inherit; }
+  input, select { flex:1; min-width:0; }
+  button { cursor:pointer; }
+  button:hover:not(:disabled) { background:#30363d; }
+  button:disabled { opacity:0.45; cursor:default; }
+  button.go { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+  button.go:hover:not(:disabled) { background:#388bfd; }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  th,td { text-align:right; padding:3px 7px; border-bottom:1px solid #21262d; white-space:nowrap; }
+  /* Die Kennung darf umbrechen. Bliebe sie in einer Zeile, schöbe sie die
+     Spalten rechts aus der Tafel — und die Zahl, die man sucht, wäre die, die
+     abgeschnitten ist. */
+  th:first-child, td:first-child { text-align:left; white-space:normal; }
+  th { color:#8b949e; font-weight:400; }
+  tr.pick:hover td { background:#161b22; cursor:pointer; }
+  tr.a td { box-shadow:inset 2px 0 0 #58a6ff; }
+  tr.b td { box-shadow:inset 2px 0 0 #d29922; }
+  .scroll { max-height:290px; overflow:auto; }
+  pre#log { background:#010409; border:1px solid #21262d; border-radius:4px; margin:8px 0 0;
+            padding:8px; max-height:220px; overflow:auto; font-size:11px; white-space:pre-wrap; }
+  .pill { display:inline-block; border:1px solid #30363d; border-radius:10px;
+          padding:0 7px; font-size:11px; color:#8b949e; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .diff { color:#d29922; }
+  .same { color:#6e7681; }
+  footer { padding:4px 16px 24px; color:#8b949e; font-size:12px; }
+  a { color:#58a6ff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Nova AI Lab — Steuerseite</h1>
+  <div class="sub" id="repoLine">…</div>
+</header>
+
+<main>
+  <div id="left">
+    <section>
+      <h2>Neuer Lauf</h2>
+      <label class="f"><span>Branch</span><select id="branch"></select></label>
+      <label class="f"><span>Seed</span><input id="seed" value="0xA17E57DE57"></label>
+      <label class="f"><span>Ticks</span><input id="ticks" type="number" value="27000"></label>
+      <label class="f"><span>Sichtframe alle</span><input id="viewEvery" type="number" value="25"></label>
+      <label class="f"><span>Spur alle</span><input id="trackEvery" type="number" value="1"></label>
+      <label class="f"><span>Profil Slot 0</span><input id="profile0" placeholder="leer = ms1-canonical"></label>
+      <label class="f"><span>Profil Slot 1</span><input id="profile1" placeholder="leer = ms1-canonical"></label>
+      <label class="f"><span>Notiz</span><input id="label" placeholder="wozu dieser Lauf"></label>
+      <label class="f"><span>Nebel</span><input id="fog" type="checkbox" checked style="flex:0"></label>
+      <div class="row" style="margin-top:8px">
+        <button class="go" id="start">messen</button>
+        <span class="sub" id="jobState">bereit</span>
+      </div>
+      <pre id="log">—</pre>
+      <div class="sub" style="margin-top:6px">
+        Ein anderer Branch wird nie im Arbeitscheckout ausgecheckt — dafür entsteht ein
+        <span class="pill">git worktree</span> unter <code>.worktrees/</code>. Der Checkout,
+        in dem du arbeitest, bleibt stehen.
+      </div>
+    </section>
+
+    <section>
+      <h2>Historie <span class="sub">— archivierte Messblöcke</span></h2>
+      <div class="scroll">
+        <table id="historyTable"><thead><tr>
+          <th>Datum</th><th>Commit</th><th>Verhalten</th><th>Ausgang</th><th>Tick</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <div id="snapshot" class="sub" style="margin-top:8px">
+        Eine Zeile anklicken, um den Messblock zu öffnen. Die Historie trägt keine Rohartefakte
+        (<code>out/</code> ist bewusst nicht versioniert), also gibt es dazu keinen Player.
+      </div>
+    </section>
+  </div>
+
+  <div id="right">
+    <section>
+      <h2>Läufe dieser Steuerseite</h2>
+      <div class="scroll">
+        <table id="runTable"><thead><tr>
+          <th>Lauf</th><th>Branch</th><th>Ausgang</th><th>Entschieden</th><th>Ende</th><th>A / B</th><th></th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <div class="sub" style="margin-top:6px" id="runNote">—</div>
+    </section>
+
+    <section>
+      <h2>Vergleich</h2>
+      <div class="row">
+        <span class="sub">A</span> <span class="pill" id="pickA">—</span>
+        <span class="sub">B</span> <span class="pill" id="pickB">—</span>
+        <button id="doCompare" disabled>nebeneinanderlegen</button>
+      </div>
+      <div id="compareOut" class="sub" style="margin-top:8px">
+        Zwei Läufe oben als A und B wählen. Verglichen wird nichts verrechnet —
+        die Zahlen stehen nebeneinander, wie überall in diesem Labor.
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  Diagnose, kein Nachweis: was nicht im laufenden Spiel gesehen wurde, steht als ungesehen im PR-Text.
+  Von hier aus wird nichts committet, gepusht oder gemergt.
+</footer>
+
+<script>
+let state = { runs: [], history: [], branches: [] };
+let pickA = null, pickB = null, poll = null;
+
+const $ = id => document.getElementById(id);
+
+async function api(path, options) {
+  const response = await fetch(path, options);
+  const data = await response.json();
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+
+async function refresh() {
+  state = await api('/api/state');
+  $('repoLine').innerHTML = 'misst <b>' + state.repo + '</b> · Arbeitsbranch <b>' +
+    state.currentBranch + '</b> @ ' + state.currentCommit;
+
+  const chosen = $('branch').value;
+  $('branch').innerHTML =
+    '<option value="current">' + state.currentBranch + ' (Arbeitscheckout, wird nicht angefasst)</option>' +
+    state.branches.filter(b => b !== state.currentBranch)
+      .map(b => '<option value="' + b + '">' + b + '</option>').join('');
+  if (chosen) $('branch').value = chosen;
+
+  renderRuns();
+  renderHistory();
+}
+
+// ------------------------------------------------------------- Läufe
+
+function renderRuns() {
+  const body = $('runTable').querySelector('tbody');
+  body.innerHTML = state.runs.map(r => {
+    const mark = (r.id === pickA ? 'a' : '') + (r.id === pickB ? ' b' : '');
+    return '<tr class="pick ' + mark + '" data-id="' + r.id + '">' +
+      '<td title="' + r.id + '">' + r.id.slice(9, 15).replace(/(..)(..)(..)/, '$1:$2:$3') +
+        (r.label ? ' <span class="sub">' + escape(r.label) + '</span>' : '') + '</td>' +
+      '<td>' + r.branch + ' <span class="sub">' + r.commit + '</span></td>' +
+      '<td>' + (r.outcome ||
+        (r.state === 'fehlgeschlagen'
+          ? '<span class="bad">fehlgeschlagen (Exit ' + r.exitCode + ')</span>'
+          : '<span class="warn">läuft…</span>')) + '</td>' +
+      '<td>' + (r.decidedTick ?? '—') + '</td>' +
+      '<td>' + (r.finalTick ?? '—') + '</td>' +
+      '<td><button data-pick="a">A</button> <button data-pick="b">B</button></td>' +
+      '<td>' + (r.hasPlayer
+        ? '<a href="/runs/' + r.id + '/player.html" target="_blank">Player</a>' : '<span class="sub">—</span>') +
+      '</td></tr>';
+  }).join('') || '<tr><td class="sub" colspan="7">noch kein Lauf über diese Seite</td></tr>';
+
+  $('runNote').textContent = state.runs.length +
+    ' Läufe unter out/gui/ — mit vollen Artefakten, also mit Laufrouten und Ereignisprotokoll.';
+}
+
+$('runTable').addEventListener('click', event => {
+  const row = event.target.closest('tr[data-id]');
+  if (!row) return;
+  const which = event.target.dataset.pick;
+  if (which === 'a') pickA = row.dataset.id;
+  else if (which === 'b') pickB = row.dataset.id;
+  else pickA = row.dataset.id;                 // ein Klick irgendwo in die Zeile setzt A
+  $('pickA').textContent = pickA || '—';
+  $('pickB').textContent = pickB || '—';
+  $('doCompare').disabled = !(pickA && pickB);
+  renderRuns();
+});
+
+// ---------------------------------------------------------- Historie
+
+function renderHistory() {
+  const body = $('historyTable').querySelector('tbody');
+  body.innerHTML = state.history.map(h =>
+    '<tr class="pick" data-id="' + h.id + '">' +
+    '<td title="' + h.id + '">' + h.id.slice(4, 13) + '</td>' +
+    '<td>' + h.commit + '</td><td>' + h.aiBehaviorId + '</td>' +
+    '<td>' + (h.outcome || '—') + '</td><td>' + (h.decidedTick ?? '—') + '</td></tr>'
+  ).join('') || '<tr><td class="sub" colspan="5">keine archivierten Blöcke</td></tr>';
+}
+
+$('historyTable').addEventListener('click', async event => {
+  const row = event.target.closest('tr[data-id]');
+  if (!row) return;
+  const block = await api('/api/history?id=' + encodeURIComponent(row.dataset.id));
+  const run = block.run || {}, result = (block.match || {}).result || {};
+  const feel = result.feel || [];
+  $('snapshot').innerHTML =
+    '<b>' + run.id + '</b> · ' + (run.timestamp || '') + '<br>' +
+    'Commit ' + (run.commit || '?') + ' · Verhalten ' + (run.aiBehaviorId || '?') + '<br>' +
+    'Definitionen ' + (run.definitionsHash64 || '?') + ' · Zustand ' + (run.finalStateHash || '?') + '<br>' +
+    'Ausgang ' + (result.outcome || '?') + ', Sieger Slot ' + (result.winnerSlot ?? '?') +
+    ', entschieden bei Tick ' + (result.decidedTick ?? '?') + '<br>' +
+    (feel.length
+      ? '<table style="margin-top:6px"><thead><tr><th>Slot</th><th>Tausch %</th>' +
+        '<th>Kampfintervalle</th><th>grösster Verlust</th><th>Reaktion Ticks</th><th>APM</th></tr></thead><tbody>' +
+        feel.map(f => '<tr><td>' + f.slot + '</td><td>' + f.exchangeRatioPercent + '</td><td>' +
+          f.combatIntervals + '</td><td>' + f.largestLossJump + '</td><td>' +
+          f.meanReactionLatencyTicks + '</td><td>' + f.actionsPerMinute + '</td></tr>').join('') +
+        '</tbody></table>'
+      : '') +
+    '<div class="sub" style="margin-top:6px">Archivierter Block — keine Rohartefakte, also kein Player. ' +
+    'Für Laufrouten denselben Commit über „Neuer Lauf" nachmessen.</div>';
+});
+
+// -------------------------------------------------------------- messen
+
+$('start').addEventListener('click', async () => {
+  $('start').disabled = true;
+  $('jobState').textContent = 'startet…';
+  $('log').textContent = '';
+  try {
+    const job = await api('/api/run', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        branch: $('branch').value, seed: $('seed').value,
+        ticks: +$('ticks').value, viewEvery: +$('viewEvery').value,
+        trackEvery: +$('trackEvery').value, fog: $('fog').checked,
+        profile0: $('profile0').value, profile1: $('profile1').value,
+        label: $('label').value,
+      }),
+    });
+    watch(job.jobId);
+  } catch (error) {
+    $('jobState').innerHTML = '<span class="bad">' + escape(error.message) + '</span>';
+    $('start').disabled = false;
+  }
+});
+
+function watch(jobId) {
+  clearInterval(poll);
+  poll = setInterval(async () => {
+    const job = await api('/api/job?id=' + encodeURIComponent(jobId));
+    $('log').textContent = (job.log || []).join('\n');
+    $('log').scrollTop = $('log').scrollHeight;
+    if (job.running) { $('jobState').textContent = 'läuft…'; return; }
+
+    clearInterval(poll);
+    $('start').disabled = false;
+    $('jobState').innerHTML = job.exitCode === 0
+      ? '<span class="ok">fertig</span>'
+      : job.exitCode === 2
+        ? '<span class="bad">Exit 2 — NICHT DETERMINISTISCH, keine Zahl aus diesem Lauf zählt</span>'
+        : '<span class="bad">Exit ' + job.exitCode + '</span>';
+    pickB = pickA; pickA = job.runId;          // der frische Lauf ist A, der vorige rutscht auf B
+    $('pickA').textContent = pickA; $('pickB').textContent = pickB || '—';
+    $('doCompare').disabled = !(pickA && pickB);
+    refresh();
+  }, 700);
+}
+
+// ------------------------------------------------------------ Vergleich
+
+$('doCompare').addEventListener('click', async () => {
+  const data = await api('/api/compare?a=' + encodeURIComponent(pickA) + '&b=' + encodeURIComponent(pickB));
+  $('compareOut').innerHTML =
+    (data.warnings || []).map(w => '<div class="warn">' + escape(w) + '</div>').join('') +
+    '<table style="margin-top:6px"><thead><tr><th></th>' +
+    '<th>A · ' + data.a.branch + '</th><th>B · ' + data.b.branch + '</th><th>B − A</th></tr></thead><tbody>' +
+    data.rows.map(r =>
+      '<tr><td>' + r.name + '</td>' +
+      '<td class="' + (r.same ? 'same' : '') + '">' + fmt(r.a) + '</td>' +
+      '<td class="' + (r.same ? 'same' : 'diff') + '">' + fmt(r.b) + '</td>' +
+      '<td class="' + (r.delta ? 'diff' : 'same') + '">' +
+        (r.delta === null || r.delta === undefined ? '' : (r.delta > 0 ? '+' : '') + r.delta) +
+      '</td></tr>').join('') +
+    '</tbody></table>' +
+    '<div class="sub" style="margin-top:6px">Nichts davon ist verrechnet oder gewichtet. ' +
+    'Zwei Läufe mit gleichem Seed und gleichem Verhalten müssen denselben Zustands-Hash tragen — ' +
+    'tun sie es nicht, ist die Änderung nicht deterministisch und alles andere hier egal.</div>';
+});
+
+function fmt(value) {
+  return value === null || value === undefined ? '—' : escape(String(value));
+}
+
+function escape(text) {
+  return String(text).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+}
+
+refresh();
+setInterval(() => { if (!poll) refresh(); }, 15000);
+</script>
+</body>
+</html>
