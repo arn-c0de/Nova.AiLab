@@ -31,6 +31,22 @@ lauffähig.
 - **3 vor 4**, weil der Rückzug ein Ziel braucht, zu dem er zurückläuft — den
   Sammelpunkt aus 3.
 
+## Die nächste Serie — Kampfstärke
+
+Der Einheitenstrang oben ist gemergt. Was darauf folgt, steht in
+[`../KAMPFSTAERKE.md`](../KAMPFSTAERKE.md); der erste PR daraus ist ausgeschrieben:
+
+| # | Branch | Verhalten | Stand |
+|---|---|---|---|
+| 6 | `feat/ai-strength-wave-gate` | `r5` → `r6` — die Welle **kann** auf Kampfstärke messen statt auf Kopfzahl. Bei Obergrenze 12 nachweislich verhaltensneutral: eine Entkopplung, keine Verbesserung | [`6-staerketor.md`](6-staerketor.md) · **gebaut, 638/638 grün, ungepusht** |
+| 7 | `fix/ai-army-cap` | Armeeobergrenze als reine Zahl — **erst nach 6**, und die Messung sagt warum: die Erhöhung **allein** macht die Legion schlechter (Verluste 51 → 64), mit dem Tor gewinnt derselbe Sitz | offen — welche Zahl, ist eine menschliche Entscheidung, Journal V007 |
+| 8 | `feat/ai-reinforce-doctrine` | nachschicken, solange die Welle intakt ist; sammeln, wenn sie gebrochen ist | offen |
+| 9 | `feat/ai-vehicle-buildout` | Bauliste bis Fahrzeugwerk, Kaufregel nach Stärke je AE | offen |
+
+**Ziel-Repo ist jetzt [`VibecodingGermany/HashKrieg`](https://github.com/VibecodingGermany/HashKrieg)**
+— dasselbe Repository unter neuem Namen (vorher `Project_Nova`). Der Fork heisst
+weiterhin `arn-c0de/Project_Nova`, der Weg bleibt Fork → PR.
+
 ## Was in allen vier gilt
 
 - **Keine der vier Determinismus-Baselines ist angefasst.** Eine reine

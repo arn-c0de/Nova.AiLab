@@ -1,11 +1,12 @@
 # Kampfstärke — Nachschub, Ausbau und die eine Zahl darunter
 
 **Notiert am:** 2026-08-09 · **Status:** Plan, **nichts davon gebaut** ·
-**Ausgangsstand:** KI-Verhalten `r4.779A1B5B`, Commit `97a9e5b1`,
+**Ausgangsstand:** KI-Verhalten **`r5`**, Commit `3d28f24` (mit `f13f4d5`),
 Definitionstabelle `0x6326FA3E56CFF5A3` ·
-**Messgrundlage:** [`reports/latest.md`](reports/latest.md) ·
+**Messgrundlage:** §1, frisch gemessen auf r5 ·
 **Vorher lesen:** [`reports/behavior-log.md`](reports/behavior-log.md),
-[`NEXT-STEPS.md`](NEXT-STEPS.md) §0 und §7, [`AGENTS.md`](AGENTS.md) §3–§4
+[`NEXT-STEPS.md`](NEXT-STEPS.md) §0 und §7, [`AGENTS.md`](AGENTS.md) §3–§4 ·
+**Gegenprobe mit Forschung und ausgelieferten RTS-Titeln:** §17
 
 Dieses Dokument plant drei Wünsche, die wie drei Themen aussehen und eines sind:
 
@@ -28,27 +29,142 @@ Zahlensatz einstellen statt als zweite KI.
 
 ## 1 · Der Ausgangsstand, in Zahlen
 
-Aus dem letzten vollständigen Lauf ([`reports/latest.md`](reports/latest.md),
-Partie entschieden bei Tick 9.164):
+Frisch gemessen auf `3d28f24` (r5, nach `f13f4d5`), Seed `0xA17E57DE57`,
+Determinismus Exit 0, entschieden bei Tick **5.773**:
 
 | Kennzahl | Slot 0 · Allianz | Slot 1 · Legion |
 |---|---:|---:|
-| **Credits am Ende** | **28.850** | **29.400** |
-| Armeegrösse | 12 | 1 |
-| Verluste, kumuliert | 39 | 90 |
+| **Credits am Ende** | **17.240** | **18.420** |
+| Armeegrösse / grösste je erreichte | 12 / **12** | 8 / **12** |
+| Verluste, kumuliert | 23 | 51 |
 | Gebäude | 4 | 3 |
 | Harvester | 2 | 2 |
+| Verworfene Intents | 0 von 286 | 0 von 134 |
 
 Drei Dinge stehen in dieser Tabelle:
 
-- **Die Bank ist voll und wird nie geleert.** 28.850 AE sind 32 Lynx-Panzer oder
-  240 Rifleman. Die Credits-Kurve steigt über die ganze Partie monoton — die KI
+- **Die Bank ist voll und wird nie geleert.** 17.240 AE sind 19 Lynx-Panzer oder
+  143 Rifleman. Die Credits-Kurve steigt über die ganze Partie monoton — die KI
   hat kein Problem beim Verdienen, sondern beim Ausgeben.
 - **Vier Gebäude** heisst HQ, Refinery, Barracks, Power. Danach hört die Bauliste
   auf (`SkirmishAiSystem.cs:299-314`): es gibt keinen Eintrag hinter der Kaserne.
-- **90 zu 39 Verluste.** Die Legion verliert mehr als doppelt so viele Einheiten.
+  Die Legion hat nur drei — sie braucht kein Kraftwerk, Refinery (15) und
+  Barracks (10) bleiben unter den 30 des HQ.
+- **51 zu 23 Verluste.** Die Legion verliert mehr als doppelt so viele Einheiten.
   Warum, sagt §3.4 — und es ist kein Balancing-Problem, sondern eine Folge davon,
   dass das Wellentor Einheiten *zählt*.
+
+### 1.1 · Der eigentliche Befund: die Obergrenze macht zwei Jobs
+
+Beobachtet im Spiel: *„greifen an, wenn die Welle voll ist, produzieren aber erst
+wieder neue Einheiten, wenn die Welle zerstört ist oder alle flüchten."*
+Nachgemessen, und es stimmt bis auf die Zahl:
+
+> **In 92 von 116 Metrikproben (79 %) gilt `armySize + queuedUnits == 12`.**
+> Die Kaserne steht genau so lange still, wie eine Welle draussen ist.
+
+Die Ursache ist **ein einziger Profilwert an zwei Stellen**:
+
+| Ort | Code | Wirkung bei `targetArmySize: 12` |
+|---|---|---|
+| Produktion, Schritt (5) | `have = combatCount + queued;`<br>`batch = min(2, TargetArmySize − have)` | `combatCount` zählt **die Einheiten, die draussen kämpfen**. Zwölf draussen ⇒ `batch = 0` ⇒ **nichts wird gebaut**. Erst ein Toter macht Platz |
+| Wellentor, r5 | `reachable = TargetArmySize − committed;`<br>`if (reachable < 1) reachable = 1;`<br>`threshold = min(waveSize, reachable)` | Zwölf draussen ⇒ `reachable = 0` ⇒ Boden **1** ⇒ die eine nachproduzierte Ersatzeinheit marschiert **allein** los |
+
+Zusammen ergibt das genau das beobachtete Bild: eine volle erste Welle, danach
+ein Förderband aus Einzelnen — und eine Kaserne, die dazwischen nichts tut.
+`f13f4d5` hat die Sperre aufgehoben, an der die Nachrücker festhingen; die
+Obergrenze bleibt darunter unverändert und ist jetzt die verbliebene Ursache.
+
+**Gegenprobe, einseitig gemessen** (dasselbe Binary, ein Profilwert Unterschied,
+neue Laborkandidaten `army-24` / `army-36`; `waveSize` bleibt 12):
+
+| Lauf | Entsch. Tick | eigene Verluste | Austausch | grösste Armee | Credits am Ende | Kaserne leer |
+|---|---:|---:|---:|---:|---:|---:|
+| Referenz, Allianz | 5.773 | 23 | 2,2 | 12 | 17.240 | 37 % |
+| **`army-24` bei der Allianz** | **4.150** (−28 %) | **6** (−74 %) | **6,3** | 24 | 11.570 | 23 % |
+| `army-36` bei der Allianz | 4.245 | 6 | 5,8 | 29 | 10.130 | 11 % |
+| `army-24` bei der Legion | 5.921 | 64 (+25 %) | — | 16 | 17.880 | 4 % |
+| `army-36` bei der Legion | 5.921 | 64 | — | 16 | 17.820 | 4 % |
+
+Vier Sätze dazu, und der vierte ist der wichtigste:
+
+1. **Die Allianz gewinnt drei Viertel ihrer Verluste zurück** und entscheidet
+   28 % früher. Der Sammelpunkt füllt sich, während die erste Welle kämpft — das
+   ist wörtlich „Truppen sammeln für schnellere Angriffe".
+2. **Bei 36 hört es auf zu wirken.** Die Allianz erreicht nur noch 29 Einheiten;
+   oberhalb davon ist nicht die Obergrenze der Engpass, sondern **eine Kaserne**.
+   Das ist das Argument für Eintrag 5 der Bauliste (§7.1), kein Argument gegen
+   die Obergrenze.
+3. **Die Legion gewinnt gar nichts** — 24 und 36 liefern dieselbe Partie, ihre
+   Kaserne läuft ohnehin schon zu 96 % durch, und mehr Rekruten heisst nicht mehr
+   Kampfkraft: 24 Rekruten sind **1.056 Punkte** gegen 1.200 der zwölf Rifleman
+   (§3.4). Eine reine Zahlenerhöhung ist fraktionsblind, das Stärkeziel aus §8.2
+   ist es nicht.
+4. **Die Intents steigen mit.** 29 → 44 APM (Allianz, `army-24`), bei der Legion
+   13 → 42. Mehr Einheiten heissen mehr Befehlsgruppen; das ist zum Teil
+   mechanisch und zum Teil der V002-Fehlermodus, und es ist die Zahl, die bei
+   diesem PR zuerst angesehen wird.
+
+**Einschränkung:** ein Seed, eine Karte, Selbstspiel, je ein Lauf pro Seite. Das
+ist Diagnose, kein Nachweis — und im laufenden Spiel ist keine dieser Zahlen
+gesehen.
+
+### 1.2 · Die Kurve über fünf Stellungen — und warum „einfach die Zahl anheben" ausfällt
+
+Nachgemessen über fünf Obergrenzen, einseitig, beide Sitze. Die Warnung aus V006
+(*„ein mittlerer Wert ist nicht automatisch ein Kompromiss"*) trifft hier ein
+zweites Mal, und diesmal mit einer Klippe:
+
+| `targetArmySize` | Allianz-Sitz: Tick | eig. Verluste | Austausch | Intents | Legion-Sitz: Verluste |
+|---:|---:|---:|---:|---:|---:|
+| **12** *(heute)* | 5.750 | 23 | 221 | 286 | **51** |
+| 16 | 7.450 | 21 | 357 | **509** | 56 |
+| 18 | 8.750 | **33** | 290 | **582** | 64 |
+| **20** | **4.050** | **5** | **680** | 251 | 64 |
+| 24 | 4.150 | 6 | 633 | 308 | 64 |
+| 36 | 4.200 | 6 | 583 | 357 | 64 |
+
+**Zwei Befunde, und der zweite ist der teure:**
+
+> **Unter 20 ist die Erhöhung schlechter als gar keine.** 16 und 18 verlängern die
+> Partie um 30 bis 52 % und verdoppeln die Intents (509 / 582 gegen 286); bei 18
+> steigen sogar die eigenen Verluste. Erst ab 20 kippt es, und dann sehr deutlich.
+> Dieselbe Form wie `wave-6`: eine halbvolle Welle ist schlechter als keine.
+
+> **Die Legion wird bei JEDER Stellung schlechter** — 51 Verluste heute, 56 bei 16,
+> **64 bei allem ab 18**, und ihre Armee kommt nie über 16 Einheiten hinaus, weil
+> eine Kaserne nicht mehr liefert. Sie schickt nur häufiger untergewichtige Wellen
+> los. Ein einziger Zahlenwert bedient beide Fraktionen nicht.
+
+**Die Ursache verbindet beides, und sie ist neu:** Seit `f13f4d5` leitet das
+Wellentor seinen Schwellwert aus der Obergrenze ab
+(`threshold = min(waveSize, targetArmySize − committed)`). Damit hat **derselbe
+Wert einen dritten Job** — er bestimmt jetzt auch, **wie gross eine Welle ist**.
+Bei Obergrenze 16 und zwölf draussen marschieren Vierergruppen; das ist keine
+Verstärkung, das ist `wave-6` unter anderem Namen.
+
+> [!CAUTION]
+> **Nachtrag 2026-08-09, nachdem §5 gebaut und gemessen war: der letzte Satz
+> dieses Absatzes stand hier falsch.** Er lautete „die Klippe zwischen 18 und 20
+> ist genau diese Kopplung". Ist sie nicht. Mit dem Punkttor aus §5 bleibt die
+> Klippe stehen — `army-18` braucht auf dem Legionssitz **17.908 Ticks** und
+> 203 eigene Verluste, `army-16` bleibt bei 50 % im `compare`. Die Kopplung war
+> *eine* Ursache, nicht *die*. Was 18 von 20 unterscheidet, ist unerklärt, und
+> nichts in diesem Dokument darf so tun, als sei es erklärt.
+> Belege: Journal V007.
+
+**Folge für den Plan:** PR 0b (§13) ist damit **gemessen und zurückgestellt**.
+Was zuerst passieren muss, ist die **Entkopplung** — das Wellentor darf seinen
+Schwellwert nicht mehr aus der Produktionsobergrenze ziehen. Genau das ist §5.
+
+> [!NOTE]
+> **Zweiter Nachtrag: die Entkopplung allein ändert nichts.** Bei Obergrenze 12
+> bindet die Erreichbarkeitsdecke zuerst, die kanonische Partie läuft mit dem
+> Tor Byte für Byte wie ohne. Das Tor ist die **Voraussetzung** dafür, die Zahl
+> anheben zu dürfen, nicht selbst die Verbesserung — und die Messung sagt, dass
+> die Reihenfolge stimmt: die Obergrenze **allein** anzuheben macht die Legion
+> schlechter (Verluste 51 → 64, Austausch 45 → 34), mit dem Tor gewinnt
+> derselbe Sitz. Ebenfalls V007.
 
 ---
 
@@ -273,6 +389,25 @@ S_gebrochen  =  WaveStrengthPoints × ReinforceMinStrengthPercent / 100
   die Wellenregel gebaut wurde — sie stirbt einzeln. Also sammeln.
 - **(a) ist der heutige Zustand** und bleibt unverändert.
 
+**Was r5 davon schon tut — und warum es die Regel nicht ersetzt.** Der Fix
+`f13f4d5` senkt den Wellenschwellwert auf das, was die Produktion noch liefern
+kann (`threshold = min(waveSize, TargetArmySize − committed)`, Boden 1). Bei
+voller Welle draussen ist dieser Boden erreicht, also marschiert **jede** einzelne
+Ersatzeinheit sofort los — Fall (b), aber ohne Bedingung. Das ist die Hälfte des
+Wunsches und zugleich das Förderband, gegen das die Wellenregel gebaut wurde:
+
+| | r5 heute | mit dieser Regel |
+|---|---|---|
+| Welle draussen intakt | Einzelne laufen nach | Einzelne laufen nach ✔ |
+| Welle draussen gebrochen | Einzelne laufen **weiter** nach, in einen verlorenen Kampf | Sammeln, bis eine volle Welle steht ✔ |
+
+Der Unterschied ist nicht die Bewegung, sondern **die Bedingung**. r5 kennt keine
+— das Nachrücken hängt an einem Boden, der zufällig immer erreicht ist, nicht an
+einer Lagebeurteilung. Sobald §8.2 die Obergrenze anhebt, verschwindet dieser
+Nebeneffekt sogar von selbst (bei Obergrenze 24 und zwölf draussen ist
+`reachable` wieder 12), und dann gibt es **gar kein** Nachrücken mehr, bis diese
+Regel es bewusst wieder einführt.
+
 Der Übergang von (b) nach (c) ist der Punkt, an dem sich die Regel bezahlt
 macht: er passiert **während** des Gefechts, ohne dass jemand mitzählt, allein
 weil die Summe der Lebenspunkte draussen fällt.
@@ -436,8 +571,14 @@ TargetArmyStrengthPoints  —  produziere, solange S(Armee lebend + in Warteschl
 - Startwert zum Messen: **2400** — zwei volle Wellen zu 1200. Das ist die
   Voraussetzung dafür, dass Regel 2 überhaupt etwas nachzuschicken hat: bei
   Obergrenze 12 und zwölf Einheiten draussen produziert die KI **nichts**, bis
-  jemand stirbt. Der Nachschub von heute besteht ausschliesslich aus Ersatz für
-  Gefallene.
+  jemand stirbt (gemessen: 79 % der Proben, §1.1). Der Nachschub von heute
+  besteht ausschliesslich aus Ersatz für Gefallene.
+- **Der halbe Effekt ist ohne Stärkesystem zu haben** und ist gemessen: die
+  blosse Zahlenerhöhung auf 24 kostet die Allianz 74 % weniger Einheiten und
+  entscheidet 28 % früher (§1.1). Sie hilft der **Legion nicht**, weil eine Zahl
+  nicht weiss, was eine Einheit wert ist — das ist der Teil, den erst das
+  Stärkeziel löst. Beides sind zwei PRs, nicht einer: erst der Wert, dann die
+  Bedeutung.
 - Die Warteschlange zählt mit (`CountQueuedAt`), sonst kauft die KI je Kadenz
   denselben Bedarf erneut.
 
@@ -627,6 +768,7 @@ Journaleintrag mit Abschnitt „Schlechter".
 | # | Branch | Was | `Revision` | Erste Zahl, die man ansieht |
 |---:|---|---|---:|---|
 | 0 | *(nur Labor)* | Stärkemetrik, Kandidatenprofile, Berichtsspalten | — | die heutige Stärkekurve als Referenz |
+| ~~0b~~ | ~~`fix/ai-army-cap`~~ | ~~`targetArmySize: 12 → 24`~~ — **gemessen und zurückgestellt (§1.2):** hilft nur der Allianz und nur ab 20, schadet der Legion bei jeder Stellung, und unter 20 ist es schlechter als gar nichts. Kommt als reine Zahl **nach** 2 wieder, wenn die Kopplung an das Wellentor weg ist | — | — |
 | 1 | `feat/ai-combat-strength` | `CombatStrength.cs` + Profilfelder, **von keiner Regel gelesen** | 4 *(kein Bump)* | Endzustands-Hash unverändert — der Nachweis, dass es verhaltensneutral war |
 | 2 | `feat/ai-strength-wave-gate` | §5 Wellentor über Stärke | **5** | Legion: Wellengrösse in Einheiten; Formationsverteilung am Sammelpunkt |
 | 3 | `feat/ai-reinforce-doctrine` | §6 Nachschub / Abbruch | **6** | **Intents je 1.000 Ticks** (V002-Fehlermodus) |
@@ -638,6 +780,11 @@ Journaleintrag mit Abschnitt „Schlechter".
 
 - **0 vor allem.** Wer die Stärkekurve erst nach der ersten Verhaltensänderung
   baut, hat keine Referenz mehr, gegen die er sie hält.
+- **0b sah nach der billigen Abkürzung aus und ist es nicht** (§1.2). Die
+  Obergrenze anzuheben, ohne vorher das Wellentor von ihr zu lösen, verschiebt
+  nur, wie gross die Wellen ausfallen — und zwischen 16 und 18 in die falsche
+  Richtung. Deshalb steht **2 vor jeder Zahlenänderung an der Obergrenze**, nicht
+  daneben.
 - **2 vor 3.** Der Abbruchwert ist ein Prozentsatz **von** `WaveStrengthPoints`.
   Ohne den Schwellwert hat er keinen Bezug.
 - **4 vor 5.** Ein Stärkeziel ohne Fahrzeugfabrik kauft nur mehr Infanterie —
@@ -716,3 +863,62 @@ gesehen wurde, steht als ungesehen im PR-Text.
 | **Aufklärung / Abstandhalten** | Voraussetzung dafür, dass Artillerie je ein sinnvoller Kauf wird. Eigener Strang (NEXT-STEPS §6), Paar aus `Movement/` und `AI/` |
 | **Lanchester-Terme, Panzerungsgewichtung im Kampfwert** | §3.3. Erst wenn eine Messung zeigt, dass die Summe falsch entscheidet |
 | **Sim-RNG für Wiederspielwert** | Erlaubt (§4 verbietet `System.Random`, nicht den Kernel-RNG), aber es koppelt KI-Verhalten an jedes künftige System, das ebenfalls zieht. Vorschlag, keine Umsetzung |
+
+---
+
+## 17 · Gegenprobe: was ausserhalb dieses Projekts als gute Praxis gilt
+
+Die Regeln oben sind aus unseren eigenen Messungen entstanden. Der Abgleich mit
+Forschung und mit ausgelieferten RTS-Titeln bestätigt vier davon **wörtlich**,
+liefert drei Bausteine, die uns fehlen, und benennt eine Schwäche, die wir
+selbst schon vermerkt hatten.
+
+### 17.1 Bestätigt
+
+| These von aussen | Was sie für uns heisst |
+|---|---|
+| **Bots entscheiden „angreifen oder zurückziehen" entweder über eine Kampfsimulation oder über ein Lanchester-Modell** — das geschlossene Modell ist schneller als die Simulation und gewann im Turnier häufiger ([Stanescu u. a., AIIDE](https://cdn.aaai.org/ojs/12780/12780-52-16297-1-2-20201228.pdf)) | Genau unsere Bauform: **ein Skalar je Einheit, aufsummiert**, statt Gefechte probezurechnen. Für eine zustandslose KI, die je Kadenz entscheidet, ist die geschlossene Form die einzig gangbare — und sie ist die in der Literatur bevorzugte |
+| **C&C Generals führt je Team ein Prozentfeld, ab dem sich ein Team als „zerstört" betrachtet** — und eigene **Verstärkungsteams**, die sich der Angriffstruppe anschliessen, wenn Nachschub gebraucht wird ([World Builder Manual](https://www.g4li.org/command-and-conquer-generals-world-builder-manual/ai-team-attacks.html)) | Das ist §6, in einem ausgelieferten C&C-Titel. **`ReinforceMinStrengthPercent` ist keine Eigenerfindung**, sondern dieselbe Grösse in derselben Einheit. Das Verstärkungsteam ist unser Fall (b) |
+| **AoE2 kennt `sn-minimum-attack-group-size` als Vorbedingung fürs Losschicken** — und Praktiker berichten, dass `sn-percent-attack-soldiers` **besser funktioniert als die zahlenbasierten Gruppen** ([AI Scripting Encyclopedia](https://airef.github.io/), [AoE-Forum](https://forums.ageofempires.com/t/three-ways-to-get-the-ai-to-attack/205476)) | Zwei Sachen: die Mindestgrösse als Angriffsvorbedingung ist Standard — und **die Ablösung des rohen Zählers durch ein Verhältnis ist dort schon vollzogen.** §5 macht denselben Schritt, nur in Kampfpunkten statt in Prozent |
+| **AI War skaliert die Wellengrösse über Schwierigkeit und KI-Typ-Multiplikatoren (0,25 bis 2,0)**, mit einer Untergrenze ([Wave Size Calculations](https://wiki.arcengames.com/index.php?title=AI_War%3AAI_Wave_Size_Calculations)) | §11 in ausgeliefert: Schwierigkeit ist ein **Faktor auf die Wellengrösse**, kein Ressourcenbonus. Bestätigt auch die Kappung aus `EffectiveWaveSize` als notwendigen Bestandteil, nicht als Notnagel |
+| **Der militärische Begriff für das Förderband heisst „defeat in detail"** — Teilverbände nacheinander schlagen, statt dem ganzen Verband gegenüberzustehen ([Wikipedia](https://en.wikipedia.org/wiki/Defeat_in_detail)) | Der Name für das, was die KI sich heute selbst antut. Nützlich im PR-Text: es ist kein Balancing-Detail, sondern ein benannter taktischer Fehler |
+
+### 17.2 Drei Bausteine, die uns fehlen
+
+| Baustein | Woher | Was er bei uns täte |
+|---|---|---|
+| **Eine Ober- *und* eine Untergrenze für die Gruppe** | AoE2 führt `minimum` **und** `maximum attack group size` | Wir haben nur eine Schwelle. Sobald die Armeeobergrenze steigt (§8.2), fehlt die Regel „mehr als das schickt man nicht auf einmal los" — sonst wartet die KI auf eine Welle, die immer noch grösser werden könnte |
+| **Wellengrösse wächst mit der Zeit seit der letzten Welle** | AI War: Multiplikator 0,1 bis 3,0, je nach Abstand zur letzten Welle | Der elegante Ausweg aus der Sackgasse „nie ganz voll". Braucht bei uns einen Zeitbezug und damit Gedächtnis — **es sei denn**, man leitet ihn aus etwas Committetem ab (gebunkerte Credits, Wartezeit als Stillstand am Sammelpunkt). Wert, es zu prüfen, bevor Hysterese-Bastelei (§6.4) gebaut wird |
+| **Mehrere Angriffsgruppen statt einer Armee** | AoE2 fährt typisch 4 Gruppen zu 11–21 Einheiten | Unsere KI hat *eine* Armee und *ein* Ziel. Das ist die Ursache hinter NEXT-STEPS Punkt 2 („immer dieselbe Linie") und liegt hinter diesem Plan, nicht darin |
+
+### 17.3 Zwei Einwände, die wir gegen uns gelten lassen
+
+> **„Gewichtete Summe mit handgesetzten Gewichten" ist genau die Bauform, die in
+> der Literatur kritisiert wird** — Gewichte werden dort aus aufgezeichneten
+> Gefechten gelernt (Maximum-Likelihood), weil Handtuning als mühsam und
+> undurchsichtig gilt ([Combat Models for RTS Games](https://arxiv.org/pdf/1605.05305),
+> [Difficulty Scaling of Game AI](https://spronck.net/pubs/SpronckGAMEON2004.pdf)).
+>
+> Unsere Antwort ist nicht Lernen — es gibt keine Aufzeichnungsstrecke, und ein
+> gelernter Skalar wäre die Gesamtnote aus Entscheidung 11 durch die Hintertür.
+> Unsere Antwort ist die **einseitige Messung je Wert** (M001). Der Einwand
+> trifft trotzdem einen wahren Punkt, und §1.2 ist der Beleg dafür: die Klippe
+> zwischen 18 und 20 hätte niemand geraten.
+
+> **Lanchesters Quadratgesetz sagt, dass Konzentration überlinear wirkt** — zwölf
+> Einheiten sind mehr wert als zwölfmal eine. Unsere Summe ist linear und
+> unterschätzt damit die volle Welle systematisch.
+>
+> Das ist in §3.3 bereits als bewusste Auslassung vermerkt; die Literatur sagt,
+> ab wann sie teuer wird: **bei gemischten Armeen und ungleichen Verbandsgrössen.**
+> Genau das entsteht mit den Fahrzeugen aus §7. Der Auslöser, es nachzuholen, ist
+> damit benannt und nicht mehr „irgendwann".
+
+### 17.4 Ein Punkt, an dem wir besser dastehen als die zitierten Modelle
+
+Ein wiederkehrender Vorbehalt in der Übersichtsliteratur ist, dass veröffentlichte
+Kampfmodelle **angeschlagene Einheiten nicht modellieren** und nur den Sieger,
+nicht die Restarmee vorhersagen ([Combat Models for RTS Games](https://arxiv.org/pdf/1605.05305)).
+Unsere Formel trägt `CurrentHealth` **im Term selbst** — sie sagt nichts über den
+Ausgang voraus, aber sie beschreibt die Restarmee exakt, und das ist die Grösse,
+die §6 braucht. Was wir nicht können, wollen wir hier auch nicht.
