@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
+using Nova.Simulation.State;
 
 namespace Nova.AiLab.Tests
 {
@@ -137,6 +138,78 @@ namespace Nova.AiLab.Tests
             }
 
             Assert.That(compared, Is.GreaterThan(100), "the run has to have produced something to compare");
+        }
+
+        /// <summary>
+        /// The event stream has to rebuild the SAME picture the frames carry.
+        /// <para>
+        /// The player draws every tick from track and events and only takes fog
+        /// and the header row from a frame, so the two descriptions of one run
+        /// must not drift apart. They did: the retreat marker was "combat units
+        /// under 25 %" in <see cref="ViewRecorder"/> and "anything that is not a
+        /// building" in <see cref="DebugEventLog"/>, and a damaged BUILDER came
+        /// out marked in one artifact and unmarked in the other. Five frames of
+        /// one match, one unit — small enough to look like noise and wrong
+        /// enough to make a page claim a retreat rule would act on a builder.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void ReplayingTheEventsRebuildsTheFlagsAndShapesOfEveryFrame()
+        {
+            MatchSpec spec = ShortSpec();
+            spec.TickBudget = 6000;
+            spec.ViewIntervalTicks = 25;
+
+            MatchRunResult result = MatchRun.Execute(spec);
+            var role = new Dictionary<uint, UnitRole>();
+            var site = new HashSet<uint>();
+            var moving = new HashSet<uint>();
+            var cargo = new HashSet<uint>();
+            var below = new HashSet<uint>();
+
+            int eventIndex = 0, compared = 0;
+            foreach (ViewFrame frame in result.View)
+            {
+                while (eventIndex < result.Events.Count && result.Events[eventIndex].Tick <= frame.Tick)
+                {
+                    DebugEvent e = result.Events[eventIndex++];
+                    switch (e.Kind)
+                    {
+                        case DebugEventKind.Spawn: role[e.Id] = e.Role; break;
+                        case DebugEventKind.Death:
+                            role.Remove(e.Id); site.Remove(e.Id); moving.Remove(e.Id);
+                            cargo.Remove(e.Id); below.Remove(e.Id);
+                            break;
+                        case DebugEventKind.SiteOpen: site.Add(e.Id); break;
+                        case DebugEventKind.SiteDone: site.Remove(e.Id); role[e.Id] = e.Role; break;
+                        case DebugEventKind.MoveStart: moving.Add(e.Id); break;
+                        case DebugEventKind.MoveStop: moving.Remove(e.Id); break;
+                        case DebugEventKind.CargoFull: cargo.Add(e.Id); break;
+                        case DebugEventKind.CargoDelivered: cargo.Remove(e.Id); break;
+                        case DebugEventKind.RetreatBelow: below.Add(e.Id); break;
+                        case DebugEventKind.RetreatAbove: below.Remove(e.Id); break;
+                    }
+                }
+
+                foreach (ViewEntity entity in frame.Entities)
+                {
+                    compared++;
+                    Assert.That(role, Does.ContainKey(entity.Id),
+                        $"tick {frame.Tick}: entity {entity.Id} is on the map but not in the event stream");
+
+                    Assert.That(ViewRecorder.ShapeOf(role[entity.Id], site.Contains(entity.Id)),
+                        Is.EqualTo(entity.Shape),
+                        $"tick {frame.Tick}, entity {entity.Id}: replayed shape differs from the frame");
+
+                    int flags = (cargo.Contains(entity.Id) ? ViewFlags.ReturningCargo : 0)
+                                | (below.Contains(entity.Id) ? ViewFlags.BelowRetreatThreshold : 0)
+                                | (moving.Contains(entity.Id) ? ViewFlags.Moving : 0);
+                    Assert.That(flags, Is.EqualTo(entity.Flags),
+                        $"tick {frame.Tick}, entity {entity.Id}: replayed flags differ from the frame");
+                }
+            }
+
+            Assert.That(compared, Is.GreaterThan(500));
         }
 
         [Test]

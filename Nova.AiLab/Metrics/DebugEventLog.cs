@@ -622,10 +622,11 @@ namespace Nova.AiLab
             }
 
             // ---- the retreat marker -------------------------------------
+            // The frame's definition, not a second one beside it: a damaged
+            // BUILDER used to be "below the retreat mark" here and not there,
+            // and the same run said two things about the same unit.
             int healthPercent = u.MaxHealth > 0 ? u.CurrentHealth * 100 / u.MaxHealth : 0;
-            bool below = !isSite
-                         && !SimDefinitions.IsBuildingRole(u.Role)
-                         && healthPercent < ViewRecorder.RetreatMarkerHealthPercent;
+            bool below = ViewRecorder.IsBelowRetreatMarker(u.Role, isSite, healthPercent);
             if (below != _below[i])
             {
                 Add(new DebugEvent
@@ -779,9 +780,7 @@ namespace Nova.AiLab
             _y[i] = u.Transform.PositionY.RawValue;
 
             int healthPercent = u.MaxHealth > 0 ? u.CurrentHealth * 100 / u.MaxHealth : 0;
-            _below[i] = !_site[i]
-                        && !SimDefinitions.IsBuildingRole(u.Role)
-                        && healthPercent < ViewRecorder.RetreatMarkerHealthPercent;
+            _below[i] = ViewRecorder.IsBelowRetreatMarker(u.Role, _site[i], healthPercent);
 
             if (sameUnit) return;
 
