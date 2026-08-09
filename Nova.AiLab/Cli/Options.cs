@@ -73,6 +73,7 @@ namespace Nova.AiLab
                     case "--trace-every": options.Spec.TraceIntervalTicks = ParseInt(flag.Value, flag.Key); break;
                     case "--hash-every": options.Spec.HashIntervalTicks = ParseInt(flag.Value, flag.Key); break;
                     case "--view-every": options.Spec.ViewIntervalTicks = ParseInt(flag.Value, flag.Key); break;
+                    case "--track-every": options.Spec.TrackIntervalTicks = ParseInt(flag.Value, flag.Key); break;
                     case "--fog": options.Spec.RecordFog = true; break;
                     case "--watch": options.Watch = true; break;
                     case "--repeat": options.Repeat = ParseInt(flag.Value, flag.Key); break;

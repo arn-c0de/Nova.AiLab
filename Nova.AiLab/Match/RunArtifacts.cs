@@ -27,6 +27,9 @@ namespace Nova.AiLab
         public const string TraceFileName = "trace.ndjson";
         public const string HashChainFileName = "hashchain.json";
         public const string ViewFileName = "view.ndjson";
+        public const string TracksFileName = "tracks.ndjson";
+        public const string EventsFileName = "events.ndjson";
+        public const string UnitsFileName = "units.json";
 
         public static void Write(string directory, MatchSpec spec, MatchRunResult result)
         {
@@ -65,6 +68,53 @@ namespace Nova.AiLab
                     Path.Combine(directory, HtmlPlayer.FileName),
                     HtmlPlayer.Build(spec.MapWidth, spec.MapHeight, spec.Slots.Length, result.Seed));
             }
+
+            if (result.Tracks.Count > 0)
+            {
+                var tracks = new StringBuilder(result.Tracks.Count * 128);
+                for (int i = 0; i < result.Tracks.Count; i++)
+                {
+                    tracks.Append(result.Tracks[i].ToJsonLine()).Append('\n');
+                }
+                File.WriteAllText(Path.Combine(directory, TracksFileName), tracks.ToString());
+            }
+
+            if (result.Events.Count > 0)
+            {
+                var events = new StringBuilder(result.Events.Count * 128);
+                for (int i = 0; i < result.Events.Count; i++)
+                {
+                    events.Append(result.Events[i].ToJsonLine()).Append('\n');
+                }
+                File.WriteAllText(Path.Combine(directory, EventsFileName), events.ToString());
+            }
+
+            if (result.Units.Count > 0)
+            {
+                File.WriteAllText(Path.Combine(directory, UnitsFileName), BuildUnitsJson(result));
+            }
+        }
+
+        /// <summary>
+        /// One row per entity, ascending by id — the per-unit counterpart to
+        /// the per-slot columns in <c>result.json</c>. It stays its own file:
+        /// a result is a verdict about a match, and this is a hundred rows of
+        /// diagnosis that would drown it.
+        /// </summary>
+        public static string BuildUnitsJson(MatchRunResult result)
+        {
+            var json = new StringBuilder(result.Units.Count * 256);
+            json.Append("{\"units\":[\n");
+            for (int i = 0; i < result.Units.Count; i++)
+            {
+                json.Append("  ").Append(result.Units[i].ToJsonLine());
+                if (i < result.Units.Count - 1) json.Append(',');
+                json.Append('\n');
+            }
+            json.Append("],\n\"note\": \"detourPercent -1 = the unit never had a goal to walk towards. ")
+                .Append("damageDealtDerived and killsDerived are DERIVED from state, not reported by the ")
+                .Append("simulation — see notes/schadensquelle.md.\"\n}\n");
+            return json.ToString();
         }
 
         public static string BuildResultJson(MatchSpec spec, MatchRunResult result)

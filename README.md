@@ -1,5 +1,21 @@
 # Nova.AiLab — KI-Simulationslabor
 
+## Zusehen
+
+**▶ [Video: die Oberfläche im Betrieb, mit einem Gefecht der beiden Armeen](https://www.youtube.com/watch?v=SNa8hs-Odxo)**
+
+[![Das Labor beim Zusehen — Laufrouten, Gefecht, Ereignisprotokoll](Nova.AiLab/media/AiLabs-visual-v1.gif)](https://www.youtube.com/watch?v=SNa8hs-Odxo)
+
+Was da läuft, ist `player.html` aus einem Laborlauf: die Karte tickgenau
+vor- und zurückspulbar, jede Einheit anklickbar, ihre Laufroute gezeichnet,
+Treffer als rote Ringe, Sterben als verblassendes Kreuz — und daneben das
+vollständige Ereignisprotokoll der Partie. Womit man so einen Lauf erzeugt,
+steht unter [Start](#start) — oder ohne Kommandozeile mit `./lab-gui.sh`.
+
+**Und was es nicht ist:** ein Nachweis. Ein Laborlauf ist Diagnose. Was nicht
+im laufenden Spiel gesehen wurde, steht als ungesehen im PR-Text — das gilt
+auch für alles, was in diesem Video überzeugend aussieht.
+
 > **Das Labor ist aus dem Fork ([`arn-c0de/Project_Nova`](https://github.com/arn-c0de/Project_Nova))
 > herausgelöst und liegt jetzt in einem eigenen Repository — neben dem
 > Spiel-Checkout, nicht mehr darin.**
@@ -92,7 +108,12 @@ dotnet run --project Nova.AiLab -c Release -- match --repeat 2 --hash-every 100
 dotnet run --project Nova.AiLab -c Release -- match --watch
 
 # aufzeichnen und danach im Browser zurückspulen: out/run1/player.html öffnen
+# — dort eine Einheit anklicken und ihre Laufroute, Angriffe und ihren Tod verfolgen
 dotnet run --project Nova.AiLab -c Release -- match --view-every 25 --fog --out out/run1
+
+# dasselbe ohne Kommandozeile: Branch wählen, messen, Player öffnen, zwei Läufe
+# nebeneinanderlegen, Historie durchsehen — alles in einer lokalen Seite
+./lab-gui.sh
 
 # Seed-Matrix über alle Kerne, jeder 20. Lauf doppelt zur Selbstkontrolle
 dotnet run --project Nova.AiLab -c Release -- sweep --seeds 24 --out out/sweep
@@ -165,21 +186,24 @@ ohne etwas dafür zu bekommen.)
 | `MultiSlotAiHost.cs` | der Match-Host: `MatchRunner.InitializeMatch` von einem KI-Slot auf N verallgemeinert, sonst nichts |
 | `CountingAiPeerTransport.cs` | zählt Intent-Verdikte — die einzige Stelle, an der `intentsRejected` ehrlich entsteht |
 | `MatchRun.cs` | fährt eine Partie, liefert Outcome, Entscheidungstick, Hash-Kette, Trace |
-| `RunArtifacts.cs` | `result.json`, `trace.ndjson`, `hashchain.json`, `view.ndjson`, `player.html` |
+| `RunArtifacts.cs` | `result.json`, `trace.ndjson`, `hashchain.json`, `view.ndjson`, `tracks.ndjson`, `events.ndjson`, `units.json`, `player.html` |
 
 ### `Metrics/` — messen, ohne einzugreifen
 
 | Datei | Inhalt |
 |---|---|
 | `SlotMetrics.cs` / `TraceCollector.cs` | der Metrikkatalog aus §3.3, reiner Beobachter, nur Ganzzahlen |
+| `DebugEventLog.cs` | je Einheit und Tick: Spawn, Tod, Schaden, Befehl, Ziel, Angriff, Ernte, Bau, Steckenbleiben. Der Verursacher ist hergeleitet und als hergeleitet gekennzeichnet — `notes/schadensquelle.md` |
+| `RouteMetrics.cs` | eine Zeile je Einheit: Umwegfaktor, Stillstand trotz `Moving`, Ziel- und Befehlswechsel, Schaden. Kein `double`, auch nicht in der Wurzel |
 
 ### `View/` — hinsehen
 
 | Datei | Inhalt |
 |---|---|
-| `ViewFrame.cs` / `ViewRecorder.cs` | die Sichtframes aus §3.4 — Tätigkeit, nicht nur Position; reiner Beobachter |
+| `ViewFrame.cs` / `ViewRecorder.cs` | die Sichtframes aus §3.4 — Tätigkeit, nicht nur Position; reiner Beobachter. Seit der Laufroutenarbeit trägt jede Zeile die **Entity-ID** als zehnte Spalte, angehängt statt eingeschoben |
+| `EntityTrackRecorder.cs` | die Positionsspur, **jeder Tick**: Delta gegen die letzte Position, Keyframe alle 500 Ticks. Die Route ist absichtlich feiner als das Bild |
 | `TerminalView.cs` | ANSI-Liveansicht, beantwortet „läuft gerade etwas schief?" |
-| `HtmlPlayer.cs` | eine selbstständige Seite mit canvas: Scrubber, Einzeltick, Ebenen. Kein Build, kein Server |
+| `HtmlPlayer.cs` | eine selbstständige Seite mit canvas: Scrubber, Einzeltick, Ebenen — dazu Einheitenliste, Spur der Auswahl, Detailfeld und Ereignisband. Kein Build, kein Server |
 
 ### `Sweep/` — dieselbe Spec über viele Seeds
 
@@ -223,6 +247,9 @@ ohne etwas dafür zu bekommen.)
 |---|---|
 | `Program.cs` | nur `Main` und die Modus-Weiche — rund 50 Zeilen, sonst nichts |
 | `lab.sh` | messen und berichten in einem Kommando; `--reports-only`, `--regenerate` |
+| `lab-gui.sh` | die Steuerseite: Branch wählen, messen, Player öffnen, Historie ansehen, zwei Läufe nebeneinanderlegen — alles im Browser. `--port`, `--repo`, `--no-browser` |
+| `report/gui_server.py` | die kleinstmögliche Gegenstelle dazu: nur Standardbibliothek, nur an `127.0.0.1`. Ein fremder Branch wird **nie** im Arbeitscheckout ausgecheckt, sondern in einem `git worktree` unter `.worktrees/` gemessen |
+| `report/gui.tpl.html` | die Seite dazu, in derselben Machart wie die anderen: eine Datei, kein Build, kein Netzzugriff |
 | `report/lab_data.py` | liest die Artefakte aller vier Laufarten und verdichtet sie zu **einem** Datenblock — die gemeinsame Quelle beider Berichtsformen, dazu Herkunft und Fingerabdruck eines Laufs |
 | `report/build_dashboard.py` | bettet diesen Block in die Seite `out/dashboard.html` — Kurven, Gegentabelle als Heatmap, Belagerung, Bewegung. Verdichtet nur, rechnet nichts dazu und vergibt keine Note |
 | `report/dashboard.tpl.html` | die Seite dazu: eine Datei, kein Build, kein Server, kein Netzzugriff |

@@ -514,10 +514,21 @@ document.getElementById('duellegend').innerHTML =
    <span class="key"><span class="mono" style="font-size:13px">·</span>
    <span style="font-size:12.5px">in keinem Abstand Kontakt</span></span>`;
 
+// Das Budget ist pro Paarung bemessen (DuelArena.DeriveBudget). Hier stand
+// eine einzelne Zahl, die einer beliebigen Paarung gehoerte.
+function budgetSpan(duel) {
+  const span = duel.budgetRange;
+  if (!span) return duel.budget != null ? `${fmt(duel.budget)} AE (eine Paarung)` : '—';
+  return span[0] === span[1]
+    ? `${fmt(span[0])} AE`
+    : `${fmt(span[0])}–${fmt(span[1])} AE über ${duel.budgetValues} verschiedene Werte`;
+}
+
 const dc = D.duel.counts;
 document.getElementById('duelnote').innerHTML =
   `<b>${fmt(dc.total)} Duelle in Sekunden</b> — ${dc.decided} entschieden, ${dc.timeout} liefen ins Tickbudget.
-   Budget je Seite ${fmt(D.duel.budget)} AE, die Stückzahl folgt daraus.
+   AE-Budget ${budgetSpan(D.duel)} — <b>je Paarung bemessen, nicht global</b>: so viel, wie die teurere
+   Seite für ihre Stückzahl braucht; die billigere stellt, was dieselben AE kaufen.
    <br><b>Der auffälligste Befund ist eine leere Zeile.</b> Artillerie gewinnt 4 von 36 (Allianz) und
    2 von 36 (Legion) — und in 12 von 36 Duellen fällt kein einziger Schuss. Alle ${dc.noContact}
    kontaktlosen Duelle liegen in der Staffel <em>Waffenreichweite</em>: Artillerie schiesst 20 bzw. 18

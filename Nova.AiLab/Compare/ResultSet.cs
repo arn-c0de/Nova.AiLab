@@ -58,6 +58,13 @@ namespace Nova.AiLab
         /// </summary>
         public List<string> DistinctEndings = new List<string>();
 
+        /// <summary>
+        /// The replay value of a set that was READ BACK: the archive carries
+        /// the count, never the endings themselves. <c>-1</c> means "count the
+        /// endings" and is what a freshly measured candidate carries.
+        /// </summary>
+        public int ArchivedReplayValue = -1;
+
         /// <summary>Directory of one run kept for inspection — the link into the view window.</summary>
         public string SampleRunDirectory;
 
@@ -80,7 +87,7 @@ namespace Nova.AiLab
         public long AverageActionsPerMinute => Matches > 0 ? ActionsPerMinuteSum / Matches : 0;
 
         /// <summary>How many different endings the candidate produced over the whole set.</summary>
-        public int ReplayValue => DistinctEndings.Count;
+        public int ReplayValue => ArchivedReplayValue >= 0 ? ArchivedReplayValue : DistinctEndings.Count;
 
         /// <summary>Records one ending, keeping the list distinct and in first-seen order.</summary>
         public void RecordEnding(string ending)
@@ -200,6 +207,12 @@ namespace Nova.AiLab
                     .Append(", \"losses\": ").Append(c.Losses)
                     .Append(", \"draws\": ").Append(c.Draws)
                     .Append(", \"winPercent\": ").Append(c.WinPercent)
+                    // The DIVISOR travels with the average, or the archive
+                    // cannot restore the sum behind it: a set with draws in it
+                    // has fewer decided matches than matches, and reading the
+                    // average back against the wrong count is a silently
+                    // different number.
+                    .Append(", \"decidedMatches\": ").Append(c.DecidedMatches)
                     .Append(", \"averageDecidedTick\": ").Append(c.AverageDecidedTick)
                     .Append(", \"averageCredits\": ").Append(c.AverageCredits)
                     .Append(", \"averageArmySize\": ").Append(c.AverageArmySize)

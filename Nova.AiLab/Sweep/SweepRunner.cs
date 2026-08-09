@@ -142,6 +142,7 @@ namespace Nova.AiLab
                 HashIntervalTicks = template.HashIntervalTicks,
                 TraceIntervalTicks = template.TraceIntervalTicks,
                 ViewIntervalTicks = template.ViewIntervalTicks,
+                TrackIntervalTicks = template.TrackIntervalTicks,
                 RecordFog = template.RecordFog,
                 CountIntents = template.CountIntents,
                 Slots = slots,

@@ -13,3 +13,8 @@ __pycache__/
 # Quelle, aus der jeder Bericht neu entsteht. Ein Bericht ohne seine Rohdaten
 # ist reproduzierbar; ein Repo, das jede Messung roh mitschleppt, ist es nicht.
 out/
+
+# Arbeitscheckouts fremder Branches, die lab-gui.sh zum Messen anlegt. Sie
+# gehoeren dem Spiel-Repo, nicht diesem hier — und sie sind jederzeit aus einem
+# `git worktree add` wiederherstellbar.
+.worktrees/

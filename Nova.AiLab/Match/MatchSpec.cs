@@ -111,6 +111,27 @@ namespace Nova.AiLab
         public int ViewIntervalTicks;
 
         /// <summary>
+        /// Position sample every n ticks while the view window is on
+        /// (0 = no track). Default 1: EVERY tick.
+        /// <para>
+        /// It is not a copy of <see cref="ViewIntervalTicks"/> and must not
+        /// become one. A view frame is a picture and costs a picture; a track
+        /// sample is an id and two integers. At <c>--view-every 25</c> a unit
+        /// crosses two to three cells between frames, and a route drawn
+        /// through those points is a straight line nobody walked. Measured on
+        /// a decided match — 28 to 37 entities — one sample per tick costs a
+        /// few megabytes, which is why the default records verbatim instead of
+        /// thinning. Raise it only for a run that would otherwise be
+        /// unwieldy, and know that the route gets coarser when you do.
+        /// </para>
+        /// <para>
+        /// The EVENT stream ignores this: an edge between two samples is gone
+        /// forever, so events are always read every tick.
+        /// </para>
+        /// </summary>
+        public int TrackIntervalTicks = 1;
+
+        /// <summary>
         /// Record the fog layer with each view frame. Off by default because it
         /// dominates the file size; on when the question is "could the AI see
         /// it?", which is the most common one.

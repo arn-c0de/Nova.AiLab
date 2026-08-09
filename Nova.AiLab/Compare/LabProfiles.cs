@@ -105,6 +105,56 @@ namespace Nova.AiLab
             // against 138 as Alliance), which says the radius is not where the
             // effect comes from.
             Derive("retreat-25-near", retreatHealthPercent: 25, retreatDangerCells: 4),
+
+            // ---- the army cap, alone ----
+            //
+            // targetArmySize does TWO jobs at once, and at 12 both of them go
+            // wrong together. It caps "alive + queued" in the production step,
+            // where it counts the units that are OUT FIGHTING — so the barracks
+            // is idle for exactly as long as a wave is away, and only a death
+            // restarts it. And it is the ceiling the r5 wave threshold derives
+            // from (`reachable = targetArmySize - committed`), so with a full
+            // wave out that threshold collapses to its floor of 1 and every
+            // single replacement marches off alone.
+            //
+            // These two change NOTHING else — waveSize stays 12 (and
+            // EffectiveWaveSize clamps it to the cap, not the other way round),
+            // so what moves is only the room the AI has to build the next wave
+            // while the current one fights.
+            // Fünf Stellungen, weil ein mittlerer Wert nicht automatisch ein
+            // Kompromiss ist — `wave-6` lag unter `wave-off`, und dieselbe
+            // Warnung gilt hier, bis die Kurve dagegen spricht.
+            Derive("army-16", targetArmySize: 16),
+            Derive("army-18", targetArmySize: 18),
+            Derive("army-20", targetArmySize: 20),
+            Derive("army-24", targetArmySize: 24),
+            Derive("army-36", targetArmySize: 36),
+
+            // ---- das Wellentor in Kampfpunkten (r6) ----
+            //
+            // Die Referenz traegt seit r6 waveStrengthPoints 1200. `strength-off`
+            // ist deshalb die Aus-Stellung und damit die einzige Art, die Regel
+            // gegen ihre eigene Abwesenheit zu messen — dieselbe Rolle, die
+            // `wave-off` und `retreat-off` weiter oben spielen (M001).
+            Derive("strength-off", waveStrengthPoints: 0),
+
+            // DIE EIGENTLICHE FRAGE, und sie braucht ZWEI Zeilen, nicht eine.
+            // Bei Obergrenze 12 bindet die Erreichbarkeitsdecke zuerst (zwoelf
+            // Allianz-Schuetzen SIND 1200 Punkte, und eine dreizehnte Einheit
+            // laesst die Kappe nicht zu), also entscheidet das Tor dort
+            // identisch zum Kopfzaehlen. Sichtbar wird es erst mit angehobener
+            // Kappe — und dann ist die Frage nicht "Kappe hoeher, ja oder
+            // nein", sondern "aendert das Tor etwas an einer hoeheren Kappe".
+            // Deshalb je Kappe ein Paar: mit Tor (erbt 1200) gegen ohne.
+            Derive("army-24-count", targetArmySize: 24, waveStrengthPoints: 0),
+            Derive("army-36-count", targetArmySize: 36, waveStrengthPoints: 0),
+
+            // Die Klippe aus der Messreihe lag zwischen 18 und 20, und die
+            // Erklaerung war das an die Kappe gekoppelte Wellentor: bei Kappe
+            // 16 und zwoelf draussen marschieren Vierergruppen. Genau dort
+            // muss das Punkttor den Unterschied machen, wenn die Erklaerung
+            // stimmt — sonst ist sie falsch und gehoert widerrufen.
+            Derive("army-16-count", targetArmySize: 16, waveStrengthPoints: 0),
         };
 
         public static bool TryGet(string profileId, out AiProfile profile)
@@ -149,7 +199,8 @@ namespace Nova.AiLab
             int? stagingDistanceCells = null,
             int? stagingToleranceCells = null,
             int? retreatHealthPercent = null,
-            int? retreatDangerCells = null)
+            int? retreatDangerCells = null,
+            int? waveStrengthPoints = null)
         {
             AiProfile b = Reference;
             return new AiProfile(
@@ -170,7 +221,8 @@ namespace Nova.AiLab
                 stagingDistanceCells: stagingDistanceCells ?? b.StagingDistanceCells,
                 stagingToleranceCells: stagingToleranceCells ?? b.StagingToleranceCells,
                 retreatHealthPercent: retreatHealthPercent ?? b.RetreatHealthPercent,
-                retreatDangerCells: retreatDangerCells ?? b.RetreatDangerCells);
+                retreatDangerCells: retreatDangerCells ?? b.RetreatDangerCells,
+                waveStrengthPoints: waveStrengthPoints ?? b.WaveStrengthPoints);
         }
 
         /// <summary>Which values a candidate changed against the reference, for the report.</summary>
@@ -215,6 +267,8 @@ namespace Nova.AiLab
                 diffs.Add($"retreatAt {r.RetreatHealthPercent}→{candidate.RetreatHealthPercent}%");
             if (candidate.RetreatDangerCells != r.RetreatDangerCells)
                 diffs.Add($"retreatDanger {r.RetreatDangerCells}→{candidate.RetreatDangerCells}");
+            if (candidate.WaveStrengthPoints != r.WaveStrengthPoints)
+                diffs.Add($"waveStrength {r.WaveStrengthPoints}→{candidate.WaveStrengthPoints}");
             return diffs;
         }
     }

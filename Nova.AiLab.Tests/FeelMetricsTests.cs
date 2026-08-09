@@ -1,5 +1,9 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using Nova.Core;
+using Nova.Simulation.Definitions;
+using Nova.Simulation.Pathfinding;
+using Nova.Simulation.State;
 
 namespace Nova.AiLab.Tests
 {
@@ -58,6 +62,75 @@ namespace Nova.AiLab.Tests
             Assert.That(untraced.Feel, Is.Empty,
                 "three of the four columns are per-interval or per-tick derivations; a run without a " +
                 "trace has to report nothing instead of zeros that read as measurements");
+        }
+
+        // ================================================================
+        // (a2) THE PAIRING ITSELF: damage and answer in ONE tick
+        // ================================================================
+
+        /// <summary>
+        /// A unit that is hit AND re-ordered in the same tick produces TWO
+        /// events, not one: the order closes the open pair, the hit opens the
+        /// next one.
+        /// <para>
+        /// This was an if/else-if, so only the first of the two ever fired and
+        /// the fresh hit was neither answered nor unanswered — it was dropped.
+        /// The shape it dropped is the one the column exists for: a unit
+        /// walking out of fire is being shot WHILE it receives new orders. Over
+        /// n such ticks the tally came out at roughly n/2, and nothing in the
+        /// artifact said half the events were missing.
+        /// </para>
+        /// <para>
+        /// Driven by hand rather than through a match: the branch needs damage
+        /// and a re-order on the SAME tick, every tick, and no real match
+        /// arranges that on demand. The collector is a pure reader, so feeding
+        /// it a hand-written state is feeding it exactly what it would read.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void ADamagedAndReOrderedUnitCountsBothEventsInTheSameTick()
+        {
+            const int ticks = 20;
+            MultiSlotAiHost host = MultiSlotAiHost.Build(new MatchSpec
+            {
+                Seed = Seed,
+                TickBudget = ShortBudget,
+                CountIntents = false,
+                Slots = new[]
+                {
+                    new SlotSpec { Slot = 0, Faction = FactionId.Alliance, Controller = SlotController.Scripted },
+                    new SlotSpec { Slot = 1, Faction = FactionId.Legion, Controller = SlotController.Scripted },
+                },
+            });
+
+            Assert.That(SimDefinitions.TryGetUnit(FactionId.Alliance, UnitRole.BasicInfantry,
+                out SimUnitDefinition def), Is.True);
+            EntityId id = host.Entities.SpawnUnit(
+                0, new Transform2D(SimFixed.FromInt(10), SimFixed.FromInt(10)),
+                def.MoveSpeed, maxHealth: 10000, role: def.Role);
+
+            var collector = new TraceCollector(host);
+
+            for (uint tick = 1; tick <= ticks; tick++)
+            {
+                ref UnitState unit = ref host.Entities.RawUnits[id.Index];
+                unit.CurrentHealth -= 10;                              // hit
+                unit.TargetGridPos = new GridPos2D(20 + (int)tick, 20); // and pulled out
+                collector.OnTick(tick);
+            }
+            collector.FinishReactions();
+
+            ReactionTally tally = collector.Reactions[0];
+            Assert.That(tally.Events + tally.Unanswered, Is.EqualTo(ticks),
+                "every one of the 20 hits has to end up either answered or unanswered — the if/else-if " +
+                "version scored about half of them and lost the rest without a trace");
+            Assert.That(tally.Events, Is.EqualTo(ticks - 1),
+                "19 hits were answered by the next tick's order; the 20th was still open when the run ended");
+            Assert.That(tally.LatencySumTicks, Is.EqualTo(ticks - 1),
+                "each answer came one tick after its hit — a latency of 0 stays impossible, " +
+                "an intent cannot answer damage that has not happened yet");
+            Assert.That(tally.Unanswered, Is.EqualTo(1),
+                "damage still open when the match ends is unanswered, not forgotten");
         }
 
         // ================================================================

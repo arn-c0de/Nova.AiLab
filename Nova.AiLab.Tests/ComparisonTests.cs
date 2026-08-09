@@ -32,7 +32,18 @@ namespace Nova.AiLab.Tests
             set.Candidates.Add(new CandidateResult
             {
                 ProfileId = "late-push", Matches = 2, Wins = 2,
-                DecidedMatches = 2, DecidedTickSum = 18000, CreditsAtEndSum = 1400,
+                // ONE DRAW, so DecidedMatches and Matches differ: the archive
+                // has to carry the divisor, not assume the two are the same.
+                Draws = 1, DecidedMatches = 1, DecidedTickSum = 18000, CreditsAtEndSum = 1400,
+                ArmySizeAtEndSum = 24, UnitsLostSum = 18,
+                IntentsSubmittedSum = 900, IntentsRejectedSum = 7,
+                // The six game-feel columns, filled — the round trip used to be
+                // asserted on provenance alone, and these were dropped silently.
+                ExchangeRatioSum = 260, ExchangeRatioSamples = 2,
+                CombatIntervalsSum = 40, LargestLossJumpSum = 12,
+                ReactionLatencySum = 34, ReactionLatencySamples = 2,
+                UnansweredDamageSum = 120, ActionsPerMinuteSum = 48,
+                DistinctEndings = new List<string> { "a", "b", "c" },
                 DifferencesFromReference = new List<string> { "armySize 12→20" },
             });
             return set;
@@ -184,6 +195,101 @@ namespace Nova.AiLab.Tests
 
             Assert.That(original.WhyNotComparableWith(reloaded), Is.Null,
                 "a set must still be comparable with itself after a round trip through the archive");
+        }
+
+        /// <summary>
+        /// EVERY COLUMN THE ARCHIVE WRITES COMES BACK. The six game-feel
+        /// columns and the replay value were written by <c>ToJson</c> and never
+        /// read by <c>Parse</c>, so an archived set reported an exchange ratio
+        /// of 0, no combat intervals and a reaction latency of -1 whatever it
+        /// had actually measured — zeros and a "not measurable" that read
+        /// exactly like measurements, in the one class built to keep a wrong
+        /// comparison from looking like a right one.
+        /// <para>
+        /// The old round-trip test checked provenance and the candidate COUNT.
+        /// That is why nothing noticed.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void AnArchivedSetReadsBackEveryNumberItWrote()
+        {
+            CandidateResult original = Set().Candidates[1];
+            CandidateResult reloaded = ResultSetFile.Parse(Set().ToJson()).Candidates[1];
+
+            Assert.That(reloaded.ProfileId, Is.EqualTo(original.ProfileId));
+            Assert.That(reloaded.WinPercent, Is.EqualTo(original.WinPercent));
+            Assert.That(reloaded.AverageDecidedTick, Is.EqualTo(original.AverageDecidedTick),
+                "the average is divided by the DECIDED matches, so the archive has to carry that count " +
+                "— reading it back against the match count is a different number as soon as a set has draws");
+            Assert.That(reloaded.AverageCredits, Is.EqualTo(original.AverageCredits));
+            Assert.That(reloaded.AverageArmySize, Is.EqualTo(original.AverageArmySize));
+            Assert.That(reloaded.AverageUnitsLost, Is.EqualTo(original.AverageUnitsLost));
+            Assert.That(reloaded.IntentsSubmittedSum, Is.EqualTo(original.IntentsSubmittedSum));
+            Assert.That(reloaded.IntentsRejectedSum, Is.EqualTo(original.IntentsRejectedSum));
+
+            Assert.That(reloaded.AverageExchangeRatio, Is.EqualTo(original.AverageExchangeRatio));
+            Assert.That(reloaded.AverageCombatIntervals, Is.EqualTo(original.AverageCombatIntervals));
+            Assert.That(reloaded.AverageLargestLossJump, Is.EqualTo(original.AverageLargestLossJump));
+            Assert.That(reloaded.AverageReactionLatency, Is.EqualTo(original.AverageReactionLatency));
+            Assert.That(reloaded.AverageUnansweredDamage, Is.EqualTo(original.AverageUnansweredDamage));
+            Assert.That(reloaded.AverageActionsPerMinute, Is.EqualTo(original.AverageActionsPerMinute));
+            Assert.That(reloaded.ReplayValue, Is.EqualTo(original.ReplayValue),
+                "the archive carries the COUNT of distinct endings, never the endings themselves");
+        }
+
+        /// <summary>
+        /// "Not measurable in this set" has to survive the round trip AS that,
+        /// not as a sample of -1 that would drag an average below zero.
+        /// </summary>
+        [Test]
+        public void ANotMeasurableColumnReadsBackAsNoSample_NotAsMinusOne()
+        {
+            ResultSet set = Set();
+            CandidateResult barren = set.Candidates[1];
+            barren.ExchangeRatioSum = 0;
+            barren.ExchangeRatioSamples = 0;      // lost nothing anywhere -> no ratio
+            barren.ReactionLatencySum = 0;
+            barren.ReactionLatencySamples = 0;    // never answered a single hit
+
+            CandidateResult reloaded = ResultSetFile.Parse(set.ToJson()).Candidates[1];
+
+            Assert.That(reloaded.AverageExchangeRatio, Is.EqualTo(-1));
+            Assert.That(reloaded.AverageReactionLatency, Is.EqualTo(-1));
+            Assert.That(reloaded.ExchangeRatioSamples, Is.Zero,
+                "-1 means there was no sample; restoring it as one sample of -1 would make the " +
+                "next average a negative measurement of something that was never measured");
+            Assert.That(reloaded.ReactionLatencySamples, Is.Zero);
+        }
+
+        /// <summary>
+        /// A cleared archive has to appear IN the report. It used to be loaded,
+        /// checked against the provenance rules and then dropped: the report was
+        /// built from the new set alone, so <c>--against</c> produced a yes/no
+        /// verdict where the caller asked for a comparison.
+        /// </summary>
+        [Test]
+        public void AComparableArchiveShowsItsNumbersBesideTheNewOnes()
+        {
+            ResultSet measured = Set();
+            ResultSet archived = Set();
+            archived.Candidates[1].CreditsAtEndSum = 800;   // 400 per match, was 700
+
+            Assume.That(measured.WhyNotComparableWith(archived), Is.Null);
+            string html = ComparisonReport.Build(measured, "ms1-canonical", archived);
+
+            Assert.That(html, Does.Contain("<span class=\"was\">was 400</span>"),
+                "the archived value belongs in the cell next to the new one — an archive that is only " +
+                "allowed to say 'comparable' is not being compared");
+            Assert.That(html, Does.Contain("abc123"), "and the reader has to see which commit 'was' refers to");
+        }
+
+        [Test]
+        public void WithoutAnArchiveNoCellClaimsAPreviousValue()
+        {
+            // The MARKER, not the word: the legend prose contains "was" too,
+            // and asserting on the word tests the legend instead of the cells.
+            Assert.That(ComparisonReport.Build(Set(), "ms1-canonical"), Does.Not.Contain("class=\"was\""),
+                "with nothing to compare against there is no previous value, and none may be implied");
         }
 
         // ================================================================

@@ -52,6 +52,39 @@ namespace Nova.AiLab
             _recordFog = recordFog;
         }
 
+        /// <summary>
+        /// What an entity is drawn as. ONE definition, because more than one
+        /// artifact depends on it: the frame draws the shape, and
+        /// <see cref="DebugEventLog"/> decides from it whether the retreat
+        /// marker applies. When the two had their own copies of this rule they
+        /// disagreed about a damaged BUILDER — the frame left the marker off,
+        /// the event stream set it, and the same run said two things.
+        /// <para>
+        /// Site before role: an unfinished site carries <c>UnitRole.Unit</c>
+        /// and 1 HP until it completes (ConstructionSystem.SpawnBuildingEntity).
+        /// Testing the role first would draw every site as a combat unit.
+        /// </para>
+        /// </summary>
+        public static ViewShape ShapeOf(UnitRole role, bool isSite)
+        {
+            if (isSite) return ViewShape.ConstructionSite;
+            if (SimDefinitions.IsBuildingRole(role)) return ViewShape.Building;
+            if (role == UnitRole.Builder) return ViewShape.Builder;
+            if (role == UnitRole.Harvester) return ViewShape.Harvester;
+            return ViewShape.Combat;
+        }
+
+        /// <summary>
+        /// Whether the retreat marker applies to this entity at this health.
+        /// Combat units only — a builder on 10 % is not something a retreat
+        /// rule would act on, and marking it would promise a behaviour that
+        /// does not exist.
+        /// </summary>
+        public static bool IsBelowRetreatMarker(UnitRole role, bool isSite, int healthPercent)
+        {
+            return ShapeOf(role, isSite) == ViewShape.Combat && healthPercent < RetreatMarkerHealthPercent;
+        }
+
         public ViewFrame Capture(uint tick)
         {
             var frame = new ViewFrame { Tick = tick, Headers = new ViewSlotHeader[_slotCount] };
@@ -106,12 +139,7 @@ namespace Nova.AiLab
             // Testing the role first would draw every site as a combat unit.
             bool isSite = _host.Construction.TryGetSite(raw, out ushort siteDefId, out int progressRaw, out _);
 
-            ViewShape shape;
-            if (isSite) shape = ViewShape.ConstructionSite;
-            else if (SimDefinitions.IsBuildingRole(u.Role)) shape = ViewShape.Building;
-            else if (u.Role == UnitRole.Builder) shape = ViewShape.Builder;
-            else if (u.Role == UnitRole.Harvester) shape = ViewShape.Harvester;
-            else shape = ViewShape.Combat;
+            ViewShape shape = ShapeOf(u.Role, isSite);
 
             // Brightness is health, EXCEPT on a site: a site sits at 1 HP for
             // its whole life, so health there would encode nothing. Build
@@ -133,13 +161,11 @@ namespace Nova.AiLab
             int flags = 0;
             if (u.IsReturningCargo) flags |= ViewFlags.ReturningCargo;
             if (u.IsMoving) flags |= ViewFlags.Moving;
-            if (shape == ViewShape.Combat && healthPercent < RetreatMarkerHealthPercent)
-            {
-                flags |= ViewFlags.BelowRetreatThreshold;
-            }
+            if (IsBelowRetreatMarker(u.Role, isSite, healthPercent)) flags |= ViewFlags.BelowRetreatThreshold;
 
             var entity = new ViewEntity
             {
+                Id = raw,
                 Slot = u.PlayerId,
                 Shape = shape,
                 XRaw = u.Transform.PositionX.RawValue,

@@ -99,6 +99,146 @@ sie ohne sie gar nicht auftreten könnten; eine Aussage darüber, wie sich Stufe
 
 ---
 
+## V007 · 2026-08-09 · Kampfstärke statt Kopfzahl — **gebaut, und ausgeliefert wirkungslos**
+
+**Lauf:** [`runs/20260809-1519-f13f4d5f.md`](runs/20260809-1519-f13f4d5f.md) ·
+**Status:** im Labor gemessen, **im laufenden Spiel ungesehen** ·
+**KI-Verhalten:** `r5.779A1B5B` → **`r6.E34435F9`** ·
+**Stand:** `feat/ai-strength-wave-gate` auf `upstream/main` (`f13f4d5`) ·
+**Definitionstabelle:** `0x6326FA3E56CFF5A3`
+
+### Was genau geändert wurde
+
+`CombatStrength.Of(faction, role, health)` = `Schaden × Leben / Feuerintervall`,
+ganzzahlig, eine Division. Neues Profilfeld `waveStrengthPoints` (ausgeliefert
+**1200**, **0 = aus**). Das Wellentor summiert diese Punkte über die Einheiten
+**innerhalb** des Sammelrings statt sie zu zählen. Die r5-Regel wandert in
+Punkten mit: der Schwellwert wird gegen das gekappt, was der Ring noch
+**erreichen** kann — was dort steht plus eine frische Einheit je Kopf, den die
+Armeeobergrenze noch freihat.
+
+| Rolle, volle Gesundheit | Allianz | Legion |
+|---|---:|---:|
+| BasicInfantry | **100** | **44** |
+| ScoutVehicle | 264 | 180 |
+| LightTank | 962 | 672 |
+| AntiArmorInfantry | 200 | 144 |
+| BattleTank | 2.640 | 2.500 |
+| Artillery | 550 | 274 |
+
+Zwölf Rekruten sind **528** Punkte, zwölf Schützen **1.200**. Dieselbe „volle
+Welle", 44 % der Angriffsstärke.
+
+### Unverändert — und das ist hier die Hauptaussage
+
+> **Mit der ausgelieferten Obergrenze 12 entscheidet das Tor identisch zum
+> Kopfzählen. Byte für Byte.** `strength-off` (0) und die Referenz (1200)
+> enden beide auf Tick **5.773** und `0x2B34B4E194257940`, dem r5-Wert.
+> `SkirmishAiTests` hält denselben Endzustand `0x14472B2B943ED2BB` auf Tick
+> 2.548; nur der Bezeichner bewegt sich.
+
+Der Grund ist keine Nachlässigkeit, sondern Arithmetik: die Erreichbarkeitsdecke
+bindet zuerst. Zwölf Allianz-Schützen **sind** 1.200 Punkte, und eine
+dreizehnte Einheit lässt die Kappe nicht zu; bei der Legion liegt die Decke mit
+528 sogar dauerhaft unter der Schwelle. Das Tor kann also erst etwas tun, wenn
+die Obergrenze mehr Stärke zulässt, als es verlangt.
+
+**Damit ist dieser Schritt eine Entkopplung, keine Verbesserung** — und der
+Eintrag sagt das, statt eine Wirkung zu behaupten, die die Zahlen nicht hergeben.
+
+### Besser — sichtbar wird es erst mit angehobener Kappe, dafür deutlich
+
+Einseitig gegen die heutige Auslieferung (`strength-off` auf beiden Sitzen:
+Tick 5.773, Verluste 23 / 51, Austausch 221 / 45, grösste Armee 12 / 12).
+Je Zeile ist **ein** Sitz umgestellt, der andere bleibt heutig:
+
+| Sitz | Kandidat | Tick | Sieger | eig. Verluste | eig. Austausch | grösste eig. Armee |
+|---|---|---:|---|---:|---:|---:|
+| Legion | *(heute)* | 5.773 | Allianz | 51 | 45 | 12 |
+| Legion | `army-24-count` — **Kappe allein** | 5.921 | Allianz | **64** | **34** | 16 |
+| Legion | `army-20` | 5.599 | **Legion** | 42 | 64 | 20 |
+| Legion | `army-24` | 17.350 | **Legion** | 178 | 69 | 24 |
+| Legion | `army-36` | 7.747 | **Legion** | 63 | **90** | **35** |
+| Allianz | *(heute)* | 5.773 | Allianz | 23 | 221 | 12 |
+| Allianz | `army-24-count` — **Kappe allein** | 4.154 | Allianz | 6 | 633 | 24 |
+| Allianz | `army-24` | 3.914 | Allianz | 12 | 225 | 23 |
+| Allianz | `army-36` | 3.914 | Allianz | 12 | 225 | 23 |
+
+Zwei Dinge stehen da:
+
+1. **Die Obergrenze allein macht die Legion schlechter** — Verluste 51 → 64,
+   Austausch 45 → 34. Das ist genau die Asymmetrie, wegen der das Tor gebaut
+   wurde: mehr Bauplatz nützt nichts, wenn die Welle weiter bei zwölf Köpfen
+   losläuft, egal was zwölf Köpfe wiegen.
+2. **Mit dem Tor kippt derselbe Sitz.** Bei 20, 24 und 36 gewinnt die Legion,
+   und ihre grösste Armee wächst von 12 auf bis zu 35 — sie sammelt während des
+   Gefechts weiter, statt bei zwölf stehenzubleiben. Das ist die Beobachtung,
+   mit der diese Arbeit angefangen hat.
+
+Im zweiseitigen `compare` dasselbe Bild: `army-20`, `army-24` und `army-36`
+gewinnen **beide** Sitzungen (2/0/0), die drei `-count`-Gegenstücke keine
+einzige zusätzlich (1/1/0, wie die Referenz).
+
+### Schlechter
+
+- **APM steigt, und zwar erheblich.** Legionssitz 13 → 43 bei Obergrenze 36,
+  Allianzsitz 29 → 47. Das ist die Kennzahl, an der `DefendBase` gescheitert
+  ist (V002, +23 % und schlechteres Spiel). Hier ist ein Teil davon erklärbar —
+  eine dreimal so grosse Armee wird häufiger neu gruppiert — aber „erklärbar"
+  ist nicht „geprüft". `intentsRejected` bleibt über alle 23 Kandidaten **0**.
+- **Der Allianz-Sitz gewinnt durch das Tor nichts.** `army-24-count` ist dort
+  besser als `army-24` (6 Verluste gegen 12, Austausch 633 gegen 225). Die
+  Allianz bezahlt das Tor also, damit die Legion es bekommt. Bei Obergrenze 12
+  kostet es sie nichts, weil dort gar nichts passiert.
+- **Bei Obergrenze 24 dauert die Legionspartie 17.350 Ticks** und kostet 178
+  eigene Einheiten. Gewonnen ist gewonnen, aber das ist eine Zermürbung, kein
+  Angriff — dieselbe Form, die `retreat-75` in V006 disqualifiziert hat.
+
+### Widerlegt
+
+> **„Die Klippe zwischen 18 und 20 kommt vom an die Kappe gekoppelten
+> Wellentor."** Das war die Erklärung im Plan, und sie ist **falsch**. Mit dem
+> Tor bleibt die Klippe stehen: `army-18` braucht auf dem Legionssitz 17.908
+> Ticks und 203 eigene Verluste, `army-16` bleibt bei 50 % im `compare`. Die
+> Kopplung war also *eine* Ursache, nicht *die*. Was 18 von 20 unterscheidet,
+> ist unerklärt und darf im PR-Text nicht als erklärt auftauchen.
+
+> **„Ein Punktwert von 1200 lässt die Allianz unverändert."** Beim Schreiben
+> angenommen, im Labor gekippt: sobald die Kappe Luft lässt, zählen
+> **verwundete** Einheiten mit weniger Punkten, also braucht auch die Allianz
+> mehr als zwölf Köpfe für 1.200 Punkte. Slot 0 mit Tor gegen Slot 0 ohne
+> unterscheidet sich bei Kappe 24 um 5.297 Ticks. Die erste Messreihe war
+> deshalb **nicht** einseitig und wurde verworfen und neu gefahren — hier steht
+> nur die zweite.
+
+### Gefunden und behoben, bevor es in den PR kam
+
+> **Der „Boden von einer Einheit" war keine Absicherung, sondern eine zweite
+> Regel.** Die erste Fassung hob den Schwellwert auf mindestens eine
+> vollgesunde produzierte Einheit an. Damit wartete ein einzelner
+> **verwundeter** Nachzügler — weniger wert als ein frischer Rekrut, während
+> die Kappe von den Kämpfenden draussen belegt ist — auf eine Einheit, die nie
+> gebaut werden konnte. Das ist die Blockade, die `f13f4d5` beseitigt hat, eine
+> Nummer kleiner. Das Labor hat es gesehen, bevor ein Mensch es hätte sehen
+> können: die kanonische Partie lief **1.650 Ticks länger** (7.423 statt
+> 5.773). Ohne den Boden ist die Aus-Stellung wieder bitgenau. Die Lehre ist
+> die alte: ein Gleichheitspfad, der nicht Byte für Byte gleich ist, ist kein
+> Gleichheitspfad.
+
+### Offen
+
+- **Welche Obergrenze.** Die Kurve auf dem Legionssitz ist nicht monoton
+  (16 verliert, 18 verliert schwer, 20/24/36 gewinnen), und es gibt nur einen
+  Seed — die Seed-Achse ist im Labor leer. Aus einer sprunghaften Kurve den
+  besten Punkt zu wählen ist Anpassung an eine Einzelpartie, nicht Messung.
+  Das ist eine menschliche Entscheidung und gehört in einen eigenen PR.
+- **Warum 18 einbricht.** Siehe „Widerlegt". Unerklärt.
+- **Immer noch keine gespielte Partie.** Alles hier ist Diagnose.
+- Der Punktwert kennt weder Panzerung noch Reichweite. Solange die KI reine
+  Infanterie baut, ist das folgenlos; mit Fahrzeugen nicht mehr.
+
+---
+
 ## V006 · 2026-08-09 · **Nachmessung auf der neuen Basis** — beide Regeln halten, eine Annahme nicht
 
 **Lauf:** [`runs/20260809-0933-9c2817fe.md`](runs/20260809-0933-9c2817fe.md) ·
