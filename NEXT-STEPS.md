@@ -9,6 +9,14 @@ Historie: [`reports/behavior-log.md`](reports/behavior-log.md) ·
 Für die gespielte Partie: [`PLAYTEST-CHECKLIST.md`](PLAYTEST-CHECKLIST.md)
 
 > [!NOTE]
+> **Die nächsten fünf PRs sind ausgeplant:** [`KAMPFSTAERKE.md`](KAMPFSTAERKE.md)
+> — Nachschub hinter der laufenden Welle, Abbruch bei gebrochener Welle, Ausbau
+> bis zur Fahrzeugfabrik, und darunter **eine** ganzzahlige Kampfwertformel, an
+> der später der Schwierigkeitsgrad als Zahlensatz hängt. Enthält die Fortsetzung
+> der Wellenregel, die der Spieler in [Journal B002](reports/behavior-log.md)
+> selbst benannt hat.
+
+> [!NOTE]
 > **Punkt 1 und Punkt 3 sind gebaut** (Journal V004 und V005), Punkt 5 ist
 > **gestrichen** (Befund F002: `SetRallyPoint` ist die Spawn-Zelle, kein
 > Sammelbefehl). Die Beschreibungen unten sind der Stand **vor** diesen
@@ -472,6 +480,7 @@ gibt, an den man sich zurückzieht.
 | 6 | Annäherung über eine Route statt der Luftlinie | 2 | `AI/`, `Pathfinding/` | offen |
 | 7 | Abstandhalten **plus** Aufklärung | 6 | `Movement/`, `AI/` | offen |
 | neu | `DefendBase`, zweiter Anlauf | 3 | `AI/` | **wichtiger geworden**: seit `r4` greift die KI erst mit voller Armee an, ein früher Konter trifft eine wartende Armee. Jetzt mit Aus-Stellung und einseitig messen |
+| 8–13 | Kampfwert, Nachschub-Doktrin, Fahrzeuge, Stärkeziel, Schwierigkeitsgrade | 1, 7 | `AI/`, `AI.Data/`, Labor | ausgeplant in [`KAMPFSTAERKE.md`](KAMPFSTAERKE.md) — sechs gestapelte PRs, jeder mit Aus-Stellung. **Schritt 0 ist reine Laborarbeit** (Stärkekurve als Referenz) und muss vor dem ersten Verhaltens-PR stehen |
 
 Was Schritt 0 und der ausgefallene Schritt 1 zusammen gezeigt haben: **die
 Form ist billig, die Regel ist teuer.** Der Umbau war byte-identisch und in
