@@ -1,4 +1,4 @@
-# Laborlauf 20260810-0410-c8e46af5
+# Laborlauf 20260810-1504-c8e46af5
 
 > [!IMPORTANT]
 > **DIAGNOSE, kein Nachweis.** Nichts in diesem Bericht wurde im laufenden Spiel gesehen.
@@ -8,15 +8,16 @@
 
 | Herkunft | Wert |
 | --- | --: |
-| gemessen am | 2026-08-10T04:10:40Z |
+| gemessen am | 2026-08-10T15:04:53Z |
 | Commit | `c8e46af5ecbf704de8d704e02f6f18fc4d87ab30` |
 | Definitionstabelle | `0x6326FA3E56CFF5A3` |
 | KI-Verhalten | `r6.E34435F9` |
+| Messgerät | `Schema 2` |
 | Seed | `0xA17E57DE57` |
 | Tickbudget | 27.000 |
 | Slots | 2 |
 | specVersion | 1 |
-| Fingerabdruck | `2a0173b3eb18843b` |
+| Fingerabdruck | `04744beedb4b96c7` |
 
 Interaktive Fassung derselben Zahlen: [`dashboard.html`](../out/dashboard.html) — Kurven mit Fadenkreuz, Heatmap mit Abstandsdetail, Scrubber. Lokal öffnen, kein Server nötig; GitHub zeigt HTML nicht an, dafür ist dieser Bericht da.
 
@@ -28,7 +29,7 @@ Eine kanonische Partie über beide Slots, Metriken alle 50 Ticks, reine Beobacht
 | --- | --: | --- |
 | Ausgang | VictoryElimination | Slot 0 · alliance |
 | Entschieden bei Tick | 3.520 | von 27.000 Budget |
-| Rechenzeit | 1.399 ms | 2.516 Ticks/s |
+| Rechenzeit | 604 ms | 5.828 Ticks/s |
 | Metrikproben | 71 | alle 50 Ticks |
 | Hash-Kette | 8 | alle 500 Ticks |
 | Endzustands-Hash | `0x362A149F1A637FCD` | bei Tick 3.520 |

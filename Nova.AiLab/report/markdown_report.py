@@ -28,6 +28,37 @@ BANNER = (
     '> nebeneinander, die Auswahl trifft ein Mensch.'
 )
 
+# Schema 1 ist nicht "aelter", sondern "mit einem defekten Messgeraet gemessen".
+# cf49bd7 hat fuenf Defekte behoben, die falsche Zahlen als Messung ausgaben.
+# Welche davon in einem archivierten Block sichtbar sind, ist nachgeprueft und
+# nicht aus der Commit-Botschaft abgeschrieben: die Reaktionszaehlung, das
+# Duellbudget und das fehlende decidedMatches. Der Absturz bei Unentschieden
+# steht bewusst NICHT hier — keine kanonische Partie der Historie ging
+# unentschieden aus, er hat also nichts unterdrueckt.
+DEFECT_SCHEMA1 = (
+    '> [!WARNING]\n'
+    '> **Mit einem defekten Messgerät gemessen — diese Seite trägt keine belastbare Zahl.**\n'
+    '> Der Lauf ist unter `reportSchemaVersion 1` archiviert, stammt also von einem Laborstand\n'
+    '> vor `cf49bd7`. Dieser Stand gab nachweislich Falsches aus, das wie eine Messung aussah:\n'
+    '>\n'
+    '> * **Reaktionszahlen zu niedrig.** Der `TraceCollector` zählte einen Tick, in dem eine\n'
+    '>   Einheit getroffen **und** neu befehligt wurde, als *ein* Ereignis statt als zwei. Über\n'
+    '>   n solcher Ticks kam n/2 heraus — genau die Form, die eine Rückzugsregel erzeugt. Wer\n'
+    '>   hier eine Wirkung des Rückzugs abliest, liest den Zählfehler. Betroffen sind\n'
+    '>   `unansweredDamage`, `reactionLatencyTicks` und alles daraus Abgeleitete.\n'
+    '> * **Duellbudget falsch beschriftet.** `DuelArena.DeriveBudget` bemisst das Budget **je\n'
+    '>   Paarung**; der Block trägt nur eine einzelne Zahl, die über der ganzen Tabelle stand.\n'
+    '>   In einem echten Lauf sind es zwölf verschiedene Werte.\n'
+    '> * **`decidedMatches` fehlt im Block.** Die Mittelwerte, die durch diese Zahl teilen,\n'
+    '>   sind hier nicht nachprüfbar; `-1` stand als Messwert statt als „keine Probe".\n'
+    '>\n'
+    '> **Nachmessen geht nicht, neu rendern hilft nicht.** Das Labor kompiliert die Spielquellen\n'
+    '> in sich hinein und baut gegen diesen Commit nicht mehr (`FogOfWarSystem` ohne\n'
+    '> `construction`, fehlende `AiProfile`-Felder). `reports/data/` ist bereits das Ergebnis\n'
+    '> des defekten Geräts, kein Rohlauf. Der Eintrag bleibt als Beleg stehen, **dass** gemessen\n'
+    '> wurde — nicht als Beleg, **was** gemessen wurde.'
+)
+
 REPRO = """```bash
 export DOTNET_ROOT="$PWD/.dotnet"; export PATH="$DOTNET_ROOT:$PATH"
 dotnet run --project tools/Nova.AiLab -c Release -- match --trace-every 50 --hash-every 500 --view-every 25 --fog --out tools/Nova.AiLab/out/match
@@ -53,6 +84,14 @@ NO_WINNER_SLOT = 0xFF
 def fmt(value):
     """Tausenderpunkt wie im Dashboard. Ganzzahlen bleiben Ganzzahlen."""
     return f'{value:,}'.replace(',', '.') if isinstance(value, int) else str(value)
+
+
+def measured_by_defect(run):
+    """Stammt dieser Lauf von einem Labor, das falsche Zahlen ausgab?
+
+    Vor cf49bd7, also `reportSchemaVersion` 1. Die Version fehlt in den
+    aeltesten Bloecken ganz — ein fehlendes Feld ist hier 1, nicht "unbekannt"."""
+    return run.get('reportSchemaVersion', 1) < 2
 
 
 def has_winner(slot, slot_count=None):
@@ -408,14 +447,18 @@ def report_markdown(record, dashboard_link='../out/dashboard.html'):
     `dashboard_link` zeigt relativ zur geschriebenen Datei auf die interaktive
     Fassung — aus `reports/` eine Ebene hoch, aus `reports/runs/` zwei."""
     run, result = record['run'], record['match']['result']
+    defective = measured_by_defect(run)
     head = '\n'.join([
-        f"# Laborlauf {run['id']}", '',
+        f"# Laborlauf {run['id']}{' ⚠' if defective else ''}", '',
         BANNER, '',
+        *((DEFECT_SCHEMA1, '') if defective else ()),
         table(['Herkunft', 'Wert'], [
             ['gemessen am', run['timestamp']],
             ['Commit', f"`{run['commit'] or '—'}`"],
             ['Definitionstabelle', f"`{run['definitionsHash64']}`"],
             ['KI-Verhalten', f"`{run.get('aiBehaviorId') or '—'}`"],
+            ['Messgerät', '`Schema 1` — **defekt, siehe Warnung oben**' if defective
+             else f"`Schema {run.get('reportSchemaVersion')}`"],
             ['Seed', f"`{result['seed']}`"],
             ['Tickbudget', fmt(result['tickBudget'])],
             ['Slots', fmt(result['slotCount'])],
@@ -470,6 +513,7 @@ def run_summary(record):
         'commitShort': run['commitShort'] or '—',
         'definitionsHash64': run['definitionsHash64'],
         'aiBehaviorId': run.get('aiBehaviorId', ''),
+        'measuredByDefect': measured_by_defect(run),
         'winnerSlot': result['winnerSlot'],
         'decidedTick': result['decidedTick'],
         'finalStateHash': result['finalStateHash'],
@@ -498,7 +542,7 @@ def index_markdown(summaries):
         # ueber die Grenze hinweg nicht.
         marker = '' if len(tables) < 2 else f" ({tables.index(s['definitionsHash64']) + 1})"
         rows.append([
-            f"[`{s['id']}`](runs/{s['id']}.md)",
+            f"[`{s['id']}`](runs/{s['id']}.md){' ⚠' if s.get('measuredByDefect') else ''}",
             s['timestamp'][:16].replace('T', ' '),
             f"`{s['commitShort']}`{marker}",
             f"Slot {s['winnerSlot']}" if has_winner(s['winnerSlot']) else 'unentschieden',
@@ -562,6 +606,23 @@ def index_markdown(summaries):
                'ohne Kontakt', 'wackelnd', 'Überlauf standoff', 'angekommen', 'Endzustands-Hash'],
               rows, 'llllrrrrrrl'), '',
     ]
+
+    # Die Warnung steht unter der Tabelle, nicht in einer eigenen Spalte: eine
+    # Spalte "defekt ja/nein" laedt dazu ein, die Zeile trotzdem zu lesen.
+    defective = [s for s in ordered if s.get('measuredByDefect')]
+    if defective:
+        out += ['> [!WARNING]',
+                f"> **⚠ — {len(defective)} von {len(ordered)} Läufen sind mit einem defekten "
+                'Messgerät gemessen** (Laborstand vor `cf49bd7`, `reportSchemaVersion 1`: '
+                'halbierte Reaktionszählung, falsch beschriftetes Duellbudget, fehlendes '
+                '`decidedMatches`). Ihre Zeilen stehen hier, weil sie gelaufen sind — ihre Zahlen '
+                'tragen nichts. Sie lassen sich weder neu rendern noch nachmessen: `data/` ist '
+                'bereits das Ergebnis des defekten Geräts, und das heutige Labor baut gegen jene '
+                'Commits nicht mehr. Die Begründung im Einzelnen steht in jedem der betroffenen '
+                'Berichte.',
+                f"> Belastbar sind die {len(ordered) - len(defective)} Läufe ohne ⚠ — "
+                f"ab [`{next(s['id'] for s in ordered if not s.get('measuredByDefect'))}`]"
+                f"(runs/{next(s['id'] for s in ordered if not s.get('measuredByDefect'))}.md).", '']
 
     if len(tables) > 1:
         out += ['> [!WARNING]',
