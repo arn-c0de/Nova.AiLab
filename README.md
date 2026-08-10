@@ -54,6 +54,36 @@ tut — und es übersteuern kann: [`GOALS.md`](GOALS.md).
 
 ## Zusehen
 
+**▶ [Video: die ganze Partie einmal in normalem Tempo — wie sich die NPC heute verhalten](https://youtu.be/bx0Pc4uCELI)**
+
+Eine ganze Partie, **ungeschnitten und ohne Zeitraffer** durchlaufen. Nicht als
+Vorführung, sondern als **Vergleichspunkt**: Wellenrhythmus, Anmarsch, Rückzug
+und Zielwahl in Bewegung, so wie sie vor den nächsten Änderungen aussehen. Wenn
+[ROADMAP](ROADMAP.md) 1, 3 und 5 gebaut sind, wird gegen genau diese Aufnahme
+verglichen — was sich verändert hat, sieht man dann, ohne eine Zahl zu lesen.
+
+| Aufnahme | `Nova.AiLab-Behavior-a6-20260809-181200-feat_ai-strength-wave-gate-308d8cf` |
+|---|---|
+| **KI-Verhalten** | `r6.E34435F9` |
+| **Branch / Commit** | `feat/ai-strength-wave-gate` · `308d8cf` |
+| **Aufgenommen** | 2026-08-09, 18:12 — Laborlauf `a6` aus `lab-gui.sh` |
+| **Gehört zu** | [Journal B003](reports/behavior-log.md) — dieselbe Aufnahmereihe (18:10/18:11/**18:12**) |
+
+> **Das Video zeigt einen bekannten Defekt, und zwar absichtlich.** Aus genau
+> dieser Reihe stammt die Beobachtung in B003: *„Einheiten greifen Headquarter
+> an, aber die roten NPC sammeln sich an ihrem Armee-Sammelpunkt, anstatt erst
+> die an ihrem Headquarter zu bekämpfen."* Nachgemessen liegt das HQ über
+> 3.169 Ticks unter Feuer, davon 19 % **wehrlos**. Das abzustellen ist
+> [ROADMAP](ROADMAP.md) Punkt 1 — und diese Aufnahme ist der Beleg dafür, wie
+> es vorher aussah.
+
+> **Zur Aufnahme gehört der Stand, an dem sie entstanden ist** — deshalb steht
+> er oben in der Tabelle und im Dateinamen. Ohne ihn ist ein Video später nicht
+> zuzuordnen und als Vergleich wertlos. Und auch das hier bleibt **Diagnose,
+> kein Nachweis**: eine Aufzeichnung des Labors ist keine gespielte Partie.
+
+---
+
 **▶ [Video: die Oberfläche im Betrieb, mit einem Gefecht der beiden Armeen](https://www.youtube.com/watch?v=SNa8hs-Odxo)**
 
 [![Das Labor beim Zusehen — Laufrouten, Gefecht, Ereignisprotokoll](Nova.AiLab/media/AiLabs-visual-v1.gif)](https://www.youtube.com/watch?v=SNa8hs-Odxo)

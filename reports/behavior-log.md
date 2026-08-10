@@ -108,6 +108,13 @@ sie ohne sie gar nicht auftreten könnten; eine Aussage darüber, wie sich Stufe
 **Quelle:** Mensch am Bildschirm, Laboraufnahmen `out/gui/…-1810/1811/1812` ·
 **KI-Verhalten:** `r6.E34435F9` · **Stand:** `feat/ai-strength-wave-gate` (`308d8cf`)
 
+> **Die Aufnahme von 18:12 liegt als Video vor:**
+> [ganze Partie in normalem Tempo](https://youtu.be/bx0Pc4uCELI) —
+> `Nova.AiLab-Behavior-a6-20260809-181200-feat_ai-strength-wave-gate-308d8cf`.
+> Damit ist dieser Eintrag nachprüfbar statt zitiert, und die Aufnahme ist
+> zugleich der Vorher-Stand, gegen den [ROADMAP](../ROADMAP.md) Punkt 1
+> verglichen wird.
+
 > Wörtlich: „Einheiten greifen Headquarter an, aber die roten NPC sammeln sich
 > an ihrem Armee-Sammelpunkt, anstatt erst die an ihrem Headquarter zu
 > bekämpfen."
