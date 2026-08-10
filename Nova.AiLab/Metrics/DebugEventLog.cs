@@ -477,7 +477,8 @@ namespace Nova.AiLab
             }
 
             int spawnHealthPercent = u.MaxHealth > 0 ? u.CurrentHealth * 100 / u.MaxHealth : 0;
-            if (ViewRecorder.IsBelowRetreatMarker(u.Role, isSite, spawnHealthPercent))
+            if (ViewRecorder.IsBelowRetreatMarker(
+                    u.Role, isSite, spawnHealthPercent, _host.RetreatThresholdPercentOf(u.PlayerId)))
             {
                 Add(new DebugEvent
                 {
@@ -671,7 +672,8 @@ namespace Nova.AiLab
             // BUILDER used to be "below the retreat mark" here and not there,
             // and the same run said two things about the same unit.
             int healthPercent = u.MaxHealth > 0 ? u.CurrentHealth * 100 / u.MaxHealth : 0;
-            bool below = ViewRecorder.IsBelowRetreatMarker(u.Role, isSite, healthPercent);
+            bool below = ViewRecorder.IsBelowRetreatMarker(
+                u.Role, isSite, healthPercent, _host.RetreatThresholdPercentOf(u.PlayerId));
             if (below != _below[i])
             {
                 Add(new DebugEvent
@@ -825,7 +827,8 @@ namespace Nova.AiLab
             _y[i] = u.Transform.PositionY.RawValue;
 
             int healthPercent = u.MaxHealth > 0 ? u.CurrentHealth * 100 / u.MaxHealth : 0;
-            _below[i] = ViewRecorder.IsBelowRetreatMarker(u.Role, _site[i], healthPercent);
+            _below[i] = ViewRecorder.IsBelowRetreatMarker(
+                u.Role, _site[i], healthPercent, _host.RetreatThresholdPercentOf(u.PlayerId));
 
             if (sameUnit) return;
 

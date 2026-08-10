@@ -1950,11 +1950,13 @@ function baseOf(slot) {
  * Whether the unit is walking TOWARDS its own base — the visible half of a
  * retreat, and no more than that.
  * <p>
- * The AI pulls a wounded unit back to the STAGING CELL, and neither that cell
- * nor the profile's retreat percentage is in the artifacts: the white rim is
- * a fixed 25 % drawing marker, not the rule that fires. So this is read off
- * the geometry and labelled derived, instead of printing a decision the
- * recording does not carry.
+ * The white rim IS the profile's retreat percentage since r6 — it moves with
+ * the slot that plays. What it still cannot say is whether the rule FIRED:
+ * the rule also wants an armed enemy within its danger radius, and it pulls
+ * the unit back to the STAGING CELL, which no artifact carries. So the rim
+ * means ""eligible"", and this direction test is read off the geometry and
+ * labelled derived, instead of printing a decision the recording does not
+ * carry.
  */
 function walkingHome(u) {
   // Combat units only. A harvester walks home every trip — saying so there

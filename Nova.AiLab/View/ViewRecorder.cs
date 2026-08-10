@@ -33,13 +33,6 @@ namespace Nova.AiLab
     /// </summary>
     public sealed class ViewRecorder
     {
-        /// <summary>
-        /// Health share below which a unit gets a rim marker. E7 will make the
-        /// retreat threshold a profile value; until then this is a drawing
-        /// hint, not a rule — it marks what a retreat rule WOULD act on.
-        /// </summary>
-        public const int RetreatMarkerHealthPercent = 25;
-
         private readonly MultiSlotAiHost _host;
         private readonly int _slotCount;
         private readonly bool _recordFog;
@@ -76,13 +69,27 @@ namespace Nova.AiLab
 
         /// <summary>
         /// Whether the retreat marker applies to this entity at this health.
+        /// <paramref name="thresholdPercent"/> is the OWNING SLOT's own value
+        /// (<see cref="MultiSlotAiHost.RetreatThresholdPercentOf"/>), so the
+        /// mark moves with the profile that plays; 0 switches it off exactly
+        /// as it switches the rule off in <c>SkirmishAiSystem.IsRetreating</c>.
+        /// <para>
         /// Combat units only — a builder on 10 % is not something a retreat
         /// rule would act on, and marking it would promise a behaviour that
         /// does not exist.
+        /// </para>
+        /// <para>
+        /// IT MARKS ELIGIBILITY, NOT THE ACT. The rule additionally wants an
+        /// armed enemy within <c>RetreatDangerCells</c> and a staging cell to
+        /// walk to, and neither is a property of the entity alone. So this is
+        /// "the retreat rule can act on this unit now", which is what a rim on
+        /// a sprite can honestly say.
+        /// </para>
         /// </summary>
-        public static bool IsBelowRetreatMarker(UnitRole role, bool isSite, int healthPercent)
+        public static bool IsBelowRetreatMarker(UnitRole role, bool isSite, int healthPercent, int thresholdPercent)
         {
-            return ShapeOf(role, isSite) == ViewShape.Combat && healthPercent < RetreatMarkerHealthPercent;
+            if (thresholdPercent <= 0) return false;
+            return ShapeOf(role, isSite) == ViewShape.Combat && healthPercent < thresholdPercent;
         }
 
         public ViewFrame Capture(uint tick)
@@ -161,7 +168,10 @@ namespace Nova.AiLab
             int flags = 0;
             if (u.IsReturningCargo) flags |= ViewFlags.ReturningCargo;
             if (u.IsMoving) flags |= ViewFlags.Moving;
-            if (IsBelowRetreatMarker(u.Role, isSite, healthPercent)) flags |= ViewFlags.BelowRetreatThreshold;
+            if (IsBelowRetreatMarker(u.Role, isSite, healthPercent, _host.RetreatThresholdPercentOf(u.PlayerId)))
+            {
+                flags |= ViewFlags.BelowRetreatThreshold;
+            }
 
             var entity = new ViewEntity
             {

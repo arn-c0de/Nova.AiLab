@@ -30,6 +30,13 @@ namespace Nova.AiLab
         /// <summary>Null on a scripted slot — nothing decides on its own there.</summary>
         public SkirmishAiSystem System;
 
+        /// <summary>
+        /// The profile this slot plays. Carried because the observers need to
+        /// draw the rules the slot actually runs, not a constant beside them:
+        /// a scripted slot keeps the default and is asked for nothing.
+        /// </summary>
+        public AiFactionProfile Profile;
+
         /// <summary>The canonical transport — set unless the run counts intents.</summary>
         public AiPeerCommandTransport Transport;
 
@@ -155,6 +162,28 @@ namespace Nova.AiLab
 
         public int SlotCount { get; private set; }
 
+        /// <summary>Retreat threshold per slot in percent of max health; 0 where no rule runs.</summary>
+        private int[] _retreatThresholdPercent = Array.Empty<int>();
+
+        /// <summary>
+        /// The health share below which THIS slot's retreat rule acts, as the
+        /// slot's own profile sets it (<c>AiProfile.RetreatHealthPercent</c>,
+        /// 60 in the shipped profile). 0 means the slot runs no retreat rule at
+        /// all — a scripted slot, or a profile with the rule switched off.
+        /// <para>
+        /// THE OBSERVERS READ THE RULE, THEY DO NOT KEEP A COPY OF IT. Until
+        /// r6 the view drew a fixed 25 % marker while the AI retreated at 60,
+        /// so player.html and events.ndjson marked a different set of units
+        /// than the behaviour they exist to explain — and the whole 25-to-60
+        /// band, which is exactly where the rule works, carried no mark at all.
+        /// The candidates <c>retreat-40</c>, <c>retreat-75</c> and
+        /// <c>retreat-off</c> were indistinguishable in the picture while the
+        /// lab was measuring them apart.
+        /// </para>
+        /// </summary>
+        public int RetreatThresholdPercentOf(byte slot) =>
+            slot < _retreatThresholdPercent.Length ? _retreatThresholdPercent[slot] : 0;
+
         // ----------------------------------------------------------------
         // Construction (mirror of MatchRunner.InitializeMatch)
         // ----------------------------------------------------------------
@@ -211,7 +240,13 @@ namespace Nova.AiLab
                 // one is the default; the counting stand-in replaces it only
                 // when a run needs the intent verdicts, and a test pins that
                 // both produce the identical hash chain.
-                var peer = new SlotPeer { Slot = slotSpec.Slot, Session = peerSession, Ingress = peerIngress };
+                var peer = new SlotPeer
+                {
+                    Slot = slotSpec.Slot,
+                    Session = peerSession,
+                    Ingress = peerIngress,
+                    Profile = slotSpec.Profile,
+                };
                 if (spec.NeedsIntentCounting)
                 {
                     peer.IntentCounter = new CountingAiPeerTransport(peerIngress, ingress);
@@ -263,7 +298,18 @@ namespace Nova.AiLab
 
             kernel.Start();
 
-            return new MultiSlotAiHost
+            // Read off the spec, not off the peers: a slot without a command
+            // seat has no peer and still has to answer 0 rather than fall off
+            // the end of the array.
+            var retreatThresholds = new int[slotCount];
+            for (int i = 0; i < slotCount; i++)
+            {
+                retreatThresholds[i] = spec.Slots[i].Controller == SlotController.Ai
+                    ? spec.Slots[i].Profile.Profile.RetreatHealthPercent
+                    : 0;
+            }
+
+            var host = new MultiSlotAiHost
             {
                 Kernel = kernel,
                 Entities = entities,
@@ -280,6 +326,8 @@ namespace Nova.AiLab
                 Peers = peers.ToArray(),
                 SlotCount = slotCount,
             };
+            host._retreatThresholdPercent = retreatThresholds;
+            return host;
         }
 
         /// <summary>Builds the host and applies the canonical opening position.</summary>
