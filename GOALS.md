@@ -71,6 +71,14 @@ höchsten Priorität, bei Gleichstand in fester Modulreihenfolge. Das ist genau,
 was die heutige if-Kette tut — nur benannt, einzeln testbar und einzeln
 abschaltbar.
 
+> [!NOTE]
+> **Der Hysterese-Ersatz steckt schon in `IsRetreating` und ist beim
+> Modularisieren leicht zu verlieren:** eine Einheit, die **bereits zur
+> Sammelzelle läuft**, gilt weiter als auf Rückzug, auch wenn gerade keine
+> Bedrohung in Reichweite ist. Der stehende Befehl ist das Gedächtnis — genau die
+> Stelle, an der eine „saubere" reine Bedingung das Verhalten kaputt macht,
+> ohne dass ein Test es merkt.
+
 ### 2.1 Der Katalog
 
 `GoalKind` liegt als Enum in `AI.Data/`, damit Sim, Labor und Panel dieselben
@@ -79,7 +87,7 @@ ausgerechnet und nirgends gespeichert.
 
 | Goal | Trifft zu, wenn | Wirkung | Stand |
 |---|---|---|---|
-| `Rueckzug` | Leben unter `RetreatHealthPercent` **und** Bedrohung innerhalb `RetreatDangerCells` | Marsch zur Basis, Ziel = nächster Verfolger | **echt seit `r4`** |
+| `Rueckzug` | Leben unter `RetreatHealthPercent`, Wellen an — **und** entweder eine Bedrohung innerhalb `RetreatDangerCells` **oder** sie läuft schon zur Sammelzelle | Marsch zur **Sammelzelle** (nicht zur Basis), Ziel = nächster Verfolger | **echt seit `r4`** |
 | `Angreifen` | die Welle marschiert, oder die Einheit ist schon draussen | Marsch zur Zielzelle, Ziel = Armeeziel | **echt seit `r1`/`r3`** |
 | `Sammeln` | am Sammelpunkt **angekommen** und stehend | **kein Befehl** — absichtlich, siehe unten | **echt seit `r3`** |
 | `Aufmarschieren` | sonst, als Nachschub auf dem Weg | Marsch zum Sammelpunkt, **kein** Angriffsziel (F001) | **echt seit `r3`** |
