@@ -67,9 +67,13 @@ namespace Nova.AiLab
         public static string Build(int mapWidth, int mapHeight, ulong seed, SlotSpec[] slots)
         {
             int slotCount = slots != null ? slots.Length : 0;
-            var html = new StringBuilder(64 * 1024);
-            html.Append(Template
-                .Replace("__MAP_WIDTH__", mapWidth.ToString(CultureInfo.InvariantCulture))
+
+            // In place, not as a chain of string.Replace: the template is some
+            // sixty kilobytes and every link of such a chain copies all of it
+            // again. The kit goes in LAST, so nothing that was substituted
+            // before it can be read as a placeholder afterwards.
+            var html = new StringBuilder(Template, 96 * 1024);
+            html.Replace("__MAP_WIDTH__", mapWidth.ToString(CultureInfo.InvariantCulture))
                 .Replace("__MAP_HEIGHT__", mapHeight.ToString(CultureInfo.InvariantCulture))
                 .Replace("__SLOT_COUNT__", slotCount.ToString(CultureInfo.InvariantCulture))
                 .Replace("__SEED__", "0x" + seed.ToString("X", CultureInfo.InvariantCulture))
@@ -81,7 +85,7 @@ namespace Nova.AiLab
                 .Replace("__EVENTS_FILE__", RunArtifacts.EventsFileName)
                 .Replace("__UNITS_FILE__", RunArtifacts.UnitsFileName)
                 .Replace("__UIKIT_CSS__", Kit("uikit.tokens.css"))
-                .Replace("__UIKIT_JS__", Kit("uikit.icons.js")));
+                .Replace("__UIKIT_JS__", Kit("uikit.icons.js"));
             return html.ToString();
         }
 
@@ -563,13 +567,28 @@ namespace Nova.AiLab
 const MAP_W = __MAP_WIDTH__, MAP_H = __MAP_HEIGHT__;
 const ONE = 65536;                       // Q16.16: positions arrive as raw integers
 
-/** A token of the shared kit, read once the stylesheet is in. */
-const token = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+/**
+ * A token of the shared kit, read once the stylesheet is in — and then kept.
+ * <p>
+ * `getComputedStyle` resolves style before it answers. Reading `--plane` and
+ * `--grid` inside `paint()` meant paying for that twice per redraw, sixteen
+ * times a second while the match plays, for two values that cannot change:
+ * the page pins `data-theme` in its own <html> tag and offers no switch.
+ */
+const TOKENS = new Map();
+function token(name) {
+  let value = TOKENS.get(name);
+  if (value === undefined) {
+    value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    TOKENS.set(name, value);
+  }
+  return value;
+}
 
-// THE SEAT COLOURS COME FROM THE KIT, NOT FROM HERE. Slot 1 used to be
-// #f85149 — the same red the map paints damage and death with, so a red dot
-// was either a Legion unit or a hit landing. Red belongs to damage now.
-const SLOT_COLOURS = Array.from({ length: 8 }, (unused, i) => token('--slot-' + i) || '#8b949e');
+// THE SEAT COLOURS COME FROM THE KIT, NOT FROM HERE — and through the kit's
+// own `slotColour`, not through a second table beside it. Slot 1 used to be
+// #f85149 here, the same red the map paints damage and death with, so a red
+// dot was either a Legion unit or a hit landing. Red belongs to damage now.
 const LINE_COLOURS = [null,'#f85149','#3fb950','#58a6ff'];
 const ROLE_NAME = ['unit','builder','harvester','HQ','refinery','power','storage','barracks',
                    'vehicleFactory','researchLab','radar','defensePlatform','basicInfantry',
@@ -699,11 +718,38 @@ function loadUnits(text) {
 }
 
 function ready() {
+  forget();
   scrub.max = lastTick;
   const wanted = readHash();
   if (wanted !== null) tick = Math.min(lastTick, Math.max(0, wanted));
   note();
   draw();
+}
+
+// ------------------------------------------- what is worked out only once
+//
+// EVERY CACHE BELOW IS KEYED ON THE TICK, AND NOTHING ELSE. `paint()` runs on
+// the play timer, on every pointer move while the map is being dragged, on
+// every wheel step and on every resize — and in all but the first of those the
+// tick has NOT moved. Rebuilding the world, the positions and the filtered log
+// for a tick that is already on screen is the single biggest cost in this page.
+//
+// They are safe because the artifacts are read once and never written again:
+// for a given tick the answer cannot change while the page is open. `forget()`
+// is the one exception — a file that arrives late (or is dropped onto the page
+// by hand) makes every one of them stale at once, and `ready()` runs after each.
+
+let worldTick = -1;
+let positions = new Map(), positionsTick = -1;
+let bases = new Map(), basesTick = -1;
+let frameRows = new Map(), frameRowsTick = -1;
+let logCache = null, logCacheKey = null;
+let bandBase = null, bandBaseKey = null;
+
+function forget() {
+  worldTick = -1; positionsTick = -1; basesTick = -1; frameRowsTick = -1;
+  logCache = null; logCacheKey = null;
+  bandBase = null; bandBaseKey = null;
 }
 
 /** Reads ""#u=1043&t=2200"" and returns the wanted tick, or null. */
@@ -786,6 +832,23 @@ function posAt(id, atTick) {
   if (!tr) return null;
   const i = lowerBound(tr.t, atTick + 1) - 1;
   return i < 0 ? null : [tr.x[i], tr.y[i]];
+}
+
+/**
+ * Where a unit stands at THE tick being shown — the same answer as
+ * <c>posAt(id, tick)</c>, looked up once instead of per caller.
+ * <p>
+ * One drawing round asks for the same unit's position half a dozen times over:
+ * the marker, its order line, the wave gate's ring test, the click test. Every
+ * one of those was a binary search of its own. `posAt` stays for the callers
+ * that mean a DIFFERENT tick — the hit sparks read the tick a hit landed at,
+ * the self-check reads the tick of a frame — and those must not be cached here.
+ */
+function posNow(id) {
+  if (positionsTick !== tick) { positions = new Map(); positionsTick = tick; }
+  let p = positions.get(id);
+  if (p === undefined) { p = posAt(id, tick); positions.set(id, p); }
+  return p;
 }
 
 /**
@@ -882,11 +945,23 @@ function healthPercentOf(u) {
   return u.hpMax > 0 ? Math.floor(u.hp * 100 / u.hpMax) : 0;
 }
 
-/** Build progress lives only in the frames: it is not an edge, it creeps. */
+/**
+ * Build progress lives only in the frames: it is not an edge, it creeps.
+ * <p>
+ * The frame's rows are keyed by id once per frame rather than searched per
+ * question: `healthPercentOf` asks this for every construction site, in the
+ * drawing loop and again in the unit list, and a frame carries a row per
+ * entity on the map.
+ */
 function siteProgress(id) {
   const frame = frameAt(tick);
   if (!frame) return 0;
-  const row = frame.e.find(e => e.length > 9 && e[9] === id);
+  if (frameRowsTick !== frame.t) {
+    frameRows = new Map();
+    for (const e of frame.e) if (e.length > 9) frameRows.set(e[9], e);
+    frameRowsTick = frame.t;
+  }
+  const row = frameRows.get(id);
   return row ? row[4] : 0;
 }
 
@@ -898,7 +973,7 @@ function lineOf(u) {
   // The same priority the recorder uses: an attack order says more about what
   // a unit is doing than the move that carries it there.
   if (u.attack) {
-    const p = posAt(u.attack, tick);
+    const p = posNow(u.attack);
     if (p && world.has(u.attack)) return [1, p[0], p[1]];
   }
   // Ein Lauf, der aufgezeichnet wurde bevor harvestStart die Zelle des Feldes
@@ -959,7 +1034,7 @@ function fitMap() {
 /** Puts the selected unit in the middle without changing the scale. */
 function focusSelected() {
   if (selected === null) return;
-  const p = posAt(selected, tick);
+  const p = posNow(selected);
   if (!p) return;
   view.cx = p[0] / ONE; view.cy = p[1] / ONE;
   draw();
@@ -1024,6 +1099,15 @@ const markerScale = () =>
 /** Ob Rollen-Symbole gezeichnet werden — der Schalter im Reiter ""layers"". */
 let useIcons = true;
 
+/**
+ * The unseen and the remembered, over the map.
+ * <p>
+ * ONE RECTANGLE PER ROW SEGMENT, NOT PER CELL. The fog arrives run-length
+ * encoded and the cells run row by row, so a run is the rest of one row, whole
+ * rows, and the start of the last — every piece of it a rectangle. Painted
+ * cell by cell this was up to MAP_W × MAP_H fill calls per redraw (16 384 on
+ * the canonical map) for a picture that is a handful of blocks.
+ */
 function drawFog(frame) {
   if (!frame || !frame.fog) return;
   const runs = frame.fog[+fogSlot.value];
@@ -1032,14 +1116,17 @@ function drawFog(frame) {
   let cell = 0;
   for (let i = 0; i < runs.length; i += 2) {
     const count = runs[i], state = runs[i + 1];
+    const end = cell + count;
     if (state !== 2) {
       ctx.fillStyle = state === 0 ? 'rgba(0,0,0,0.82)' : 'rgba(0,0,0,0.45)';
-      for (let k = 0; k < count; k++) {
-        const c = cell + k, x = c % MAP_W, y = (c / MAP_W) | 0;
-        ctx.fillRect(px(x * ONE), py((y + 1) * ONE), cw + 0.5, cw + 0.5);
+      for (let c = cell; c < end; ) {
+        const x = c % MAP_W, y = (c / MAP_W) | 0;
+        const span = Math.min(MAP_W - x, end - c);
+        ctx.fillRect(px(x * ONE), py((y + 1) * ONE), span * cw + 0.5, cw + 0.5);
+        c += span;
       }
     }
-    cell += count;
+    cell = end;
   }
 }
 
@@ -1108,7 +1195,7 @@ function drawTrails() {
     for (const row of rows) {
       if (budget <= 0) break;
       if (slot >= 0 && row.slot !== slot) continue;
-      budget -= drawTrail(row.id, span, SLOT_COLOURS[row.slot % SLOT_COLOURS.length], 1, false, budget);
+      budget -= drawTrail(row.id, span, slotColour(row.slot), 1, false, budget);
     }
   }
 
@@ -1184,13 +1271,41 @@ function fitCanvas() {
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
 }
 
+/**
+ * REDRAW ONCE PER FRAME, however often it is asked for.
+ * <p>
+ * Dragging the map fires `pointermove` sixty to a hundred and twenty times a
+ * second, and each one used to run a full redraw synchronously — reconstructed
+ * state, scoreboard, unit list, log. The browser cannot show more than one
+ * picture per frame anyway, so the extra ones were work nobody ever saw. Every
+ * caller still just says `draw()`; only the last one before the next frame
+ * does anything.
+ */
+let pendingFrame = 0;
+
 function draw() {
+  if (pendingFrame) return;
+  pendingFrame = requestAnimationFrame(() => { pendingFrame = 0; paint(); });
+}
+
+/** Whether a tab's panel is on screen. What is hidden is not built. */
+function tabVisible(name) {
+  return !document.body.classList.contains('collapsed') &&
+         !document.getElementById('tab-' + name).hidden;
+}
+
+function paint() {
   placeSeats();
   fitCanvas();
   // Einmal skalieren, danach rechnet alles in CSS-Pixeln weiter.
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   if (!loaded.events || !loaded.tracks) { drawEmpty(); return; }
-  world = stateAt(tick);
+  // Der Zustand eines Ticks kann sich nicht mehr aendern, sobald die Datei
+  // gelesen ist — und paint() laeuft auch beim Zoomen, Ziehen und
+  // Groessenaendern, wo der Tick stehen bleibt. Das begruendet KEINEN
+  // fortgeschriebenen Zustand: der Nachlauf ab Tick 0 bleibt genau so, wie er
+  // war (siehe stateAt), er faellt nur nicht mehr mehrfach fuer denselben Tick an.
+  if (worldTick !== tick) { world = stateAt(tick); worldTick = tick; }
 
   // ZWEI GRÜNDE, ZWEI FARBEN. Die Leinwand ist grösser als die Karte — sie
   // hat den Platz zum Schieben, und ein quadratisches Feld passt nie genau in
@@ -1220,7 +1335,7 @@ function draw() {
 
   const drawn = [];
   for (const u of world.values()) {
-    const p = posAt(u.id, tick);
+    const p = posNow(u.id);
     if (!p) continue;
     drawn.push([u, p]);
   }
@@ -1271,9 +1386,12 @@ function draw() {
   document.getElementById('zoomLabel').textContent = view.zoom.toFixed(1) + '×';
   scrub.value = tick;
 
-  renderUnits();
-  renderDetail();
-  renderLog();
+  // Die Reiter teilen sich eine Flaeche: drei von vier liegen immer verdeckt.
+  // Sie trotzdem zu bauen kostet je Redraw bis zu fuenfhundert Protokollzeilen
+  // und eine Zeile je Einheit — fuer etwas, das niemand sieht. showTab()
+  // zeichnet neu, sobald einer wieder aufgeht.
+  if (tabVisible('units')) { renderUnits(); renderDetail(); }
+  if (tabVisible('log')) renderLog();
   drawBand();
 }
 
@@ -1311,7 +1429,7 @@ const ICON_OVER_MARKER = 2.5;
  */
 function paintUnit(u, cx, cy, hp, flags, healthDims, fade) {
   const shape = shapeOf(u);
-  const base = SLOT_COLOURS[u.slot % SLOT_COLOURS.length];
+  const base = slotColour(u.slot);
   const dim = healthDims ? Math.max(0.3, hp / 100) : 1;
   ctx.globalAlpha = dim * fade;
   ctx.fillStyle = base; ctx.strokeStyle = base; ctx.lineWidth = 1.4;
@@ -1528,7 +1646,7 @@ function waveState(slot) {
     if (u.slot !== slot) continue;
     if (!u.site && u.role === rules.producerRole) canProduce = true;
     if (shapeOf(u) !== 4) continue;
-    const p = posAt(u.id, tick);
+    const p = posNow(u.id);
     if (!p) continue;
     const dx = Math.abs(Math.floor(p[0] / ONE) - hqX);
     const dy = Math.abs(Math.floor(p[1] / ONE) - hqY);
@@ -1642,7 +1760,7 @@ function waveCell(wave) {
 function renderSeats(frame) {
   const stats = slotStats(frame);
   const total = stats.reduce((sum, s) => sum + s.strength, 0);
-  const colour = s => SLOT_COLOURS[s.seat.slot % SLOT_COLOURS.length];
+  const colour = s => slotColour(s.seat.slot);
   const num = v => v === null ? '<span class=""sub"">—</span>' : v;
   const seats = document.getElementById('seats');
   const note = document.getElementById('topNote');
@@ -1707,6 +1825,41 @@ function renderSeats(frame) {
 
 // -------------------------------------------------------------- the band
 
+/**
+ * Every event of the match, faintly — the shape of the whole run, kept in a
+ * buffer instead of redrawn.
+ * <p>
+ * It is one thin bar per event and a match carries a few thousand of them, so
+ * this was a few thousand fill calls on every redraw for a picture that only
+ * changes when the band changes SIZE or the file changes. The two things that
+ * do move with the tick — the selection's own events and the cursor — stay in
+ * `drawBand` and are cheap.
+ */
+function bandBackground(w, h, ratio) {
+  const key = w + 'x' + h + '@' + ratio + '#' + events.length + '/' + lastTick;
+  if (bandBase && bandBaseKey === key) return bandBase;
+
+  const buffer = document.createElement('canvas');
+  buffer.width = Math.max(1, Math.round(w * ratio));
+  buffer.height = Math.max(1, Math.round(h * ratio));
+  const bufctx = buffer.getContext('2d');
+  bufctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  bufctx.fillStyle = '#080a0c';
+  bufctx.fillRect(0, 0, w, h);
+  bufctx.globalAlpha = 0.35;
+  bufctx.fillStyle = token('--axis') || '#484f58';
+  for (const e of events) bufctx.fillRect(bandAt(e.t, w), h - 6, 1, 5);
+
+  bandBase = buffer;
+  bandBaseKey = key;
+  return buffer;
+}
+
+/** Where a tick sits on a band `w` pixels wide. */
+function bandAt(t, w) {
+  return (t / Math.max(1, lastTick)) * (w - 2) + 1;
+}
+
 function drawBand() {
   // Das Band wurde mit 2000 festen Pixeln gezeichnet und per CSS auf die
   // Zeilenbreite gezerrt — jeder Strich darin war entsprechend verzogen.
@@ -1724,14 +1877,9 @@ function drawBand() {
   bctx.fillRect(0, 0, bw, bh);
   if (!events.length) return;
 
-  const at = t => (t / Math.max(1, lastTick)) * (bw - 2) + 1;
+  bctx.drawImage(bandBackground(bw, bh, ratio), 0, 0, bw, bh);
 
-  // Every event of the match, faintly — the shape of the whole run.
-  bctx.globalAlpha = 0.35;
-  bctx.fillStyle = token('--axis') || '#484f58';
-  for (const e of events) bctx.fillRect(at(e.t), bh - 6, 1, 5);
-  bctx.globalAlpha = 1;
-
+  const at = t => bandAt(t, bw);
   const list = selected === null ? null : eventsById.get(selected);
   if (list) {
     for (const e of list) {
@@ -1780,7 +1928,7 @@ function renderUnits() {
   rows.sort((a, b) => a.slot - b.slot || a.id - b.id);
 
   body.innerHTML = rows.map(r => {
-    const colour = SLOT_COLOURS[r.slot % SLOT_COLOURS.length];
+    const colour = slotColour(r.slot);
     // The ROLE, not the shape: ""combat"" says nothing a reader could look for
     // in the game, ""basicInfantry"" is the thing that stands on the map. The
     // icon is the same silhouette the map draws, so list and picture agree.
@@ -1827,13 +1975,18 @@ document.getElementById('logBox').addEventListener('click', ev => {
   if (ev.target.classList.contains('id')) select(e.id); else seek(e.t);
 });
 
-// The selection lives in the URL fragment, so ""look at #1043 around tick
-// 2200"" is a link and not a set of instructions.
-function select(id) {
-  selected = selected === id ? null : id;
+// The selection and the tick live in the URL fragment, so ""look at #1043
+// around tick 2200"" is a link and not a set of instructions. A page inside a
+// sandboxed frame may refuse the write, and that is not worth an error.
+function writeHash() {
   try {
     history.replaceState(null, '', selected === null ? '#t=' + tick : '#u=' + selected + '&t=' + tick);
   } catch (ignored) {}
+}
+
+function select(id) {
+  selected = selected === id ? null : id;
+  writeHash();
   draw();
 }
 
@@ -1901,7 +2054,7 @@ function slotOf(id) {
 /** ""#1044 basicInfantry"" — short enough for a log row. */
 function shortLabel(id) {
   const slot = slotOf(id);
-  const colour = slot >= 0 ? SLOT_COLOURS[slot % SLOT_COLOURS.length] : '#c9d1d9';
+  const colour = slot >= 0 ? slotColour(slot) : '#c9d1d9';
   return '<span style=""color:' + colour + '"">#' + id + ' ' + roleNameOf(id) + '</span>';
 }
 
@@ -1938,12 +2091,25 @@ function attackersOf(id) {
   return out;
 }
 
-/** The owner's headquarters, for the one direction question below. */
+/**
+ * The owner's headquarters, for the one direction question below — and for the
+ * staging ring the wave gate measures against.
+ * <p>
+ * Kept per tick: it is a scan over every entity on the map, and the wave gate
+ * asks for it once per seat while `walkingHome` asks for it once per unit it
+ * looks at. The answer is the same one every time within a tick.
+ */
 function baseOf(slot) {
-  for (const u of world.values()) {
-    if (u.slot === slot && u.role === 3 && !u.site) return posAt(u.id, tick);
+  if (basesTick !== tick) { bases = new Map(); basesTick = tick; }
+  let home = bases.get(slot);
+  if (home === undefined) {
+    home = null;
+    for (const u of world.values()) {
+      if (u.slot === slot && u.role === 3 && !u.site) { home = posNow(u.id); break; }
+    }
+    bases.set(slot, home);
   }
-  return null;
+  return home;
 }
 
 /**
@@ -1964,7 +2130,7 @@ function walkingHome(u) {
   // is the same mistake as the white rim on a builder was.
   if (shapeOf(u) !== 4) return false;
   if (!u.moving || u.goalX < 0) return false;
-  const home = baseOf(u.slot), here = posAt(u.id, tick);
+  const home = baseOf(u.slot), here = posNow(u.id);
   if (!home || !here) return false;
   // Two cells of slack: a unit that circles its goal is not walking home.
   return cellDistance([u.goalX * ONE, u.goalY * ONE], home) + 2 < cellDistance(here, home);
@@ -1979,14 +2145,14 @@ function walkingHome(u) {
  * a unit than the walk that carries it there.
  */
 function behaviourOf(u) {
-  const here = posAt(u.id, tick);
+  const here = posNow(u.id);
   const marks = [];
   let main, movementIsTheSentence = false;
 
   if (u.site) {
     main = 'being built (def ' + u.siteDef + ')';
   } else if (u.attack) {
-    const target = posAt(u.attack, tick);
+    const target = posNow(u.attack);
     const away = here && target ? ', ' + cellDistance(here, target) + ' cells away' : '';
     const since = sinceTick(u.id, ['attackStart', 'attackSwitch']);
     main = (world.has(u.attack) ? 'attacking ' : 'attacking the gone ') + unitLabel(u.attack) + away +
@@ -2038,7 +2204,7 @@ function renderDetail() {
   const live = world.get(selected);
   const unit = units.get(selected);
   const slot = slotOf(selected);
-  const colour = slot >= 0 ? SLOT_COLOURS[slot % SLOT_COLOURS.length] : token('--ink2');
+  const colour = slot >= 0 ? slotColour(slot) : token('--ink2');
   const blocks = [];
 
   const block = (title, rows) => {
@@ -2049,7 +2215,7 @@ function renderDetail() {
   };
 
   if (live) {
-    const p = posAt(selected, tick);
+    const p = posNow(selected);
     block('state', [
       unit && ['life', 'tick ' + unit.firstTick + '…' + unit.lastTick + (unit.died ? ' · died' : '')],
       ['health', live.hp + '/' + live.hpMax + '  (' + healthPercentOf(live) + '%)'],
@@ -2117,13 +2283,28 @@ function renderDetail() {
 /** The window of rows the log renders around the current tick. */
 const LOG_WINDOW = 500;
 
+/**
+ * The events the log currently lets through.
+ * <p>
+ * KEPT UNTIL THE FILTER CHANGES. This walks every event of the match and
+ * builds a new array of the survivors — a few thousand entries — and the log
+ * is rendered on every redraw, sixteen times a second while the match plays.
+ * The filter, though, only changes when somebody moves a control. The binary
+ * search below already avoids building a second array of ticks for the same
+ * reason; this is the same argument one step earlier.
+ */
 function logFiltered() {
   const slot = +logSlot.value, group = document.getElementById('logKind').value;
   const only = document.getElementById('logOnlySelected').checked;
-  return events.filter(e =>
+  const key = slot + '|' + group + '|' + (only ? 'u' + selected : 'all');
+  if (logCache && logCacheKey === key) return logCache;
+
+  logCache = events.filter(e =>
     (slot < 0 || e.slot === slot) &&
     (group === 'all' || EVENT_GROUP[e.k] === group) &&
     (!only || e.id === selected));
+  logCacheKey = key;
+  return logCache;
 }
 
 /** Rows the log currently shows, so a click can resolve back to its event. */
@@ -2150,7 +2331,7 @@ function renderLog() {
     const when = e.t < tick ? 'past' : e.t > tick ? 'future' : 'now';
     rows.push('<div class=""row ' + when + (e.id === selected ? ' sel' : '') + '"" data-i=""' + i + '"">' +
       't' + String(e.t).padStart(5, ' ') + ' ' +
-      '<b class=""id"" style=""color:' + SLOT_COLOURS[e.slot % SLOT_COLOURS.length] + '"">#' + e.id + '</b> ' +
+      '<b class=""id"" style=""color:' + slotColour(e.slot) + '"">#' + e.id + '</b> ' +
       '<span style=""color:' + (EVENT_COLOUR[e.k] || '#8b949e') + '"">' + e.k + '</span> ' +
       describe(e) + '</div>');
   }
@@ -2172,22 +2353,30 @@ function renderLog() {
 
 function seek(target) {
   tick = Math.min(lastTick, Math.max(0, Math.round(target)));
-  try {
-    history.replaceState(null, '', selected === null ? '#t=' + tick : '#u=' + selected + '&t=' + tick);
-  } catch (ignored) {}
+  writeHash();
   draw();
 }
 
 function step(delta) { seek(tick + delta); }
 
-/** Jumps to the next or previous event — of the selection, or of the match. */
+/**
+ * Jumps to the next or previous event — of the selection, or of the match.
+ * <p>
+ * Backwards is a loop from the end and not `[...list].reverse().find(…)`: that
+ * copied and reversed the whole event list of the match, a few thousand
+ * entries, to look at the handful nearest the cursor.
+ */
 function jumpEvent(direction, mine) {
   const list = mine ? (selected === null ? null : eventsById.get(selected)) : events;
   if (!list || !list.length) return;
-  const next = direction > 0
-    ? list.find(e => e.t > tick)
-    : [...list].reverse().find(e => e.t < tick);
-  if (next) seek(next.t);
+  if (direction > 0) {
+    const next = list.find(e => e.t > tick);
+    if (next) seek(next.t);
+    return;
+  }
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].t < tick) { seek(list[i].t); return; }
+  }
 }
 
 canvas.addEventListener('click', ev => {
@@ -2198,7 +2387,7 @@ canvas.addEventListener('click', ev => {
 
   let best = null, bestDistance = 18 * 18;
   for (const u of world.values()) {
-    const p = posAt(u.id, tick);
+    const p = posNow(u.id);
     if (!p) continue;
     const dx = px(p[0]) - x, dy = py(p[1]) - y;
     const d = dx * dx + dy * dy;
@@ -2296,17 +2485,22 @@ const SIDE_MIN = 280, SIDE_MAX = 640;
  * units beside it. The remembered width stays remembered — it is only capped
  * for as long as the window is small.
  */
+// Die gemerkte Breite, EINMAL gelesen. clampSide() haengt an placeSeats() und
+// damit an jedem Redraw — localStorage im Zeichenpfad abzufragen ist ein
+// synchroner Griff auf die Platte, sechzehnmal in der Sekunde, fuer eine Zahl,
+// die sich nur aendert, wenn jemand am Griff zieht.
+const storedSide = +remembered('sideWidth');
+let sideWidth = storedSide >= SIDE_MIN && storedSide <= SIDE_MAX ? storedSide : 420;
+
 function clampSide() {
-  const stored = +remembered('sideWidth');
-  const want = stored >= SIDE_MIN && stored <= SIDE_MAX ? stored : 420;
   const room = Math.max(SIDE_MIN, Math.min(SIDE_MAX, window.innerWidth * 0.42));
-  document.getElementById('side').style.width = Math.round(Math.min(want, room)) + 'px';
+  document.getElementById('side').style.width = Math.round(Math.min(sideWidth, room)) + 'px';
 }
 
 function setSideWidth(px) {
-  const width = Math.round(Math.min(SIDE_MAX, Math.max(SIDE_MIN, px)));
-  document.getElementById('side').style.width = width + 'px';
-  remember('sideWidth', String(width));
+  sideWidth = Math.round(Math.min(SIDE_MAX, Math.max(SIDE_MIN, px)));
+  document.getElementById('side').style.width = sideWidth + 'px';
+  remember('sideWidth', String(sideWidth));
   draw();
 }
 
@@ -2401,7 +2595,7 @@ function buildLegend() {
 
     '<h3>the seats</h3>' +
     '<p>' + SLOTS.map(s => '<span class=""chip"" style=""color:' +
-        SLOT_COLOURS[s.slot % SLOT_COLOURS.length] + '"">slot ' + s.slot + ' · ' + s.faction +
+        slotColour(s.slot) + '"">slot ' + s.slot + ' · ' + s.faction +
         '</span> ').join('') + '</p>' +
 
     '<h3>the scoreboard</h3>' +

@@ -173,9 +173,25 @@ function iconEvenOdd(name) {
   return !!icon.e;
 }
 
-/** Die acht Sitzfarben, wie tokens.css sie setzt — fuer Leinwand und Inline-Stil. */
+/** Die acht Sitzfarben, wie tokens.css sie setzt — fuer Leinwand und Inline-Stil.
+ *
+ * EINMAL AUFGELOEST, DANN BEHALTEN. `getComputedStyle` loest erst den Stil auf
+ * und antwortet dann; der Player fragt die Farbe eines Sitzes fuer jede
+ * Einheit, jede Listenzeile und jede Protokollzeile — beim Abspielen
+ * sechzehnmal in der Sekunde. Die Seiten setzen ihr `data-theme` fest und
+ * bieten keinen Umschalter, die Antwort kann sich also nicht aendern.
+ *
+ * Der Modulo faengt auch negative Slots: `-1 % 8` ist in JS `-1`, und ein
+ * Zugriff daneben waere `undefined` statt einer Farbe.
+ */
+const SLOT_COLOURS = new Map();
 function slotColour(slot) {
-  const root = document.documentElement;
-  const value = getComputedStyle(root).getPropertyValue('--slot-' + (((slot % 8) + 8) % 8));
-  return value.trim() || '#8b949e';
+  const index = (((slot % 8) + 8) % 8);
+  let colour = SLOT_COLOURS.get(index);
+  if (colour === undefined) {
+    colour = getComputedStyle(document.documentElement)
+      .getPropertyValue('--slot-' + index).trim() || '#8b949e';
+    SLOT_COLOURS.set(index, colour);
+  }
+  return colour;
 }

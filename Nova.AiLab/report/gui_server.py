@@ -90,6 +90,30 @@ def safe_name(value, pattern, what):
     return text
 
 
+def read_json(path, fallback=None):
+    """Eine JSON-Datei, mit geschlossenem Griff — oder `fallback`.
+
+    `json.load(open(...))` verlaesst sich darauf, dass CPython die Datei beim
+    Wegfallen der letzten Referenz schliesst. Das ist eine Zusage der
+    Implementierung und keine der Sprache, und dieser Server bedient mehrere
+    Anfragen gleichzeitig.
+
+    Fehlt die Datei oder ist sie halb geschrieben, ist das hier ueberall der
+    Normalfall und kein Fehler: ein Lauf, der noch misst, hat seine
+    `result.json` noch nicht.
+    """
+    try:
+        with open(path, encoding='utf-8') as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return {} if fallback is None else fallback
+
+
+def write_json(path, payload):
+    with open(path, 'w', encoding='utf-8') as handle:
+        json.dump(payload, handle, indent=2)
+
+
 def inside(base, *parts):
     """Ein Pfad UNTER `base`, oder gar keiner.
 
@@ -175,10 +199,8 @@ def checkout_for(ref):
 
 def run_meta(directory):
     """Ein GUI-Lauf als Zeile fuer die Liste. Fehlt etwas, fehlt die Zeile nicht."""
-    meta_path = os.path.join(directory, 'meta.json')
-    meta = json.load(open(meta_path, encoding='utf-8')) if os.path.exists(meta_path) else {}
-    result_path = os.path.join(directory, 'result.json')
-    result = json.load(open(result_path, encoding='utf-8')) if os.path.exists(result_path) else {}
+    meta = read_json(os.path.join(directory, 'meta.json'))
+    result = read_json(os.path.join(directory, 'result.json'))
     return {
         'id': os.path.basename(directory),
         'branch': meta.get('branch', '?'),
@@ -235,9 +257,8 @@ def history():
     """
     rows = []
     for path in sorted(glob.glob(os.path.join(HISTORY, '*.json'))):
-        try:
-            block = json.load(open(path, encoding='utf-8'))
-        except (OSError, ValueError):
+        block = read_json(path)
+        if not block:
             continue
         run = block.get('run', {})
         result = block.get('match', {}).get('result', {})
@@ -264,12 +285,8 @@ def unit_summary(directory):
     dieser Einheiten steht daneben. Ein Mittelwert ohne seine Stichprobe ist
     genau die Sorte Zahl, gegen die dieses Labor gebaut ist.
     """
-    path = os.path.join(directory, 'units.json')
-    if not os.path.exists(path):
-        return None
-    try:
-        units = json.load(open(path, encoding='utf-8'))['units']
-    except (OSError, ValueError, KeyError):
+    units = read_json(os.path.join(directory, 'units.json')).get('units')
+    if units is None:
         return None
 
     detours = [u['detourPercent'] for u in units if u['detourPercent'] >= 0]
@@ -359,10 +376,10 @@ def start_run(options):
             args += [f'--{flag}', value]
     args += ['--out', directory]
 
-    json.dump({'branch': ref, 'commit': commit, 'checkout': checkout,
-               'label': (options.get('label') or '').strip(),
-               'started': time.strftime('%Y-%m-%dT%H:%M:%S'), 'args': args},
-              open(os.path.join(directory, 'meta.json'), 'w', encoding='utf-8'), indent=2)
+    write_json(os.path.join(directory, 'meta.json'),
+               {'branch': ref, 'commit': commit, 'checkout': checkout,
+                'label': (options.get('label') or '').strip(),
+                'started': time.strftime('%Y-%m-%dT%H:%M:%S'), 'args': args})
 
     job_id = run_id
     with _job_lock:
@@ -432,12 +449,13 @@ def _execute(job_id, checkout, args):
                 'Branch also nicht; ein aelterer Stand braucht einen aelteren Laborstand.')
 
     meta_path = os.path.join(GUI_RUNS, job_id, 'meta.json')
-    try:
-        meta = json.load(open(meta_path, encoding='utf-8'))
+    meta = read_json(meta_path)
+    if meta:
         meta['exitCode'] = code
-        json.dump(meta, open(meta_path, 'w', encoding='utf-8'), indent=2)
-    except (OSError, ValueError):
-        pass
+        try:
+            write_json(meta_path, meta)
+        except OSError:
+            pass
 
     # Der frisch geschriebene Player wird der, den die Steuerseite fuer JEDEN
     # Lauf ausliefert — auch fuer die aelteren. Siehe serve_artifact.
@@ -455,13 +473,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
         pass                                                      # kein Zugriffslog im Terminal
 
     # -- Antworten -------------------------------------------------
-    def send_json(self, payload, code=200):
-        body = json.dumps(payload).encode('utf-8')
+    # Eine Stelle, an der eine Antwort zusammengesetzt wird. Vorher stand die
+    # Folge aus Status, zwei Kopfzeilen und Rumpf dreimal fast gleich da —
+    # dreimal fast gleich ist die Form, in der eine fehlende Kopfzeile in genau
+    # einer von drei Antworten landet.
+    def send_bytes(self, body, content_type, code=200):
         self.send_response(code)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def send_json(self, payload, code=200):
+        self.send_bytes(json.dumps(payload).encode('utf-8'),
+                        'application/json; charset=utf-8', code)
 
     def send_file(self, path, content_type):
         try:
@@ -470,11 +495,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except OSError:
             self.send_error(404)
             return
-        self.send_response(200)
-        self.send_header('Content-Type', content_type)
-        self.send_header('Content-Length', str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        self.send_bytes(body, content_type)
 
     # -- Routen ----------------------------------------------------
     def do_GET(self):                                             # noqa: N802
@@ -483,12 +504,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         try:
             if url.path in ('/', '/index.html'):
-                body = render_page(os.path.join(HERE, 'gui.tpl.html'))
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/html; charset=utf-8')
-                self.send_header('Content-Length', str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
+                self.send_bytes(render_page(os.path.join(HERE, 'gui.tpl.html')),
+                                'text/html; charset=utf-8')
 
             elif url.path == '/api/state':
                 current = git_quiet('rev-parse', '--abbrev-ref', 'HEAD').strip()

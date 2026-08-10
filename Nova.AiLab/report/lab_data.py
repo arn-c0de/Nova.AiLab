@@ -38,6 +38,17 @@ def read_ndjson(path):
         return [json.loads(line) for line in handle if line.strip()]
 
 
+def read_json(path):
+    """Eine JSON-Datei, mit geschlossenem Griff.
+
+    `json.load(open(...))` haelt sich daran auf, dass CPython die Datei beim
+    Wegfallen der letzten Referenz schliesst — eine Zusage der Implementierung,
+    nicht der Sprache. Ein `with` kostet nichts und gilt ueberall.
+    """
+    with open(path, encoding='utf-8') as handle:
+        return json.load(handle)
+
+
 def short(faction, role):
     """Fraktion + Rolle als ein Bezeichner. Jede Einheiten-Zahl ist
     fraktionsgebunden (Plan 3.9) — eine Zeile ohne Fraktion mittelt zwei
@@ -46,7 +57,7 @@ def short(faction, role):
 
 
 def collect_match(root):
-    result = json.load(open(os.path.join(root, 'match', 'result.json'), encoding='utf-8'))
+    result = read_json(os.path.join(root, 'match', 'result.json'))
     samples = read_ndjson(os.path.join(root, 'match', 'trace.ndjson'))
     slots = []
     for index in range(result['slotCount']):
@@ -123,7 +134,7 @@ def collect(root):
     duel, siege = collect_duels(root)
     return {
         'match': collect_match(root),
-        'compare': json.load(open(os.path.join(root, 'compare', 'resultset.json'), encoding='utf-8')),
+        'compare': read_json(os.path.join(root, 'compare', 'resultset.json')),
         'movement': read_ndjson(os.path.join(root, 'movement', 'movement.ndjson')),
         'duel': duel,
         'siege': siege,
