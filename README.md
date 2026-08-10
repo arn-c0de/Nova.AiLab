@@ -13,9 +13,44 @@ selbst, wo sie nichts beweisen.
 
 > [!TIP]
 > **Neu hier? → [`START-HIER.md`](START-HIER.md)** — eine Seite: wofür, warum,
-> wie, was als nächstes, und welches der Dokumente man wann aufmacht.
-> **Was als nächstes gebaut wird → [`ROADMAP.md`](ROADMAP.md).**
-> Diese Seite hier ist der Aufbau im Detail: jede Datei, jedes Kommando.
+> wie, und welches der Dokumente man wann aufmacht. Diese Seite hier ist der
+> Aufbau im Detail: jede Datei, jedes Kommando.
+
+# Die nächsten Ziele
+
+Sortiert danach, **was ein Spieler in einer Partie merkt** — nicht nach
+Aufwand und nicht nach Laborkennzahl. Vollständig, mit Aus-Stellung,
+Reihenfolgeregeln und Rückfragen: **[`ROADMAP.md`](ROADMAP.md)**.
+
+| # | Ziel | Was der Spieler merken soll |
+|---:|---|---|
+| **1** | **Sammeln abbrechen, wenn die Basis brennt** | Sie lässt ihr HQ nicht mehr zusammenschiessen, während neun Einheiten wartend danebenstehen |
+| **2** | **Goal-System als Form** *(verhaltensneutral)* | Nichts — und genau das ist der Nachweis. Danach ist jedes Verhalten ein benanntes Modul statt eines if-Zweigs |
+| **3** | **Nachschub hinter der laufenden Welle** | Neue Einheiten laufen dem Gefecht hinterher statt zu warten — und bei gebrochener Welle gar nicht |
+| **4** | **Zweites lohnendes Ziel** | Sie geht auch auf Harvester und Refinery, nicht nur stur aufs Headquarter |
+| **5** | **Wellengrösse nach Lage** | Kleiner Stoss gegen eine kleine Gruppe, Grossangriff gegen eine verteidigte Basis. **Nicht mehr jede Welle gleich gross** |
+| **6** | **Basis ausbauen, Fahrzeuge kaufen** | Sie baut bis zum Fahrzeugwerk weiter und gibt ihre Punkte aus, statt auf 17.000 AE zu sitzen |
+| **7** | **Armee-Stärkeziel statt Kopfzahl** | Grössere Armeen, weil Stärke zählt und nicht die Anzahl |
+| **8** | **Anmarsch nach Kosten, dann Flanke** | Der Angriff läuft nicht mehr zweimal dieselbe Linie — und teilt sich auf zwei Wege, wenn das aus **ihrer** Sicht die Siegchance hebt |
+| **9** | **Basisverteidigung, zweiter Anlauf** | Ein früher Konter trifft nicht mehr eine wartende Armee |
+| **10** | **Abstandhalten plus Aufklärung** | Artillerie läuft nicht mehr auf Tuchfühlung heran und stirbt an Infanterie |
+| **11** | **Schwierigkeitsgrade** | Drei Zahlensätze, keine zweite KI |
+
+Dazu drei Laborarbeiten, die **vorher** fällig sind: eine Wellenmetrik (sonst
+ist „verschieden grosse Wellen" unbelegbar), ein Anmarschszenario gegen stehende
+Verteidigung (sonst ist die Flanke nur plausibel) und das **Admin-Panel**, in
+dem man je Einheit sieht, was sie vorhat, was sie vorhatte, was sie als nächstes
+tut — und es übersteuern kann: [`GOALS.md`](GOALS.md).
+
+> [!IMPORTANT]
+> **Punkt 5 bis 7 hängen an einer Rückfrage, die nicht unsere Zahl ist.** Das
+> Stärke-Wellentor ist gebaut und gemergt (`r6`, #72) — und im ausgelieferten
+> Spiel wirkungslos, weil die Armeeobergrenze bei 12 steht und der
+> Erreichbarkeitsdeckel daraus wieder „sammle die ganze Armee" macht. Die 12
+> steht in `MatchRunner.cs:254`, also im Netzstrang. Einseitig gemessen wirkt
+> 30: die Legion entscheidet früher (5.005 statt 5.773 Ticks) bei 23 statt 51
+> eigenen Verlusten. **Anheben ohne das Tor geht in die andere Richtung**
+> (51 → 64). Details: [`ROADMAP.md`](ROADMAP.md) §4.
 
 ## Zusehen
 
