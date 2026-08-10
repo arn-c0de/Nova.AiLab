@@ -56,8 +56,46 @@ namespace Nova.AiLab
         public bool SiegeEchelon;
 
         public int TickBudget = 3000;
-        public ushort MapWidth = 128;
-        public ushort MapHeight = 128;
+
+        /// <summary>
+        /// The arena floor — 64x64, not the canonical 128x128 of a match.
+        /// <para>
+        /// THE MAP IS NOT PART OF THIS MEASUREMENT. A match is measured on the
+        /// game's map because the map IS the game; an arena is a rig with no
+        /// HQ, no economy and hand-placed blocks, and its floor is a parameter
+        /// like the tick budget. What the floor does cost is time: the
+        /// per-tick fixed cost of the host scales with map AREA, not with the
+        /// dozen units fighting on it — measured on an empty two-slot host
+        /// over 3.000 ticks, 128x128 costs 260 ms against 98 ms at 64x64.
+        /// </para>
+        /// <para>
+        /// 64 IS THE FLOOR, AND IT WAS MEASURED, NOT ESTIMATED. The whole
+        /// 576-duel table was run at 128, 64 and 48 and compared row by row on
+        /// winner, deciding tick, survivors, surviving health and rejected
+        /// orders: 64 reproduces 128 exactly, 48 breaks two rows. Those two are
+        /// the out-of-sight echelon, whose <c>DuelArena.OutOfSightCells</c> of 34
+        /// plus the widest spawn block (9 columns) no longer fits with a margin
+        /// — so 48 is not "slightly tighter", it is past the edge. Raising
+        /// <see cref="UnitsPerSide"/> widens that block and moves the floor up
+        /// with it.
+        /// </para>
+        /// <para>
+        /// It moves the state hash, as map extent and entity capacity always
+        /// do. An archived result set from before the change is refused rather
+        /// than silently compared — which is the mechanism working, not damage.
+        /// </para>
+        /// </summary>
+        public ushort MapWidth = 64;
+        public ushort MapHeight = 64;
+
+        /// <summary>
+        /// Left at 512 deliberately. Capacity is the second driver of the same
+        /// fixed cost (301 ms at 1024 against 261 at 512 and 242 at 256, same
+        /// empty host), but the table already fields up to 106 entities at the
+        /// default six units a side, and <c>--units</c> raises that without
+        /// asking anyone. 40 ms of headroom is not worth a rig that throws
+        /// <c>capacity exceeded</c> the first time somebody widens the duel.
+        /// </summary>
         public int EntityCapacity = 512;
     }
 
