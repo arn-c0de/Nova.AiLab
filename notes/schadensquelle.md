@@ -153,7 +153,7 @@ Das Labor bände den Hook dann in `MultiSlotAiHost` und `DebugEventLog` würde
 `Assets/_Project/Scripts/Simulation/Combat/` gehört uns (`CLAUDE.md` §1). Das
 macht den Hook **erlaubt**, nicht **beschlossen**:
 
-- Es bleibt ein PR nach `VibecodingGermany/Project_Nova` über den Fork, gemergt
+- Es bleibt ein PR nach `VibecodingGermany/HashKrieg` über den Fork, gemergt
   von der Gegenseite.
 - Der PR-Text beschreibt die **gespielte Beobachtung**. Ein Hook, der nichts
   ändert, hat keine sichtbare Wirkung im Spiel — genau das gehört hingeschrieben,

@@ -1,7 +1,7 @@
 # Zwei Seiten einer Grenze
 
-Dieses Repository steht auf der einen Seite, `VibecodingGermany/Project_Nova`
-auf der anderen. Diese Datei hält fest, was beim Überqueren passiert — und was
+Dieses Repository steht auf der einen Seite, `VibecodingGermany/HashKrieg`
+(vormals `VibecodingGermany/Project_Nova`) auf der anderen. Diese Datei hält fest, was beim Überqueren passiert — und was
 ausdrücklich **nicht** passiert.
 
 Die kurze Fassung:
@@ -24,7 +24,7 @@ nicht mehr den Branch, den man messen wollte.
 
 Änderungen am Spielcode innerhalb unseres Scopes — KI, Bewegung, Kampfwerte,
 Fraktionsidentität, neue Tests, ein Changelog-Eintrag. Sie gehen als Pull
-Request von `arn-c0de/Project_Nova` nach `VibecodingGermany/Project_Nova`.
+Request von `arn-c0de/Project_Nova` nach `VibecodingGermany/HashKrieg`.
 
 Dort gelten die Bedingungen des Hauptrepos, nicht meine:
 
