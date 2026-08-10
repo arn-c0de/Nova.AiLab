@@ -5,7 +5,8 @@
 Commit `3b3f27d` und sind als solche gekennzeichnet
 **Gilt zusätzlich:** `../CLAUDE.md` (Arbeitsvertrag), `../Project_Nova/AGENTS.md`,
 [`README.md`](README.md) nebenan
-**Erst lesen, wenn man neu hier ist:** [`START-HIER.md`](START-HIER.md)
+**Erst lesen, wenn man neu hier ist:** [`UEBERGABE.md`](UEBERGABE.md) (der
+vollständige Einstieg über beide Repositories) und [`START-HIER.md`](START-HIER.md)
 
 Dieses Dokument beantwortet **eine** Frage: wie ein Agent das Labor für
 automatische Evaluierung benutzt. **Was als nächstes gebaut wird, steht in
@@ -15,16 +16,19 @@ automatische Evaluierung benutzt. **Was als nächstes gebaut wird, steht in
 
 ## 0. Vier Sätze, bevor irgendetwas läuft
 
-1. **Werkzeug, kein Beitrag.** Alles unter `Nova.AiLab` und `out/` lebt auf
-   `lab/ai-simulation` und gerät in keinen `feat/`-Branch. `feat/`-Branches werden
-   frisch von `upstream/main` abgezweigt, nie aus `lab/` gecherry-pickt.
+1. **Werkzeug, kein Beitrag.** Das Labor liegt seit dem Ausbau in einem
+   **eigenen Repository** neben dem Spiel-Checkout und gerät in keinen
+   `feat/`-Branch. `feat/`-Branches werden frisch von `upstream/main`
+   abgezweigt. Im Spiel-Repo bleiben nur die In-Game-Debughilfen, auf
+   `lab/ai-simulation`.
 2. **Ein grüner Laborlauf ist Diagnose, kein Nachweis.** Was nicht im laufenden Spiel
    gesehen wurde, steht als ungesehen im PR-Text. Kein generierter Satz darf ein
    Laborergebnis so formulieren, als sei es gespielt worden.
 3. **Verhalten und Baseline nie im selben PR.** Seit `e1a6a57` erzwingt das eine CI
    (`.github/workflows/baseline-guard.yml`), nicht mehr nur Disziplin — siehe §4.
-4. **Gepusht wird nur in den Fork, nie auf `main`.** Commit, Push und PR sind drei
-   getrennte Freigaben; keine gilt für den nächsten Schritt mit.
+4. **Ins Spiel wird nur über den Fork gepusht, nie auf dessen `main`.** Commit,
+   Push und PR sind drei getrennte Freigaben; keine gilt für den nächsten Schritt
+   mit. Das Labor ist ein eigenes Repo — dort ist `main` frei.
 
 ---
 
@@ -95,8 +99,8 @@ vergleichbar statt schätzungsweise.
 | `reports/data/<id>.json` | Lauf | der verdichtete Messblock mit Herkunft und Fingerabdruck — **die Quelle**, aus der die Berichte jederzeit neu entstehen |
 | `reports/behavior-log.md` | Verhaltensänderung | **von Hand geführt, nicht generiert**: was genau geändert wurde, was besser und was schlechter wurde, und ein Abschnitt „Widerlegt" gegen doppelte Arbeit. **Vor jeder neuen Änderung lesen.** |
 
-Beides schreibt ein Kommando: `python3 Nova.AiLab/report/build_reports.py
-Nova.AiLab/out` (oder `./lab.sh`, das vorher misst).
+Beides schreibt ein Kommando: `python3 Nova.AiLab/report/build_reports.py out`
+(oder `./lab.sh`, das vorher misst).
 `--regenerate` rendert die ganze Historie neu, ohne etwas nachzumessen. Ein Lauf
 wird an seinem Fingerabdruck erkannt: zweimal berichten ergibt keinen zweiten
 Eintrag. Ein **Agent liest `reports/latest.md`**, wenn er wissen will, wo die

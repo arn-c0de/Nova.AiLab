@@ -13,8 +13,10 @@ selbst, wo sie nichts beweisen.
 
 > [!TIP]
 > **Neu hier? → [`START-HIER.md`](START-HIER.md)** — eine Seite: wofür, warum,
-> wie, und welches der Dokumente man wann aufmacht. Diese Seite hier ist der
-> Aufbau im Detail: jede Datei, jedes Kommando.
+> wie, und welches der Dokumente man wann aufmacht. Wer bei **null** anfängt
+> (auch als Agent), nimmt [`UEBERGABE.md`](UEBERGABE.md): beide Repositories,
+> Scope, Messen, Testen, Fallen. Diese Seite hier ist der Aufbau im Detail:
+> jede Datei, jedes Kommando.
 
 # Die nächsten Ziele
 
