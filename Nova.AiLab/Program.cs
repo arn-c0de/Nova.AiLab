@@ -40,6 +40,7 @@ namespace Nova.AiLab
                 "movement" => MovementCommand.Run(options),
                 "compare" => CompareCommand.Run(options),
                 "player" => PlayerCommand.Run(options),
+                "live" => LiveCommand.Run(options),
                 _ => Fail($"unknown mode '{args[0]}'"),
             };
         }

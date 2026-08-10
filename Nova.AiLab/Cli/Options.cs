@@ -23,6 +23,9 @@ namespace Nova.AiLab
         public int GroupSize = 8;
         public string AgainstFile;
 
+        /// <summary>Loopback port of the <c>live</c> session. Only the port is settable — the address never is.</summary>
+        public int Port = 8787;
+
         /// <summary>Binds a named lab profile to one slot; an unknown id names the known ones instead of failing mutely.</summary>
         private static void ApplyProfile(SlotSpec slot, string profileId)
         {
@@ -82,6 +85,7 @@ namespace Nova.AiLab
                     case "--units": options.UnitsPerSide = ParseInt(flag.Value, flag.Key); break;
                     case "--group": options.GroupSize = ParseInt(flag.Value, flag.Key); break;
                     case "--against": options.AgainstFile = flag.Value; break;
+                    case "--port": options.Port = ParseInt(flag.Value, flag.Key); break;
                     case "--profile": profileAll = flag.Value; break;
                     case "--profile0": profileSlot0 = flag.Value; break;
                     case "--profile1": profileSlot1 = flag.Value; break;
@@ -124,6 +128,7 @@ namespace Nova.AiLab
                     $"{CanonicalOpening.MaxSeatedSlots} bases (more seats are map work, plan E11)");
             }
             if (options.Spec.TickBudget < 1) throw new ArgumentException("--ticks must be positive");
+            if (options.Port < 1 || options.Port > 65535) throw new ArgumentException("--port must be a port number");
             if (options.Repeat < 1) throw new ArgumentException("--repeat must be positive");
             if (options.SeedCount < 1) throw new ArgumentException("--seeds must be positive");
 

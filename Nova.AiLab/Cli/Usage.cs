@@ -19,6 +19,9 @@ namespace Nova.AiLab
             "                         write report.html, resultset.json and a PR draft\n" +
             "  player --out <dir>     write player.html again into an artifact directory (or into every\n" +
             "                         run below it) — the data stays as it is, only the page is new\n" +
+            "  live [options]         hold a match open on 127.0.0.1: see every unit's goal, pause,\n" +
+            "                         step, and FORCE a goal. A session anybody intervened in is not a\n" +
+            "                         measurement and says so in its own result.json\n" +
             "\n" +
             "Spec:\n" +
             "  --spec <file>          JSON MatchSpec (plan section 3.2); flags below override it\n" +
@@ -60,6 +63,12 @@ namespace Nova.AiLab
             "  --out <dir>            write report.html, resultset.json, pr-draft-<candidate>.md and one run each\n" +
             "  --against <file>       compare against an archived resultset.json instead of the built-in reference\n" +
             "  --parallel <n>         max concurrent candidates (default: processor count)\n" +
+            "\n" +
+            "live:\n" +
+            "  --port <n>             loopback port (default 8787). The ADDRESS is not settable: this\n" +
+            "                         endpoint can change what an AI does and has no authentication\n" +
+            "  --out <dir>            where the session writes goals.ndjson, overrides.ndjson and a\n" +
+            "                         result.json carrying intervened — written on request, not on exit\n" +
             "\n" +
             "movement:\n" +
             "  --group <n>            units per group (default 8)\n" +
