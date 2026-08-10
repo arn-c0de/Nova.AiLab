@@ -131,9 +131,32 @@ namespace Nova.AiLab
             {
                 TrackFrame frame = tracks[f];
 
+                // A keyframe writes EVERY living unit absolutely, including the
+                // ones that moved in that tick — the recorder does not skip
+                // them, it just states them differently. Reading an absolute
+                // sample as a mere position assignment therefore drops one
+                // sampled interval of walking every KeyframeIntervalTicks,
+                // while the endpoint it lands on still counts in full towards
+                // the straight line. That is a walk measured shorter than the
+                // beeline between its own ends, and no movement code can
+                // produce it.
+                //
+                // A unit seen here for the FIRST time has nothing to travel
+                // from: that absolute sample opens the track, it does not
+                // continue one.
                 for (int i = 0; i < frame.Absolute.Count; i++)
                 {
                     TrackSample s = frame.Absolute[i];
+                    if (positions.TryGetValue(s.Id, out long previous))
+                    {
+                        long step = Length(s.X - UnpackX(previous), s.Y - UnpackY(previous));
+                        if (step > 0)
+                        {
+                            walked[s.Id] = (walked.TryGetValue(s.Id, out long total) ? total : 0) + step;
+                            if (open.TryGetValue(s.Id, out Segment segment)) segment.Walked += step;
+                        }
+                    }
+
                     positions[s.Id] = Pack(s.X, s.Y);
                 }
                 for (int i = 0; i < frame.Delta.Count; i++)
