@@ -107,6 +107,80 @@ namespace Nova.AiLab.Tests
         }
 
         /// <summary>
+        /// THE WAVE COLUMN ASKS WHETHER THE ARMY STEP RAN BEFORE IT ASKS WHICH
+        /// RULE ANSWERED, and the order is the whole content of the line.
+        /// <para>
+        /// A seat below its squad threshold weighs no wave, so its row reports
+        /// no wave mode either — and the page read that as <c>off</c>, which is
+        /// a statement about a profile with waves switched off and not about
+        /// this one. It printed "off · waveSize 1 — every unit marches" over a
+        /// seat with a 1.200-point gate, on 44 decisions of the canonical run,
+        /// and the branch written for the real case sat behind it as dead code.
+        /// </para>
+        /// <para>
+        /// The page cannot be executed here, so what is checked is the order of
+        /// the two questions in the source of the column. That is a weaker test
+        /// than running it and a much stronger one than none: the bug WAS the
+        /// order.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void TheWaveColumnAsksWhetherTheArmyStepRanBeforeItReadsTheMode()
+        {
+            string html = Page();
+            Match column = Regex.Match(html, @"function waveCell\(wave\) \{(.*?)\n\}", RegexOptions.Singleline);
+            Assert.That(column.Success, Is.True, "the page has no wave column any more");
+
+            string body = column.Groups[1].Value;
+            int engages = body.IndexOf("wave.engages === false", StringComparison.Ordinal);
+            int mode = body.IndexOf("wave.mode === 'off'", StringComparison.Ordinal);
+
+            Assert.That(engages, Is.GreaterThanOrEqualTo(0),
+                "the wave column no longer asks whether the army step ran at all");
+            Assert.That(mode, Is.GreaterThanOrEqualTo(0), "the wave column no longer knows the off setting");
+            Assert.That(engages, Is.LessThan(mode),
+                "the off setting is read before the squad threshold, so a seat that weighed no wave " +
+                "is reported as one whose waves are switched off");
+        }
+
+        /// <summary>
+        /// A UNIT WITHOUT A GOAL ROW STILL GETS AN ANSWER.
+        /// <para>
+        /// The block used to disappear entirely — heading and all — for any unit
+        /// the army step had not judged yet, and a missing block cannot be told
+        /// apart from a page that has no goal panel at all. It is the common
+        /// case, not a corner one: in the canonical run seat 0 does not reach
+        /// its squad threshold before tick 1280, so every Alliance unit clicked
+        /// before that showed nothing, beside a seat card that spelled out
+        /// "below the squad threshold".
+        /// </para>
+        /// <para>
+        /// Only a run with no recording at all may still draw nothing, and the
+        /// note under the map says so there.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void AUnitTheArmyStepHasNotJudgedIsToldSo()
+        {
+            string html = Page();
+            Match rows = Regex.Match(html, @"function goalRows\(u\) \{(.*?)\n\}", RegexOptions.Singleline);
+            Assert.That(rows.Success, Is.True, "the page has no goal block any more");
+
+            string body = rows.Groups[1].Value;
+            int empty = body.IndexOf("if (!intent)", StringComparison.Ordinal);
+            Assert.That(empty, Is.GreaterThanOrEqualTo(0), "the page no longer handles a unit without a row");
+
+            // The one bare `return []` left must be the no-recording case, and
+            // it must be guarded by exactly that.
+            Assert.That(body, Does.Contain("if (!loaded.goals) return [];"),
+                "an unjudged unit falls out of the panel again instead of being told it is unjudged");
+            Assert.That(Regex.Matches(body, @"return \[\];").Count, Is.EqualTo(1),
+                "there is more than one way out of the goal block that draws nothing at all");
+            Assert.That(body, Does.Contain("below its squad threshold"),
+                "the panel does not name the reason a combat unit carries no goal");
+        }
+
+        /// <summary>
         /// The page stays one file. Adding a fifth artifact to fetch must not
         /// have added anything beside it.
         /// </summary>

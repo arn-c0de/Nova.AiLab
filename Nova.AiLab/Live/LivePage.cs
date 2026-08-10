@@ -21,13 +21,14 @@ namespace Nova.AiLab
     /// endpoints — the same rules the player holds to, for the same reason.
     /// </para>
     /// </summary>
-    internal static class LivePage
+    public static class LivePage
     {
         public static string Build(MatchSpec spec)
         {
             var html = new StringBuilder(Template, 48 * 1024);
             html.Replace("__SEED__", "0x" + spec.Seed.ToString("X"))
                 .Replace("__BUDGET__", spec.TickBudget.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                .Replace("__ROLE_NAMES__", UiRoles.JsArray())
                 .Replace("__UIKIT_CSS__", Kit("uikit.tokens.css"));
             return html.ToString();
         }
@@ -86,6 +87,7 @@ namespace Nova.AiLab
   .foot { padding:10px 12px; color:var(--ink2); }
   .goal-retreat { color:var(--bad); } .goal-attack { color:var(--warn); }
   .goal-hold { color:var(--ink2); } .goal-advance { color:var(--accent); }
+  .goal-defendHome { color:var(--bad); font-weight:600; }
 </style>
 </head>
 <body>
@@ -124,6 +126,7 @@ namespace Nova.AiLab
         <button data-goal=""2"">attack</button>
         <button data-goal=""3"">hold</button>
         <button data-goal=""4"">advance</button>
+        <button data-goal=""5"">defend home</button>
         <button data-goal=""0"">release</button>
       </div>
       <div class=""sub"" style=""margin-top:8px"">
@@ -150,10 +153,18 @@ namespace Nova.AiLab
 </main>
 
 <script>
-const GOALS = ['—', 'retreat', 'attack', 'hold', 'advance'];
+const GOALS = ['—', 'retreat', 'attack', 'hold', 'advance', 'defendHome'];
 const WAVE_MODE = ['off', 'units', 'points'];
-const ROLES = {1:'builder',2:'harvester',3:'hq',4:'refinery',5:'power',7:'barracks',
-               10:'infantry',11:'anti-armour',12:'tank',13:'artillery'};
+/*
+ * GENERATED FROM UnitRole, not typed out here. This table used to be a hand
+ * written map of numbers to names and four of its five combat entries were off
+ * by two: role 12 is BasicInfantry and read ""tank"", role 13 is
+ * AntiArmorInfantry and read ""artillery"", and 10 and 11 — labelled infantry
+ * and anti-armour — are Radar and DefensePlatform. Nothing could go red over
+ * it, because a name table has nothing to disagree with unless something asks
+ * the enum. UiRoles asks it, for this page and the player both.
+ */
+const ROLE_NAME = __ROLE_NAMES__;
 let picked = null, state = null;
 
 const $ = id => document.getElementById(id);
@@ -195,7 +206,7 @@ function render(next) {
     const goal = u.judged ? '<span class=""goal-' + GOALS[u.goal] + '"">' + GOALS[u.goal] + '</span>'
                           : '<span class=""sub"">none</span>';
     return '<tr data-id=""' + u.id + '"" class=""' + (picked === u.id ? 'sel' : '') + '"">' +
-      '<td>#' + u.id + '</td><td>' + u.slot + '</td><td>' + (ROLES[u.role] || u.role) + '</td>' +
+      '<td>#' + u.id + '</td><td>' + u.slot + '</td><td>' + (ROLE_NAME[u.role] || u.role) + '</td>' +
       '<td>' + goal + '</td>' +
       '<td>' + (u.forced ? '<span class=""bad"">' + GOALS[u.forced] + '</span>' : '<span class=""sub"">—</span>') + '</td>' +
       '<td class=""num"">' + Math.round(u.hp * 100 / Math.max(1, u.hpMax)) + '%</td>' +
@@ -213,7 +224,7 @@ function render(next) {
 
   const unit = picked === null ? null : next.units.find(u => u.id === picked);
   $('picked').innerHTML = unit
-    ? '#' + unit.id + ' ' + (ROLES[unit.role] || unit.role) + ' of slot ' + unit.slot +
+    ? '#' + unit.id + ' ' + (ROLE_NAME[unit.role] || unit.role) + ' of slot ' + unit.slot +
       ' · goal ' + (unit.judged ? GOALS[unit.goal] : 'none')
     : '<span class=""sub"">no unit picked — a goal would then apply to EVERY unit of every seat</span>';
 }

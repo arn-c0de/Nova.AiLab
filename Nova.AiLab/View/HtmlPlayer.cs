@@ -85,6 +85,7 @@ namespace Nova.AiLab
                 .Replace("__EVENTS_FILE__", RunArtifacts.EventsFileName)
                 .Replace("__UNITS_FILE__", RunArtifacts.UnitsFileName)
                 .Replace("__GOALS_FILE__", RunArtifacts.GoalsFileName)
+                .Replace("__ROLE_NAMES__", UiRoles.JsArray())
                 .Replace("__UIKIT_CSS__", Kit("uikit.tokens.css"))
                 .Replace("__UIKIT_JS__", Kit("uikit.icons.js"));
             return html.ToString();
@@ -600,9 +601,9 @@ function token(name) {
 // #f85149 here, the same red the map paints damage and death with, so a red
 // dot was either a Legion unit or a hit landing. Red belongs to damage now.
 const LINE_COLOURS = [null,'#f85149','#3fb950','#58a6ff'];
-const ROLE_NAME = ['unit','builder','harvester','HQ','refinery','power','storage','barracks',
-                   'vehicleFactory','researchLab','radar','defensePlatform','basicInfantry',
-                   'antiArmorInfantry','scoutVehicle','lightTank','battleTank','artillery'];
+// Generated from UnitRole, not typed out beside it — see UiRoles. Position is
+// the role number; the live panel is written from the same table.
+const ROLE_NAME = __ROLE_NAMES__;
 
 // WHO SAT WHERE, and what this run's definition table arms them with. Both are
 // baked in when the page is written: the artifacts carry ids and health, not
@@ -660,7 +661,7 @@ const loaded = { view:false, tracks:false, events:false, units:false, goals:fals
  * use one vocabulary. Position in this array IS the enum value; index 0 is the
  * ""no goal"" that never appears in a recorded row.
  */
-const GOAL_NAMES = ['—', 'retreat', 'attack', 'hold', 'advance'];
+const GOAL_NAMES = ['—', 'retreat', 'attack', 'hold', 'advance', 'defendHome'];
 
 /** What each goal is, in the words of the rule that picks it. */
 const GOAL_WHY = [
@@ -668,7 +669,8 @@ const GOAL_WHY = [
   'wounded, with an armed enemy near — walking back to the staging cell',
   'marching on the army target',
   'standing at the staging cell — deliberately given no order at all',
-  'reinforcement on its way to the staging cell'
+  'reinforcement on its way to the staging cell',
+  'an armed enemy is at the base — breaking off the gathering to walk home'
 ];
 
 const WAVE_MODE_NAMES = ['off', 'units', 'points'];
@@ -1780,26 +1782,43 @@ function strengthOf(u) {
 function waveState(slot) {
   const rules = WAVE.find(w => w.slot === slot);
 
-  // THE RECORDING WINS WHERE THERE IS ONE. Everything below this block is the
-  // page repeating the gate's arithmetic, and the paragraph above says why that
-  // can only ever be labelled ""derived"". goals.ndjson carries the AI's own
-  // verdict and the numbers it reached it with, taken at the decision itself —
-  // so where a row exists there is nothing to derive and nothing to caveat.
+  // THE RECORDING WINS WHERE THERE IS ONE — AND ONLY WHERE IT WEIGHED A WAVE.
+  // Everything below this block is the page repeating the gate's arithmetic,
+  // and the paragraph above says why that can only ever be labelled
+  // ""derived"". goals.ndjson carries the AI's own verdict and the numbers it
+  // reached it with, taken at the decision itself.
+  //
+  // BUT A FRAME CAN BE PRESENT AND EMPTY, and reading it as data is a display
+  // error rather than a missing display. ResolveArmyPosture returns before it
+  // counts anything when the seat is below its squad threshold, and again when
+  // waves are switched off: the row then carries mode 0 and four zeros, which
+  // mean ""nobody counted"" and not ""zero units, waves off"". Printing them as
+  // counts told a seat with five living units that it had ""no army"" and told
+  // a seat with a 1.200-point gate that its waves were off. Both happen in the
+  // canonical run — seat 1 stops engaging at tick 1880 for 44 decisions.
+  //
+  // So the recording answers only when it weighed, and the derivation answers
+  // the rest, marked derived as it always was.
   const recorded = armyGoalAt(slot, tick);
-  if (recorded) {
+  const weighed = recorded && recorded.a[0] !== 0 && recorded.a[7] !== 0;
+  if (weighed) {
     const a = recorded.a;
-    const mode = a[7] === 0 ? 'off' : (a[7] === 2 ? 'points' : 'count');
+    const mode = a[7] === 2 ? 'points' : 'count';
     return {
-      recorded: true, at: recorded.tick, engages: a[0] !== 0,
+      recorded: true, at: recorded.tick, engages: true,
       gathered: a[8], committed: a[9], gatheredStrength: a[10],
       cadence: rules ? rules.cadence : 0,
-      mode, reason: 'waveSize 1 — every unit marches',
-      have: mode === 'points' ? a[10] : a[8], need: a[11], ready: a[6] !== 0
+      mode, have: mode === 'points' ? a[10] : a[8], need: a[11], ready: a[6] !== 0
     };
   }
 
   const home = baseOf(slot);
   if (!rules || !home) return null;
+
+  // Whether the ARMY STEP RAN is the one thing an unweighed frame does say,
+  // and it is the difference between ""the gate let nobody through"" and ""the
+  // gate was never asked"".
+  const engages = recorded ? recorded.a[0] !== 0 : undefined;
 
   const hqX = Math.floor(home[0] / ONE), hqY = Math.floor(home[1] / ONE);
   let gathered = 0, gatheredStrength = 0, committed = 0, canProduce = false;
@@ -1819,7 +1838,7 @@ function waveState(slot) {
   // Clamped to the army cap, exactly as EffectiveWaveSize does: a wave size
   // above the cap would wait for units production can never deliver.
   const size = Math.min(rules.waveSize, rules.cap);
-  const shared = { gathered, gatheredStrength, committed, cadence: rules.cadence };
+  const shared = { gathered, gatheredStrength, committed, cadence: rules.cadence, engages };
   if (size <= 1) return Object.assign(shared, { mode:'off', reason:'waveSize 1 — every unit marches' });
 
   if (rules.points > 0 && rules.produced > 0) {
@@ -1895,13 +1914,18 @@ function gatheredCell(wave) {
 /** What the gate wants before it lets them march. */
 function waveCell(wave) {
   if (!wave) return '<span class=""sub"">—</span>';
+  // A SEAT BELOW ITS SQUAD THRESHOLD IS ASKED FIRST, and the order is the whole
+  // point of the line. The army step never runs there, so the recording reports
+  // no wave mode either — and ""off"" would then read as ""this profile has
+  // waves switched off"", which is a statement about a different profile. It
+  // said exactly that for 44 decisions of the canonical run.
+  if (wave.engages === false) {
+    return '<span class=""sub"">below the squad threshold · no wave weighed</span>';
+  }
   if (wave.mode === 'off') return '<span class=""sub"">off · ' + wave.reason + '</span>';
   // An empty ring passes the gate arithmetically — the ceiling clause drops the
   // threshold to zero — but there is nobody to send. ""0 / 0 marches"" would be
   // the one line on this bar that reads like a decision and is none.
-  // A seat below its squad threshold does not weigh a wave at all — the army
-  // step never runs. ""0 / 0 waits"" would read as a gate decision and is none.
-  if (wave.recorded && !wave.engages) return '<span class=""sub"">below the squad threshold · no wave weighed</span>';
   if (wave.gathered === 0) return '<span class=""sub"">ring empty · all out</span>';
   const unit = wave.mode === 'count' ? ' units' : '';
   const verdict = wave.ready
@@ -1980,14 +2004,27 @@ function renderSeats(frame) {
   // dastehen, aber sie darf in einer 250 Pixel breiten Spalte nicht elf
   // Zeilen kosten, die der Karte fehlen.
   const cadence = stats.length && stats[0].wave ? stats[0].wave.cadence : 0;
+  // WHICH OF THE TWO THE WAVE COLUMN IS, per run rather than as a fixed word.
+  // The note claimed ""derived"" over every seat, including the ones now read
+  // straight out of the recording — a caveat on a number that does not need one
+  // teaches the reader to discount the ones that do.
+  const anyRecorded = stats.some(s => s.wave && s.wave.recorded);
+  const allRecorded = anyRecorded && stats.every(s => s.wave && s.wave.recorded);
+  const waveNote = allRecorded
+    ? 'gathered/wave recorded'
+    : (anyRecorded ? 'gathered/wave recorded where the seat weighed one'
+                   : 'gathered/wave derived');
   note.title =
     'Strength, counts, health, built, lost and damage are exact for tick ' + tick + '. ' +
     'AE, power and ""sees"" exist only in the frames and are as old as frame t=' +
-    (frame ? frame.t : '—') + '. gathered/wave is the AI\'s gate recomputed on this page, not a ' +
-    'recorded verdict' + (cadence ? '; the AI itself decides every ' + cadence + ' ticks' : '') + '.';
+    (frame ? frame.t : '—') + '. ' +
+    (allRecorded
+      ? 'gathered/wave is the AI\'s own verdict, taken at the decision'
+      : 'gathered/wave is the AI\'s gate recomputed on this page wherever the seat weighed none') +
+    (cadence ? '; the AI itself decides every ' + cadence + ' ticks' : '') + '.';
   note.innerHTML =
     'exact for tick <b>' + tick + '</b> · AE/power/sees from frame t=' + (frame ? frame.t : '—') +
-    ' · <span class=""derived"">gathered/wave derived</span>' +
+    ' · ' + (allRecorded ? waveNote : '<span class=""derived"">' + waveNote + '</span>') +
     (WEAPONS.length ? '' : ' · <span class=""warn"">no weapon table — strength is 0</span>');
 
   // Die Notiz bleibt das letzte Kind, damit sie unter den Karten steht.
@@ -2379,7 +2416,31 @@ function behaviourOf(u) {
  */
 function goalRows(u) {
   const intent = unitGoalAt(u.id, tick);
-  if (!intent) return [];
+
+  // NO ROW YET IS AN ANSWER AND HAS TO BE PRINTED AS ONE.
+  //
+  // Returning nothing here removed the whole block — heading included — and a
+  // missing block is indistinguishable from a page that cannot do this at all.
+  // It is the common case early in a match, not a corner: in the canonical run
+  // seat 0 does not reach its squad threshold before tick 1280, so every
+  // Alliance unit clicked before that showed no goal section whatsoever, right
+  // beside a seat card that said ""below the squad threshold"" in as many
+  // words. The reader is then left to guess which of the two the page means.
+  //
+  // The one case that still draws nothing is a run without a recording at all:
+  // there the page has no answer to give, and the note under the map already
+  // says the goals were not recorded.
+  if (!intent) {
+    if (!loaded.goals) return [];
+    if (shapeOf(u) !== 4) {
+      return [['goal', '<span class=""sub"">none — the army step judges combat units, ' +
+                       'and the economy steps hand out no goals</span>']];
+    }
+    const seat = armyGoalAt(u.slot, tick);
+    return [['goal', '<span class=""sub"">none — ' + (seat && seat.a[0] === 0
+      ? 'the seat is below its squad threshold, so no goal is handed out'
+      : 'the seat has not judged this unit yet') + '</span>']];
+  }
 
   // NOBODY IS DECIDING ABOUT THIS UNIT RIGHT NOW. Its seat is below the squad
   // threshold, so the army step does not run and no goal is in force. Printing

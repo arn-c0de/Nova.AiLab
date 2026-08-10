@@ -136,11 +136,48 @@ namespace Nova.AiLab.Tests
                     "role " + role + " has no entry in ROLE_ICON — add one in report/uikit/icons.js");
                 Assert.That(known, Does.Contain(roleIcons[index]),
                     "role " + role + " points at '" + roleIcons[index] + "', which no icon defines");
+                Assert.That(roleNames[index].ToLowerInvariant(), Is.EqualTo(role.ToString().ToLowerInvariant()),
+                    "role " + index + " is " + role + " and the page calls it '" + roleNames[index] + "'");
             }
 
             // Und die zwei, die keine Rolle sind und trotzdem gezeichnet werden.
             Assert.That(known, Does.Contain("role.site"), "a construction site is drawn too");
             Assert.That(known, Does.Contain("role.unknown"), "an unknown role must stay visible");
+        }
+
+        /// <summary>
+        /// THE LIVE PANEL NAMES A ROLE THE SAME WAY THE PLAYER DOES.
+        /// <para>
+        /// It did not. The panel carried its own map of numbers to names and
+        /// four of its five combat entries were off by two — every rifleman in
+        /// the session was labelled a tank, every anti-armour infantryman an
+        /// artillery piece, and the two names it had for roles 10 and 11 belong
+        /// to Radar and DefensePlatform. Nothing went red over it, and nothing
+        /// could have: a second name table has nothing to disagree with unless
+        /// something asks the enum.
+        /// </para>
+        /// <para>
+        /// Both tables are generated from <see cref="UnitRole"/> now, so this
+        /// test asserts the property that made the bug possible is gone — one
+        /// vocabulary, not two that happen to match today.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void TheLivePanelAndThePlayerNameARoleTheSameWay()
+        {
+            List<string> player = ArrayOf(Page(), "const ROLE_NAME = ");
+            List<string> live = ArrayOf(LivePage.Build(new MatchSpec()), "const ROLE_NAME = ");
+
+            Assert.That(live, Is.EqualTo(player),
+                "the live panel and the player disagree about what a role is called");
+
+            foreach (UnitRole role in (UnitRole[])Enum.GetValues(typeof(UnitRole)))
+            {
+                int index = (int)role;
+                Assert.That(live.Count, Is.GreaterThan(index), "role " + role + " has no name in the live panel");
+                Assert.That(live[index].ToLowerInvariant(), Is.EqualTo(role.ToString().ToLowerInvariant()),
+                    "role " + index + " is " + role + " and the live panel calls it '" + live[index] + "'");
+            }
         }
 
         /// <summary>Die Zeichenketten eines JS-Arrays hinter <paramref name="marker"/>.</summary>
