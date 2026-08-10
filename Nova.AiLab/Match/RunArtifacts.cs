@@ -30,6 +30,7 @@ namespace Nova.AiLab
         public const string TracksFileName = "tracks.ndjson";
         public const string EventsFileName = "events.ndjson";
         public const string UnitsFileName = "units.json";
+        public const string GoalsFileName = "goals.ndjson";
 
         public static void Write(string directory, MatchSpec spec, MatchRunResult result)
         {
@@ -92,6 +93,16 @@ namespace Nova.AiLab
             if (result.Units.Count > 0)
             {
                 File.WriteAllText(Path.Combine(directory, UnitsFileName), BuildUnitsJson(result));
+            }
+
+            if (result.Goals.Count > 0)
+            {
+                var goals = new StringBuilder(result.Goals.Count * 192);
+                for (int i = 0; i < result.Goals.Count; i++)
+                {
+                    goals.Append(result.Goals[i].ToJsonLine()).Append('\n');
+                }
+                File.WriteAllText(Path.Combine(directory, GoalsFileName), goals.ToString());
             }
         }
 

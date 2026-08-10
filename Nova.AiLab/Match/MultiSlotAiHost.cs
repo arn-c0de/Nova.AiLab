@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Nova.AI;
+using Nova.AI.Data;
 using Nova.Core;
 using Nova.Simulation;
 using Nova.Simulation.Combat;
@@ -188,7 +189,22 @@ namespace Nova.AiLab
         // Construction (mirror of MatchRunner.InitializeMatch)
         // ----------------------------------------------------------------
 
-        public static MultiSlotAiHost Build(MatchSpec spec)
+        /// <summary>
+        /// <paramref name="goalObserver"/> is told which goal every combat unit
+        /// was put under; <paramref name="goalOverride"/> may force one. The
+        /// shipped game passes neither and neither is required here — an
+        /// ordinary measuring run leaves both null, and a run that hands one in
+        /// has to reach the identical hash chain.
+        /// <para>
+        /// They are bound at construction because the AI takes them at
+        /// construction: nothing can be swapped mid-match, so the run stays a
+        /// function of its inputs.
+        /// </para>
+        /// </summary>
+        public static MultiSlotAiHost Build(
+            MatchSpec spec,
+            IAiGoalObserver goalObserver = null,
+            IAiGoalOverride goalOverride = null)
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (spec.Slots == null || spec.Slots.Length < 2 || spec.Slots.Length > MaxSlots)
@@ -265,7 +281,8 @@ namespace Nova.AiLab
                     peer.System = new SkirmishAiSystem(
                         slotSpec.Slot,
                         slotSpec.Profile,
-                        peerIngress, entities, economy, construction, production, fogOfWar, victory);
+                        peerIngress, entities, economy, construction, production, fogOfWar, victory,
+                        goalObserver, goalOverride);
                 }
 
                 peers.Add(peer);
@@ -331,9 +348,12 @@ namespace Nova.AiLab
         }
 
         /// <summary>Builds the host and applies the canonical opening position.</summary>
-        public static MultiSlotAiHost BuildMatch(MatchSpec spec)
+        public static MultiSlotAiHost BuildMatch(
+            MatchSpec spec,
+            IAiGoalObserver goalObserver = null,
+            IAiGoalOverride goalOverride = null)
         {
-            MultiSlotAiHost host = Build(spec);
+            MultiSlotAiHost host = Build(spec, goalObserver, goalOverride);
             CanonicalOpening.Apply(host);
             return host;
         }

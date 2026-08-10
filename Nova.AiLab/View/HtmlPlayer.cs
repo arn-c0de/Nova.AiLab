@@ -84,6 +84,7 @@ namespace Nova.AiLab
                 .Replace("__TRACKS_FILE__", RunArtifacts.TracksFileName)
                 .Replace("__EVENTS_FILE__", RunArtifacts.EventsFileName)
                 .Replace("__UNITS_FILE__", RunArtifacts.UnitsFileName)
+                .Replace("__GOALS_FILE__", RunArtifacts.GoalsFileName)
                 .Replace("__UIKIT_CSS__", Kit("uikit.tokens.css"))
                 .Replace("__UIKIT_JS__", Kit("uikit.icons.js"));
             return html.ToString();
@@ -168,6 +169,15 @@ namespace Nova.AiLab
                     .Append(",\"produced\":")
                         .Append(CombatStrength.OfFullHealth(seat.Faction, ProducedCombatRole))
                     .Append(",\"producerRole\":").Append((int)UnitRole.Barracks)
+                    // The other side of every goal condition. goals.ndjson
+                    // carries the MEASURED quantity — health, distances — and
+                    // the profile carries the value it was compared against;
+                    // the difference between the two is the tipping point the
+                    // panel prints, and neither half says anything alone.
+                    .Append(",\"retreatPercent\":").Append(profile.Profile.RetreatHealthPercent)
+                    .Append(",\"dangerCells\":").Append(profile.Profile.RetreatDangerCells)
+                    .Append(",\"tolerance\":").Append(profile.Profile.StagingToleranceCells)
+                    .Append(",\"squad\":").Append(profile.AttackSquadThreshold)
                     .Append('}');
             }
             json.Append(']');
@@ -607,7 +617,7 @@ const WAVE = __WAVE_JSON__;         // per slot: ring, waveSize, points, cap, pr
 const EVENT_COLOUR = {
   damage:'#f85149', death:'#f85149',
   attackStart:'#ff9e64', attackSwitch:'#ff9e64', attackStop:'#ff9e64',
-  order:'#58a6ff', goal:'#58a6ff', moveStart:'#8b949e', moveStop:'#8b949e',
+  order:'#58a6ff', pathGoal:'#58a6ff', moveStart:'#8b949e', moveStop:'#8b949e',
   stuck:'#d29922', unstuck:'#d29922',
   harvestStart:'#3fb950', harvestStop:'#3fb950', cargoFull:'#3fb950', cargoDelivered:'#3fb950',
   spawn:'#bc8cff', siteOpen:'#bc8cff', siteDone:'#bc8cff',
@@ -616,7 +626,7 @@ const EVENT_COLOUR = {
 const EVENT_GROUP = {
   damage:'combat', death:'combat', heal:'combat', retreatBelow:'combat', retreatAbove:'combat',
   attackStart:'combat', attackSwitch:'combat', attackStop:'combat',
-  order:'movement', goal:'movement', moveStart:'movement', moveStop:'movement',
+  order:'movement', pathGoal:'movement', moveStart:'movement', moveStop:'movement',
   stuck:'movement', unstuck:'movement',
   harvestStart:'economy', harvestStop:'economy', cargoFull:'economy', cargoDelivered:'economy',
   spawn:'life', siteOpen:'life', siteDone:'life'
@@ -634,12 +644,34 @@ let frameTicks = [];
 let tracks = new Map();        // id -> {t:[], x:[], y:[]}
 let events = [], eventTicks = [], eventsById = new Map();
 let units = new Map();         // id -> row of units.json
+let goalArmy = new Map();      // slot -> {t:[], a:[]}  — goals.ndjson, per seat
+let goalUnits = new Map();     // id   -> {t:[], u:[]}  — goals.ndjson, per unit
 let world = new Map();         // reconstructed state at `tick`
 let tick = 0, lastTick = 0;
 let selected = null, playing = false, timer = null;
 let haveIds = false;
 
-const loaded = { view:false, tracks:false, events:false, units:false };
+const loaded = { view:false, tracks:false, events:false, units:false, goals:false };
+
+/*
+ * THE GOAL NAMES ARE THE SIMULATION'S, INDEXED BY ITS OWN ENUM VALUE.
+ * GoalKind lives in Nova.AI.Data precisely so the three surfaces that talk
+ * about a goal — the AI that picks it, the lab that records it, this page —
+ * use one vocabulary. Position in this array IS the enum value; index 0 is the
+ * ""no goal"" that never appears in a recorded row.
+ */
+const GOAL_NAMES = ['—', 'retreat', 'attack', 'hold', 'advance'];
+
+/** What each goal is, in the words of the rule that picks it. */
+const GOAL_WHY = [
+  '',
+  'wounded, with an armed enemy near — walking back to the staging cell',
+  'marching on the army target',
+  'standing at the staging cell — deliberately given no order at all',
+  'reinforcement on its way to the staging cell'
+];
+
+const WAVE_MODE_NAMES = ['off', 'units', 'points'];
 
 // ---------------------------------------------------------------- loading
 
@@ -717,6 +749,112 @@ function loadUnits(text) {
   ready();
 }
 
+/*
+ * WHAT THE AI INTENDED, READ RATHER THAN RE-DERIVED.
+ *
+ * Everything else on this page is reconstructed from state: the wave gate below
+ * repeats the AI's arithmetic in JavaScript, and every number it produces is
+ * labelled ""derived"" for the honest reason that it is a SECOND implementation
+ * of the rules, which can drift from the first without anything going red.
+ *
+ * This file is different in kind. It is written where the decision is taken, by
+ * an observer the AI cannot read back from, and it carries the goal, the orders
+ * that goal produced, and the quantities its condition weighed. Where a row
+ * exists, the page states it. Where none does — an old run, a recording made
+ * before the goals had names — it falls back to the derivation and keeps saying
+ * ""derived"", which is the only honest thing a page can do about a run that does
+ * not carry the answer.
+ *
+ * Two indexes, both sorted by tick because the rows arrive that way: one per
+ * seat for the army decision, one per unit. Lookups are the same binary search
+ * the track uses.
+ */
+function loadGoals(text) {
+  const rows = parseNdjson(text);
+  goalArmy = new Map();
+  goalUnits = new Map();
+  for (const r of rows) {
+    let seat = goalArmy.get(r.s);
+    if (!seat) { seat = { t:[], a:[] }; goalArmy.set(r.s, seat); }
+    seat.t.push(r.t); seat.a.push(r.a);
+
+    for (const u of r.u) {
+      let unit = goalUnits.get(u[0]);
+      // The seat is kept with the unit because ""is this goal still in force?""
+      // can only be answered against the seat's OWN decision clock — see
+      // unitGoalAt.
+      if (!unit) { unit = { t:[], u:[], slot:r.s }; goalUnits.set(u[0], unit); }
+      unit.t.push(r.t); unit.u.push(u);
+    }
+    lastTick = Math.max(lastTick, r.t);
+  }
+  loaded.goals = rows.length > 0;
+  ready();
+}
+
+/**
+ * The index of the last decision taken at or before `atTick` — the one IN FORCE
+ * at that tick.
+ * <p>
+ * Not the nearest one: the AI decides every twentieth tick and the orders stand
+ * until it decides again, so rounding to the closer neighbour would show a unit
+ * under a goal it has not been given yet. Returns -1 before the first decision.
+ */
+function decisionAt(ticks, atTick) {
+  return lowerBound(ticks, atTick + 1) - 1;
+}
+
+/** The army decision in force for this seat at this tick, or null. */
+function armyGoalAt(slot, atTick) {
+  const seat = goalArmy.get(slot);
+  if (!seat) return null;
+  const i = decisionAt(seat.t, atTick);
+  return i < 0 ? null : { tick: seat.t[i], a: seat.a[i] };
+}
+
+/**
+ * The unit's goal in force at this tick, the tick it was given, and the goal it
+ * replaced.
+ * <p>
+ * ""Since"" walks back over the rows that carry the SAME goal, so it is the tick
+ * the unit entered this goal and not merely the last time it was judged — the
+ * difference is the whole content of the line: a unit that has held for 400
+ * ticks and one that started holding two ticks ago look identical otherwise.
+ * <p>
+ * `judged` IS THE IMPORTANT FIELD, and leaving it out was a bug this page had
+ * for exactly one afternoon. The army step only runs while the seat is at or
+ * above its squad threshold: in the canonical run seat 1 is ground down to five
+ * units at tick 1880 and stops judging ANYBODY for the next 1.300 ticks. Reading
+ * ""the last row at or before this tick"" then shows a goal from twenty minutes
+ * ago as if it were current — a diagnostic tool inventing an answer, which is
+ * worse than one that says nothing. So the unit's own last decision is compared
+ * against its SEAT's last decision: equal means the goal is in force, unequal
+ * means nobody is deciding about this unit at all.
+ */
+function unitGoalAt(id, atTick) {
+  const rows = goalUnits.get(id);
+  if (!rows) return null;
+  const i = decisionAt(rows.t, atTick);
+  if (i < 0) return null;
+
+  const seat = goalArmy.get(rows.slot);
+  const seatIndex = seat ? decisionAt(seat.t, atTick) : -1;
+  const seatDecision = seatIndex >= 0 ? seat.t[seatIndex] : -1;
+
+  const kind = rows.u[i][1];
+  let first = i;
+  while (first > 0 && rows.u[first - 1][1] === kind) first--;
+  return {
+    u: rows.u[i],
+    tick: rows.t[i],
+    judged: rows.t[i] === seatDecision,
+    seatDecision,
+    since: rows.t[first],
+    before: first > 0 ? rows.u[first - 1][1] : 0,
+    beforeTick: first > 0 ? rows.t[first - 1] : -1
+  };
+}
+
 function ready() {
   forget();
   scrub.max = lastTick;
@@ -765,6 +903,10 @@ function note() {
   text += ' · ticks 0…' + lastTick;
   if (loaded.tracks) text += ' · ' + tracks.size + ' tracked units';
   if (loaded.events) text += ' · ' + events.length + ' events';
+  // Named separately because its absence changes what the page CLAIMS, not just
+  // how much it shows: without goals every intent on this page is re-derived
+  // from state and marked so.
+  if (loaded.goals) text += ' · goals recorded';
   if (missing.length) text += ' · missing: ' + missing.join(', ');
   if (frames.length && !haveIds) {
     text += ' · this view file predates the id column — no unit can be followed in it';
@@ -797,7 +939,8 @@ function selfCheck() {
 
 const FILES = [
   ['__VIEW_FILE__', loadView], ['__TRACKS_FILE__', loadTracks],
-  ['__EVENTS_FILE__', loadEvents], ['__UNITS_FILE__', loadUnits]
+  ['__EVENTS_FILE__', loadEvents], ['__UNITS_FILE__', loadUnits],
+  ['__GOALS_FILE__', loadGoals]
 ];
 
 // file:// blocks fetch in most browsers, so a failure here is expected and
@@ -806,7 +949,7 @@ for (const [name, load] of FILES) {
   fetch(name).then(r => r.ok ? r.text() : Promise.reject()).then(load).catch(() => {
     if (!loaded.view) {
       status.textContent = 'open the run files with the button (browsers block file:// reads) — ' +
-        '__VIEW_FILE__, __TRACKS_FILE__, __EVENTS_FILE__, __UNITS_FILE__';
+        '__VIEW_FILE__, __TRACKS_FILE__, __EVENTS_FILE__, __UNITS_FILE__, __GOALS_FILE__';
     }
   });
 }
@@ -912,7 +1055,7 @@ function stateAt(atTick) {
         else if (e.k === 'siteDone') { u.site = false; u.role = e.role; }
         else if (e.k === 'moveStart') u.moving = true;
         else if (e.k === 'moveStop') u.moving = false;
-        else if (e.k === 'goal') { u.goalX = e.tx; u.goalY = e.ty; }
+        else if (e.k === 'pathGoal') { u.goalX = e.tx; u.goalY = e.ty; }
         else if (e.k === 'order') { u.orderX = e.tx; u.orderY = e.ty; }
         else if (e.k === 'attackStart' || e.k === 'attackSwitch') u.attack = e.target;
         else if (e.k === 'attackStop') u.attack = 0;
@@ -1636,6 +1779,25 @@ function strengthOf(u) {
  */
 function waveState(slot) {
   const rules = WAVE.find(w => w.slot === slot);
+
+  // THE RECORDING WINS WHERE THERE IS ONE. Everything below this block is the
+  // page repeating the gate's arithmetic, and the paragraph above says why that
+  // can only ever be labelled ""derived"". goals.ndjson carries the AI's own
+  // verdict and the numbers it reached it with, taken at the decision itself —
+  // so where a row exists there is nothing to derive and nothing to caveat.
+  const recorded = armyGoalAt(slot, tick);
+  if (recorded) {
+    const a = recorded.a;
+    const mode = a[7] === 0 ? 'off' : (a[7] === 2 ? 'points' : 'count');
+    return {
+      recorded: true, at: recorded.tick, engages: a[0] !== 0,
+      gathered: a[8], committed: a[9], gatheredStrength: a[10],
+      cadence: rules ? rules.cadence : 0,
+      mode, reason: 'waveSize 1 — every unit marches',
+      have: mode === 'points' ? a[10] : a[8], need: a[11], ready: a[6] !== 0
+    };
+  }
+
   const home = baseOf(slot);
   if (!rules || !home) return null;
 
@@ -1737,11 +1899,21 @@ function waveCell(wave) {
   // An empty ring passes the gate arithmetically — the ceiling clause drops the
   // threshold to zero — but there is nobody to send. ""0 / 0 marches"" would be
   // the one line on this bar that reads like a decision and is none.
+  // A seat below its squad threshold does not weigh a wave at all — the army
+  // step never runs. ""0 / 0 waits"" would read as a gate decision and is none.
+  if (wave.recorded && !wave.engages) return '<span class=""sub"">below the squad threshold · no wave weighed</span>';
   if (wave.gathered === 0) return '<span class=""sub"">ring empty · all out</span>';
   const unit = wave.mode === 'count' ? ' units' : '';
   const verdict = wave.ready
     ? '<span class=""ok"">marches</span>'
     : '<span class=""warn"">waits</span>';
+  // No ""derived"" mark on a recorded verdict: it is the AI's own, not a copy of
+  // its rules. The gap to the threshold is exact, so the panel says how far off.
+  if (wave.recorded) {
+    const gap = wave.need - wave.have;
+    return wave.have + ' / ' + wave.need + unit + ' ' + verdict +
+      (gap > 0 ? ' <span class=""sub"">· ' + gap + ' short</span>' : '');
+  }
   return '<span class=""derived"">' + wave.have + ' / ' + wave.need + unit + '</span> ' + verdict;
 }
 
@@ -1996,7 +2168,7 @@ function describe(e) {
     case 'death': return 'died' + by(e);
     case 'heal': return 'healed ' + e.from + '→' + e.to;
     case 'order': return 'order ' + cell(e.fx, e.fy) + ' → ' + cell(e.tx, e.ty);
-    case 'goal': return 'goal ' + cell(e.fx, e.fy) + ' → ' + cell(e.tx, e.ty);
+    case 'pathGoal': return 'path goal ' + cell(e.fx, e.fy) + ' → ' + cell(e.tx, e.ty);
     case 'moveStart': return 'started moving';
     case 'moveStop': return 'stopped';
     case 'attackStart': return 'attacks ' + shortLabel(e.target);
@@ -2182,8 +2354,102 @@ function behaviourOf(u) {
   if (u.cargo && u.attack) marks.push('cargo ' + u.cargoAE + ' AE');
   if (u.stuck) marks.push('<span class=""warn"">STUCK</span>');
   if (u.below) marks.push('<span class=""warn"">below the retreat mark</span>');
-  if (walkingHome(u)) marks.push('<span class=""derived"">heading for its own base (derived)</span>');
+  // The recording replaces the guess where it exists. ""heading for its own
+  // base"" was geometry read off the map — the honest half of a retreat and no
+  // more; the goal row says which rule the unit is actually under.
+  const intent = unitGoalAt(u.id, tick);
+  if (intent && intent.judged) marks.push('goal <b>' + GOAL_NAMES[intent.u[1]] + '</b>');
+  else if (walkingHome(u)) marks.push('<span class=""derived"">heading for its own base (derived)</span>');
   return main + (marks.length ? ' · ' + marks.join(' · ') : '');
+}
+
+/**
+ * WHAT THE AI DECIDED ABOUT THIS UNIT, and how close it stands to deciding
+ * something else.
+ * <p>
+ * Every goal condition is an integer comparison between a measured quantity
+ * (in the goal row) and a profile value (in WAVE), so the distance to the next
+ * goal is arithmetic, not an estimate. That is the difference between ""this unit
+ * is holding"" and ""this unit is holding, and three points of life from turning
+ * back"" — the second one tells you what to watch.
+ * <p>
+ * Only units the ARMY STEP judges appear here: builders and harvesters get no
+ * goal, and a combat unit gets none while its seat is below the squad
+ * threshold. An empty block is the honest answer there, not a zero.
+ */
+function goalRows(u) {
+  const intent = unitGoalAt(u.id, tick);
+  if (!intent) return [];
+
+  // NOBODY IS DECIDING ABOUT THIS UNIT RIGHT NOW. Its seat is below the squad
+  // threshold, so the army step does not run and no goal is in force. Printing
+  // the last one as if it were current is the one failure this panel must not
+  // have — what it can honestly say is when it lapsed and what it was.
+  if (!intent.judged) {
+    return [
+      ['goal', '<span class=""sub"">none — the army is below its squad threshold, ' +
+               'so no goal is handed out</span>'],
+      ['last goal', GOAL_NAMES[intent.u[1]] +
+                    ' <span class=""sub"">· at tick ' + intent.tick + '</span>']
+    ];
+  }
+
+  const row = intent.u, kind = row[1], forced = row[2] !== 0;
+  const hp = row[6], threat = row[7], staging = row[8], home = row[9];
+  const rules = WAVE.find(w => w.slot === u.slot) || {};
+  const army = armyGoalAt(u.slot, tick);
+
+  const held = tick - intent.since;
+  const rows = [
+    ['goal',
+      '<b>' + GOAL_NAMES[kind] + '</b>' +
+      (forced ? ' <span class=""chip bad"">forced</span>' : '') +
+      ' <span class=""sub"">· since tick ' + intent.since +
+      (held > 0 ? ' (' + held + ' ticks)' : '') + '</span>'],
+    ['because', GOAL_WHY[kind]],
+    intent.beforeTick >= 0 &&
+      ['before', GOAL_NAMES[intent.before] + ' <span class=""sub"">· until tick ' + intent.since + '</span>'],
+    ['measured',
+      'life ' + hp + '%' +
+      ' · nearest armed enemy ' + (threat < 0 ? '—' : threat + ' cells') +
+      ' · staging ' + (staging < 0 ? '—' : staging + ' cells') +
+      ' · home ' + home + ' cells']
+  ];
+
+  // ---- the tipping points, in the unit of the condition they belong to ----
+  const tips = [];
+  if (rules.retreatPercent > 0) {
+    tips.push(hp >= rules.retreatPercent
+      ? (hp - rules.retreatPercent + 1) + ' points of life before the retreat rule can act'
+      : 'already under the retreat mark — it also wants an armed enemy within ' +
+        rules.dangerCells + ' cells');
+  }
+  if (staging >= 0 && rules.tolerance >= 0) {
+    tips.push(staging <= rules.tolerance
+      ? 'inside the staging tolerance (' + staging + ' of ' + rules.tolerance + ' cells)'
+      : (staging - rules.tolerance) + ' cells before it counts as arrived');
+  }
+  if (rules.ring >= 0) {
+    tips.push(home > rules.ring
+      ? 'out with the wave — ' + (home - rules.ring) + ' cells past the ring'
+      : (rules.ring - home + 1) + ' cells before it counts as out with the wave');
+  }
+  if (army && army.a[0] !== 0 && army.a[7] !== 0) {
+    const gap = army.a[11] - (army.a[7] === 2 ? army.a[10] : army.a[8]);
+    const unitName = army.a[7] === 2 ? ' points' : ' units';
+    tips.push(gap > 0
+      ? gap + unitName + ' before the wave marches'
+      : 'the wave marches this decision');
+  }
+  if (tips.length) rows.push(['tipping points', tips.join('<br>')]);
+
+  // The orders the goal produced, beside the goal that produced them — so the
+  // two can be seen to agree, which is the one property that makes this panel
+  // worth trusting.
+  rows.push(['orders out',
+    'attack ' + (row[3] ? unitLabel(row[3]) : '<span class=""sub"">none</span>') +
+    ' · walk ' + (row[4] < 0 ? '<span class=""sub"">none</span>' : cell(row[4], row[5]))]);
+  return rows;
 }
 
 /**
@@ -2221,9 +2487,12 @@ function renderDetail() {
       ['health', live.hp + '/' + live.hpMax + '  (' + healthPercentOf(live) + '%)'],
       ['cell', p ? Math.floor(p[0] / ONE) + ',' + Math.floor(p[1] / ONE) : '—']
     ]);
+    // WHAT IT INTENDS comes before WHAT IT IS DOING, because the second one is
+    // the consequence of the first and reads as a riddle without it.
+    block('what the AI wants', goalRows(live));
     block('orders', [
       ['doing', behaviourOf(live)],
-      ['goal', cell(live.goalX, live.goalY)],
+      ['path goal', cell(live.goalX, live.goalY)],
       ['order', cell(live.orderX, live.orderY)]
     ]);
 

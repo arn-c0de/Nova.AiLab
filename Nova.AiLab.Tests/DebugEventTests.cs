@@ -102,7 +102,7 @@ namespace Nova.AiLab.Tests
             foreach (DebugEventKind required in new[]
             {
                 DebugEventKind.Spawn, DebugEventKind.Death, DebugEventKind.Damage,
-                DebugEventKind.Order, DebugEventKind.Goal, DebugEventKind.MoveStart,
+                DebugEventKind.Order, DebugEventKind.PathGoal, DebugEventKind.MoveStart,
                 DebugEventKind.MoveStop, DebugEventKind.AttackStart, DebugEventKind.SiteOpen,
                 DebugEventKind.SiteDone, DebugEventKind.HarvestStart, DebugEventKind.CargoFull,
             })

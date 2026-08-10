@@ -59,6 +59,13 @@ namespace Nova.AiLab
         /// <summary>What happened to each entity, at the exact tick it happened.</summary>
         public List<DebugEvent> Events = new List<DebugEvent>();
 
+        /// <summary>
+        /// What each AI seat INTENDED, on every decision cadence — the goal per
+        /// unit and the numbers its condition weighed. Rides along with the view
+        /// window like the track and the events do; empty without one.
+        /// </summary>
+        public List<GoalFrame> Goals = new List<GoalFrame>();
+
         /// <summary>One row per entity, derived from track and events at the end of the run.</summary>
         public List<RouteMetrics> Units = new List<RouteMetrics>();
 
@@ -99,7 +106,18 @@ namespace Nova.AiLab
 
             var watch = Stopwatch.StartNew();
 
-            MultiSlotAiHost host = MultiSlotAiHost.BuildMatch(spec);
+            // The goal recorder rides along with the view window, for the same
+            // reason the track and the event log do: whoever records frames is
+            // after an explanation, and one row per seat per decision cadence
+            // is too cheap to be worth a switch of its own.
+            //
+            // It has to exist BEFORE the host, because the AI takes its observer
+            // at construction — which is what keeps it unswappable, and the run
+            // a function of its inputs.
+            bool wantsGoals = spec.ViewIntervalTicks > 0 && spec.TrackIntervalTicks > 0;
+            GoalRecorder goals = wantsGoals ? new GoalRecorder() : null;
+
+            MultiSlotAiHost host = MultiSlotAiHost.BuildMatch(spec, goals);
             var result = new MatchRunResult
             {
                 Seed = spec.Seed,
@@ -200,6 +218,8 @@ namespace Nova.AiLab
                 result.Events.AddRange(eventLog.Events);
                 result.Units = RouteMetrics.Compute(result.Tracks, result.Events, eventLog.Tallies);
             }
+
+            if (goals != null) result.Goals.AddRange(goals.Frames);
 
             watch.Stop();
             result.ElapsedMilliseconds = watch.ElapsedMilliseconds;

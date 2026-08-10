@@ -238,7 +238,7 @@ namespace Nova.AiLab
         {
             switch (debugEvent.Kind)
             {
-                case DebugEventKind.Goal:
+                case DebugEventKind.PathGoal:
                     CloseSegment(debugEvent.Id, positions, open, closed);
                     // C/D carry the NEW goal cell; -1 means the goal was cleared.
                     if (debugEvent.C < 0 || debugEvent.D < 0) return;

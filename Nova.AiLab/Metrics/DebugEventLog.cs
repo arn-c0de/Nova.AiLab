@@ -19,7 +19,20 @@ namespace Nova.AiLab
         Damage = 2,
         Heal = 3,
         Order = 4,
-        Goal = 5,
+
+        /// <summary>
+        /// The cell the MOVEMENT is walking towards (<c>UnitState.GoalGridPos</c>)
+        /// changed — a waypoint, not an intention.
+        /// <para>
+        /// IT WAS CALLED <c>goal</c> UNTIL THE AI HAD REAL ONES. Since the
+        /// skirmish AI names what a unit is trying to do (<c>GoalKind</c>, in
+        /// <c>goals.ndjson</c>), two entirely different things were about to
+        /// share one word in the same panel — the sort of display error nobody
+        /// recognises as one, because both readings make sense. The number is
+        /// unchanged, only the name on the wire and in the log is.
+        /// </para>
+        /// </summary>
+        PathGoal = 5,
         MoveStart = 6,
         MoveStop = 7,
         AttackStart = 8,
@@ -105,7 +118,7 @@ namespace Nova.AiLab
                 case DebugEventKind.Damage: return "damage";
                 case DebugEventKind.Heal: return "heal";
                 case DebugEventKind.Order: return "order";
-                case DebugEventKind.Goal: return "goal";
+                case DebugEventKind.PathGoal: return "pathGoal";
                 case DebugEventKind.MoveStart: return "moveStart";
                 case DebugEventKind.MoveStop: return "moveStop";
                 case DebugEventKind.AttackStart: return "attackStart";
@@ -155,7 +168,7 @@ namespace Nova.AiLab
                     Field(json, "from", A); Field(json, "to", B);
                     break;
                 case DebugEventKind.Order:
-                case DebugEventKind.Goal:
+                case DebugEventKind.PathGoal:
                     Field(json, "fx", A); Field(json, "fy", B);
                     Field(json, "tx", C); Field(json, "ty", D);
                     break;
@@ -582,7 +595,7 @@ namespace Nova.AiLab
             if (goalKey != _goalKey[i])
             {
                 tally.GoalChanges++;
-                Add(GridChange(tick, raw, u, DebugEventKind.Goal, _goalKey[i], goalKey));
+                Add(GridChange(tick, raw, u, DebugEventKind.PathGoal, _goalKey[i], goalKey));
             }
 
             // ---- moving, and standing still while doing it ---------------
