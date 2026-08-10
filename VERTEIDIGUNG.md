@@ -4,9 +4,26 @@
 > Laboraufnahme fiel auf: die KI sammelt am Sammelpunkt weiter, während ihr
 > eigenes Hauptquartier beschossen wird. Journal [B003](reports/behavior-log.md).
 >
-> **Stand:** Entwurf, nichts gebaut. **[ROADMAP](ROADMAP.md) Punkt 1** — der
-> nächste Verhaltens-PR, `feat/ai-abort-on-threat`, Bezeichner `r6` → **`r7`**.
-> Der Vorgänger [`pr/6-staerketor.md`](pr/6-staerketor.md) ist eingereicht.
+> **Stand: gebaut am 2026-08-10**, als Goal `DefendHome` statt als Zweig in
+> `ResolveUnitAssignment` — das Goal-System war inzwischen da, und ein
+> benanntes Modul ist genau das, wofür es gebaut wurde. Bezeichner
+> `r7.E34435F9` → **`r8.1E6E7AE3`** (beide Hälften bewegen sich: die Revision,
+> weil Entscheidungen sich ändern, und der Profilhash, weil die Regel mit
+> ihrer Aus-Stellung ausgeliefert wird). Gemessen in
+> [Journal V008](reports/behavior-log.md): Wehrlosigkeit **96 % → 60 %**,
+> Partie **3.213 → 6.490** Ticks — **und die Legion verliert sie trotzdem**,
+> mit dreimal so vielen Verlusten.
+>
+> **Ein PR, nicht zwei.** Der Plan sah `feat/ai-abort-on-threat` frisch aus
+> `main` vor; gebaut ist es auf **`feat/ai-goal-system`** und wird mit ihm
+> zusammen eingereicht, weil es dazugehört: erst bekommt die Entscheidung eine
+> Form, dann bekommt die Form ihre erste eigene Regel. Die Trennung, auf die
+> es ankommt, liegt in den **Commits** — der neutrale Umbau ist für sich
+> byte-identisch nachgewiesen, die Regel für sich einseitig gemessen. Ein
+> Changelog-Eintrag, wie der Arbeitsvertrag es verlangt.
+>
+> **Der Plan darunter bleibt unverändert stehen** — er ist der Grund, aus dem
+> gebaut wurde, und nach dem Bau lässt er sich nicht mehr rekonstruieren.
 >
 > **Warum er zuerst kommt:** Der Defekt wächst mit der Armeeobergrenze (wartende
 > Einheit-Ticks je 1.000 von 3.502 auf 12.326), und die Obergrenze anzuheben ist

@@ -103,6 +103,43 @@ sie ohne sie gar nicht auftreten könnten; eine Aussage darüber, wie sich Stufe
 
 ---
 
+## B004 · 2026-08-10 · **Beobachtung am Player** — die Verteidigung greift, und man sieht es
+
+**Quelle:** Mensch am Bildschirm, Laboraufnahme
+`out/gui/20260810-203239-feat_ai-goal-system-dedd53b` ·
+**KI-Verhalten:** `r8.1E6E7AE3` · **Stand:** `feat/ai-goal-system`
+
+> **Die Aufnahme liegt als Video vor:**
+> [die Basisverteidigung greift](https://youtu.be/pD9NXtTutmM) —
+> `Nova.AiLab-goal-base-defense-r8-20260810`. Damit ist dieser Eintrag
+> nachprüfbar statt zitiert.
+
+**Das ist die Gegenaufnahme zu B003, dem Eintrag direkt darunter.** Dort,
+wörtlich: *„Einheiten greifen Headquarter an, aber die roten NPC sammeln
+sich an ihrem Armee-Sammelpunkt, anstatt erst die an ihrem Headquarter zu
+bekämpfen."* Hier lösen sich dieselben Einheiten vom Sammelpunkt und marschieren
+heim. Der Fall aus B003 ist in Bewegung zu sehen, nicht nur in einer Spalte.
+
+Zur Aufnahme passt die Aufzeichnung: ab Tick **2820** stehen vier Legionäre
+(#3098, #3099, #3103, #3105) unter `DefendHome`, und bei bedrohter Basis steht
+**keine** Einheit im Sammelring mehr unter `Hold`.
+
+### Was das belegt — und was nicht
+
+- **Belegt:** die Regel feuert im gedachten Fall, sie feuert auf die richtigen
+  Einheiten, und das Ergebnis sieht in Bewegung so aus, wie die Regel es
+  beschreibt. Ein Anzeigefehler oder eine Regel, die nur in der Statistik
+  existiert, wäre hier aufgefallen.
+- **Nicht belegt:** dass die KI dadurch besser spielt. Sie verliert die Partie
+  weiterhin, mit dreimal so vielen Verlusten — die Zahlen stehen in **V008**,
+  der Messung zu derselben Regel.
+- **Nicht gespielt.** Das ist eine Aufzeichnung des Labors, keine Partie in
+  Unity. Der Abschnitt „Im laufenden Spiel gesehen" im PR-Text bleibt leer und
+  als leer erkennbar. Was hier dazugekommen ist, ist ein Mensch, der die Sache
+  angesehen hat — nicht ein Spiel, das sie bestanden hat.
+
+---
+
 ## B003 · 2026-08-09 · **Beobachtung am Player** — die Welle sammelt, während das HQ fällt
 
 **Quelle:** Mensch am Bildschirm, Laboraufnahmen `out/gui/…-1810/1811/1812` ·
@@ -182,6 +219,103 @@ Aussetzzeit von heute ändert sich durch diesen PR nicht.
   ist die Form, an der `DefendBase` gescheitert ist — sie wäre hier vermieden.
 - Ungemessen: ob die Aussetzzeit auch dann dreifach bleibt, wenn die Abbruch-
   regel greift.
+
+---
+
+## V008 · 2026-08-10 · `DefendHome` — Sammeln abbrechen, wenn die Basis brennt. **Gebaut, und es verschiebt die Niederlage statt sie abzuwenden**
+
+**Lauf:** einseitig gemessen, Seed `0xA17E57DE57`, kanonische Spec ·
+**Status:** im Labor gemessen, **am Player angesehen** (Eintrag **B004** oben,
+[Video](https://youtu.be/pD9NXtTutmM)), **im laufenden Spiel ungesehen** ·
+**KI-Verhalten:** `r7.E34435F9` → **`r8.1E6E7AE3`** ·
+**Stand:** `feat/ai-goal-system` (auf dem Goal-System aufgebaut, nicht auf `main`)
+
+### Was genau geändert wurde
+
+Neues Goal `DefendHome`, Priorität zwischen `Retreat` und `Attack`. Auslöser:
+ein **sichtbarer bewaffneter** Gegner innerhalb von `defendHomeCells`
+(ausgeliefert **10**, **0 = aus**) Chebyshev um das eigene HQ. Wirkung für jede
+Kampfeinheit, die **noch im Sammelring** steht und nicht zurückzieht: Marsch zur
+**statischen HQ-Zelle**, Ziel = nächster sichtbarer bewaffneter Gegner. Wer
+draussen ist, marschiert weiter. Die Bedrohungssammlung wurde vor die Haltung
+gezogen, ihr Gatter von `retreatHealthPercent > 0` auf
+`retreatHealthPercent > 0 || defendHomeCells > 0` erweitert — sonst hätte
+`retreat-off` die Verteidigung stillschweigend mit abgeschaltet.
+
+### Besser
+
+| Kennzahl (Sitz 1, Legion) | vorher | nachher | Quelle |
+|---|---:|---:|---|
+| **Wehrlos im Beschussfenster** — Anteil der Beurteilungen unter `Hold`/`Advance`, während das eigene HQ Treffer nimmt | **96 %** | **60 %** | `goals.ndjson` × `events.ndjson` |
+| Beurteilungen unter `Attack` in diesem Fenster | **0** | 371 | `goals.ndjson` |
+| Ticks bis zur Entscheidung | 3.213 | **6.490** | `result.json` |
+
+Und der Nachweis, dass es **nicht** `DefendBase` ist: 31 `DefendHome`-Beurteilungen
+über 10 Einheiten kosten **25 Befehle**, auf **eine einzige** Zielzelle (121,121).
+0,81 Befehle je Beurteilung — die Wiederholungsunterdrückung greift, weil das Ziel
+statisch ist. `DefendBase` gab jeder Einheit jede Kadenz einen neuen.
+
+### Schlechter
+
+| Kennzahl (Sitz 1) | vorher | nachher |
+|---|---:|---:|
+| **Eigene Verluste** | 18 | **60** |
+| **Intents je 1.000 Ticks** | 20,9 | **30,1** (+44 %) |
+| Treffer auf das eigene HQ | 327 | 365 |
+| Ausgang | verloren | **verloren** |
+
+**Die +44 % sind zum grössten Teil nicht die Regel, und das ist zu belegen statt
+zu behaupten.** Sitz 0 hat sein Profil in beiden Läufen **nicht** geändert und
+steigt trotzdem von 34,7 auf 41,4 (+19 %) — die Partie dauert doppelt so lange,
+beide Armeen werden grösser. Die Regel selbst setzt **25 von 194** Intents ab
+(13 %). Was bleibt, ist die längere Partie, nicht der Befehlsstrom, an dem V002
+gestorben ist.
+
+**Der Rest ist echt schlechter.** Die Legion verliert dreimal so viele Einheiten
+und die Partie am Ende trotzdem. Die Regel kauft 3.277 Ticks Überleben mit
+42 zusätzlichen Toten.
+
+### Unverändert
+
+- **`defendHomeCells: 0` auf beiden Sitzen ergibt bitgenau `r7`:** Tick 3.213,
+  Endzustand `0xE002DD893916967B`. Die Aus-Stellung ist gemessen, nicht behauptet.
+- **Sitz 0 mit der Regel ändert nichts** — 3.213 und derselbe Hash. Sein HQ wird
+  in dieser Partie nie angegriffen, die Regel feuert dort also nie. Kein Defekt,
+  aber ein Hinweis darauf, wie schmal die Messbasis ist.
+- Verworfene Intents bleiben **0**.
+- Die vier Determinismus-Baselines bleiben **grün** — wie V001 gemessen hat,
+  fasst keine von ihnen ein KI-System an.
+- `match --repeat 2` läuft mit Exit 0 durch.
+
+### Widerlegt
+
+- **„Eine Abbruchregel scheitert am Befehlsstrom."** Das war die Lehre aus V002
+  und sie gilt so nicht: sie scheitert an einem **beweglichen** Ziel. Mit der
+  HQ-Zelle als Ziel kostet dieselbe Idee 25 Befehle in einer ganzen Partie.
+- **„Wehrlosigkeit ist die Ursache der Niederlage."** Sie fällt von 96 % auf
+  60 %, und die Legion verliert weiterhin. Wehrlosigkeit war ein *Symptom*; die
+  Regel behebt es, ohne die Partie zu drehen.
+
+### Offen
+
+- **Eine Partie, ein Seed, eine Sitzverteilung.** Sitz 0 hat die Regel nie
+  benutzt. Bevor daraus eine Aussage wird, braucht es die Gegensitzung und mehr
+  als eine Karte.
+- **Die 60 % sind nicht 0 % — und der Grund ist nicht die Regel.** Nachgezählt
+  über die Aufzeichnung: in **jeder** Entscheidung mit bedrohter Basis ist
+  **jede** Einheit im Sammelring entweder `DefendHome` (31) oder `Retreat`
+  (17). **Null** Fälle von `Hold`/`Advance` im Ring bei bedrohter Basis. Die
+  Regel greift also vollständig, wo sie greift. Das übrige `Hold` liegt
+  **ausserhalb des Auslösers**: das HQ nimmt über 4.044 Ticks Treffer, als
+  bedroht gemeldet ist es nur in 53 Entscheidungen. Der Beschuss kommt also von
+  etwas, das die KI in zehn Zellen nicht sieht — grössere Reichweite oder gar
+  nicht sichtbar. **Die nächste Frage ist damit nicht der Radius, sondern die
+  Sicht.** `defend-16` liegt als Kandidat bereit, überschreitet aber den
+  Sammelring und würde vermutlich das Falsche messen.
+- **Die Verluste.** Ob 60 Tote für 3.277 Ticks ein guter Tausch sind, ist keine
+  Rechnung, die dieses Labor anstellen darf (Entscheidung 11). Es ist die Frage
+  an den Menschen.
+- **Ungespielt.** Kein Mensch hat das im laufenden Spiel gesehen.
 
 ---
 

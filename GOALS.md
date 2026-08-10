@@ -110,7 +110,7 @@ ausgerechnet und nirgends gespeichert.
 | `Sammeln` | am Sammelpunkt **angekommen** und stehend | **kein Befehl** — absichtlich, siehe unten | **echt seit `r3`** |
 | `Aufmarschieren` | sonst, als Nachschub auf dem Weg | Marsch zum Sammelpunkt, **kein** Angriffsziel (F001) | **echt seit `r3`** |
 | `Ernten` · `Bauen` · `Produzieren` | Wirtschaftsschritte in `Decide()` | Feldbefehl, Platzierung, Warteschlange | **echt, seit es die KI gibt** |
-| `BasisVerteidigen` | Kampfpunkte sichtbarer Feinde am eigenen HQ über `defendHomeThreatPoints` | Sammeln abbrechen, Marsch heim | geplant, [VERTEIDIGUNG.md](VERTEIDIGUNG.md) · Roadmap 1 und 9 |
+| `DefendHome` | ein **sichtbarer bewaffneter** Gegner innerhalb `defendHomeCells` (10, 0 = aus) um das eigene HQ — und die Einheit steht noch im Sammelring | Sammeln abbrechen, Marsch zur **statischen** HQ-Zelle, Ziel = nächster Verfolger | **gebaut seit `r8`**, [VERTEIDIGUNG.md](VERTEIDIGUNG.md) · Journal V008. Nicht nach Kampf**punkten** wie hier geplant, sondern nach Radius: die Punkte wären eine zweite Zahl gegen ein Problem, das noch niemand gemessen hat |
 | `Nachschub` | draussen steht eine intakte Welle | sofort losmarschieren statt warten | geplant, [KAMPFSTAERKE §6](KAMPFSTAERKE.md) · Roadmap 3 |
 | `Flankieren` | zwei Anmarschwege sind billiger als einer | halbe Welle auf den zweiten Weg | geplant, §5 · Roadmap 8b |
 | `Abstandhalten` · `Aufklaeren` | Fernkämpfer über der Feuerdistanz; Sicht kleiner als Waffenreichweite | halten statt weiterlaufen; ein Späher voraus | geplant, Roadmap 10 |

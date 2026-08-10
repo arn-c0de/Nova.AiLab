@@ -86,6 +86,40 @@ verglichen — was sich verändert hat, sieht man dann, ohne eine Zahl zu lesen.
 
 ---
 
+**▶ [Video: derselbe Fall, nachher — die Basisverteidigung greift (`DefendHome`, `r8`)](https://youtu.be/pD9NXtTutmM)**
+
+**Das ist die Gegenaufnahme zu der von oben, und sie ist der Grund, aus dem die
+erste aufgehoben wurde.** Dort sammeln die roten NPC am Sammelpunkt, während
+ihr Hauptquartier fällt (Journal [B003](reports/behavior-log.md)). Hier brechen
+sie ab und laufen heim. Zu sehen, ohne eine Zahl zu lesen — genau der
+Vergleich, den der Absatz über der ersten Aufnahme angekündigt hat, jetzt wo
+[ROADMAP](ROADMAP.md) Punkt 1 gebaut ist.
+
+| Aufnahme | `Nova.AiLab-goal-base-defense-r8-20260810` |
+|---|---|
+| **KI-Verhalten** | **`r8.1E6E7AE3`** |
+| **Branch / Lauf** | `feat/ai-goal-system` · `out/gui/20260810-203239-feat_ai-goal-system-dedd53b` |
+| **Aufgenommen** | 2026-08-10 — Laborlauf aus `lab-gui.sh`, im Player angesehen |
+| **Gehört zu** | [Journal B004](reports/behavior-log.md) (Beobachtung) und [V008](reports/behavior-log.md) (Messung) |
+
+> **`DefendHome` gibt es erst ab `r8`** — deshalb steht der Stand im Namen. In
+> `r7` existiert das Goal nicht, und dieselbe Szene ist dort der Defekt aus
+> B003. Von allen archivierten Läufen trägt genau einer `r8` und ein
+> `DefendHome` in `goals.ndjson`, und das ist der oben genannte; ohne diese
+> Zuordnung wäre die Aufnahme später nicht mehr einzuordnen.
+
+> **Was man sieht, und was das wert ist.** Man sieht die Regel arbeiten: die
+> Wartenden lösen sich vom Sammelpunkt und marschieren zum eigenen HQ. Das ist
+> mehr als eine Kennzahl — es ist der Fall, den B003 beschrieben hat, in
+> Bewegung und nachprüfbar. Es ist trotzdem **kein Nachweis im Sinne dieses
+> Repos**: eine Aufzeichnung des Labors ist keine gespielte Partie, und der
+> Abschnitt „Im laufenden Spiel gesehen" im PR-Text bleibt leer, bis jemand sie
+> in Unity gespielt hat. Was die Messung dazu sagt — Wehrlosigkeit 96 % → 60 %,
+> Partie 3.213 → 6.490 Ticks, **und die Legion verliert sie trotzdem** — steht
+> in [V008](reports/behavior-log.md).
+
+---
+
 **▶ [Video: die Oberfläche im Betrieb, mit einem Gefecht der beiden Armeen](https://www.youtube.com/watch?v=SNa8hs-Odxo)**
 
 [![Das Labor beim Zusehen — Laufrouten, Gefecht, Ereignisprotokoll](Nova.AiLab/media/AiLabs-visual-v1.gif)](https://www.youtube.com/watch?v=SNa8hs-Odxo)
