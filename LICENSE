@@ -3,17 +3,17 @@
 Copyright 2026 arn-c0de. Alle Rechte vorbehalten.
 
 *English: This is a proprietary license. All rights are reserved by arn-c0de.
-A limited, revocable permission to use this tool is granted to the Project Nova
-project (§2). Contributions made by arn-c0de to Project Nova are NOT governed
+A limited, revocable permission to use this tool is granted to the HashKrieg
+project (§2). Contributions made by arn-c0de to HashKrieg are NOT governed
 by this license — see [CONTRIBUTIONS.md](CONTRIBUTIONS.md). The German text is
 the binding version.*
 
 ## 1. Gegenstand
 
 Dieses Repository (`Nova.AiLab`, das „Labor") ist ein Mess- und Diagnosewerkzeug.
-Es ist **kein Bestandteil** von Project Nova / Hashkrieg und wird nicht als
-Beitrag dorthin eingereicht. Urheber und alleiniger Rechteinhaber am Labor ist
-arn-c0de.
+Es ist **kein Bestandteil** von [HashKrieg](https://github.com/VibecodingGermany/HashKrieg)
+(vormals `VibecodingGermany/Project_Nova`) und wird nicht als Beitrag dorthin
+eingereicht. Urheber und alleiniger Rechteinhaber am Labor ist arn-c0de.
 
 Soweit nicht in §2 ausdrücklich eingeräumt, werden **keine** Rechte gewährt.
 Insbesondere nicht: Vervielfältigung, Verbreitung, öffentliche Zugänglichmachung,
@@ -27,10 +27,10 @@ GitHub. Dieses Repository ist absichtlich öffentlich: Wer die Messungen liest,
 soll das Werkzeug daneben legen können. Öffentlich einsehbar heisst aber nicht
 gemeinfrei; ausserhalb von GitHub gilt der vorstehende Absatz unverändert.
 
-## 2. Nutzungserlaubnis für Project Nova
+## 2. Nutzungserlaubnis für HashKrieg
 
-Dem Project Owner von `VibecodingGermany/Project_Nova` (Dennis Westermann) sowie
-den Mitwirkenden dieses Projekts wird hiermit eine
+Dem Project Owner von [`VibecodingGermany/HashKrieg`](https://github.com/VibecodingGermany/HashKrieg)
+(Dennis Westermann) sowie den Mitwirkenden dieses Projekts wird hiermit eine
 
 - unentgeltliche,
 - nicht ausschliessliche,
@@ -39,41 +39,43 @@ den Mitwirkenden dieses Projekts wird hiermit eine
 
 Erlaubnis eingeräumt, das Labor zu **benutzen**: es auszuführen, für den eigenen
 Gebrauch zu vervielfältigen und lokal anzupassen, und zwar zu dem Zweck, Stände
-und Branches von Project Nova zu vermessen, zu prüfen und zu vergleichen.
+und Branches von HashKrieg zu vermessen, zu prüfen und zu vergleichen.
 
 Diese Erlaubnis umfasst **nicht** die Weitergabe des Labors an Dritte, seine
-Aufnahme in Project Nova oder ein anderes Repository, und keine kommerzielle
+Aufnahme in HashKrieg oder ein anderes Repository, und keine kommerzielle
 Verwertung des Labors als solches.
 
 Die Ergebnisse eines Laborlaufs — Messwerte, Berichte, Diagramme — dürfen frei
 verwendet, veröffentlicht und zitiert werden. Sie sind Beobachtungen über
-Project Nova, nicht Teil des Werkzeugs.
+HashKrieg, nicht Teil des Werkzeugs.
 
-## 3. Verhältnis zur Lizenz von Project Nova
+## 3. Verhältnis zur Lizenz von HashKrieg
 
-Das Labor bindet beim Bauen Quelldateien aus einem Project-Nova-Checkout ein
-(MSBuild-Eigenschaft `NovaRepo`). Diese Dateien stehen unter der
+Das Labor bindet beim Bauen Quelldateien aus einem HashKrieg-Checkout ein
+(MSBuild-Eigenschaft `NovaRepo`, Vorgabe `../Project_Nova`). Diese Dateien
+stehen unter der
 [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
 und gehören ihren jeweiligen Urhebern; die vorliegende Lizenz ändert daran nichts
 und kann daran nichts ändern.
 
-Daraus folgt: Ein **gebautes Artefakt** des Labors enthält Project-Nova-Code und
+Daraus folgt: Ein **gebautes Artefakt** des Labors enthält HashKrieg-Code und
 unterliegt zusätzlich dessen Bedingungen, einschliesslich der Pflicht, die Notiz
+aus dem `NOTICE` des Spiels wortgleich mitzugeben — derzeit:
 
 > Required Notice: Copyright 2026 the respective Project Nova contributors.
 
-mitzugeben. Der Quelltext dieses Repositories enthält keinen Project-Nova-Code.
+Der Quelltext dieses Repositories enthält keinen HashKrieg-Code.
 
-## 4. Beiträge an Project Nova
+## 4. Beiträge an HashKrieg
 
 Änderungen, die arn-c0de am Spielcode vornimmt und per Pull Request an
-`VibecodingGermany/Project_Nova` überträgt, fallen **nicht** unter diese Lizenz,
+`VibecodingGermany/HashKrieg` überträgt, fallen **nicht** unter diese Lizenz,
 sondern unter die dort geltenden Bedingungen. Der Umfang ist auf die im
 jeweiligen Pull Request eingereichten Änderungen beschränkt. Einzelheiten und
 Abgrenzung: [CONTRIBUTIONS.md](CONTRIBUTIONS.md).
 
 Kein Laborlauf, kein Bericht und keine Datei dieses Repositories wird dadurch zu
-einem Beitrag an Project Nova oder erhält dessen Lizenz.
+einem Beitrag an HashKrieg oder erhält dessen Lizenz.
 
 ## 5. Gewährleistung und Haftung
 
@@ -91,3 +93,4 @@ erlaubte Nutzungen.
 |---|---|---|
 | 1.0.0 | 2026-08-09 | Erstfassung: Rechte am Labor bei arn-c0de, Nutzungserlaubnis für Project Nova, Abgrenzung zu eingereichten Beiträgen |
 | 1.0.1 | 2026-08-09 | §1 klargestellt: die GitHub-Rechte an einem öffentlichen Repository bleiben unberührt |
+| 1.0.2 | 2026-08-10 | Umbenennung nachgezogen: das Spiel heisst `VibecodingGermany/HashKrieg` (vormals `VibecodingGermany/Project_Nova`). Project Owner bleibt Dennis Westermann, der Umfang der Rechte ändert sich nicht |
