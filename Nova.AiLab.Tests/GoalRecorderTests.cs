@@ -184,6 +184,47 @@ namespace Nova.AiLab.Tests
                 "no idle decision was recorded — the opening ticks are below the squad threshold and must be");
         }
 
+        /// <summary>
+        /// AN UNWEIGHED FRAME CARRIES ZEROS, AND THEY ARE NOT COUNTS.
+        /// <para>
+        /// <c>ResolveArmyPosture</c> returns before it counts anything when the
+        /// seat is below its squad threshold, and again when waves are switched
+        /// off — so the row leaves <c>WaveMode</c> at <c>Off</c> and the four
+        /// numbers beside it at zero. That is not "no units in the ring" and not
+        /// "this profile runs without waves"; it is "nobody counted".
+        /// </para>
+        /// <para>
+        /// This test pins the difference because a reader cannot see it in the
+        /// file. The player read those zeros as data and told a seat with five
+        /// living units that it had no army, and a seat with a 1.200-point gate
+        /// that its waves were off — for 44 decisions of the canonical run. The
+        /// rule a reader has to hold to is here: <c>WaveMode == Off</c> means
+        /// the numbers say nothing, whatever they contain.
+        /// </para>
+        /// </summary>
+        [Test]
+        public void AFrameThatWeighedNoWaveCarriesNoNumbers()
+        {
+            MatchRunResult run = MatchRun.Execute(WatchedSpec());
+
+            bool unweighedSeen = false;
+            foreach (GoalFrame frame in run.Goals)
+            {
+                AiArmyGoal army = frame.Army;
+                if (army.Engages) continue;
+
+                unweighedSeen = true;
+                string where = $"tick {frame.Tick}, slot {frame.Slot}";
+                Assert.That(army.WaveMode, Is.EqualTo(WaveGateMode.Off),
+                    $"{where}: the army step never ran and the row still names a wave rule");
+                Assert.That(army.Gathered, Is.Zero, where);
+                Assert.That(army.Committed, Is.Zero, where);
+                Assert.That(army.GatheredStrength, Is.Zero, where);
+                Assert.That(army.WaveThreshold, Is.Zero, where);
+            }
+            Assert.That(unweighedSeen, Is.True, "no unweighed decision in the run — the opening ticks are");
+        }
+
         // ================================================================
         // (c) The file
         // ================================================================
@@ -205,7 +246,7 @@ namespace Nova.AiLab.Tests
             MatchRunResult run = MatchRun.Execute(WatchedSpec());
             Assert.That(run.Goals, Is.Not.Empty);
 
-            const int armyColumns = 12;
+            const int armyColumns = 13;
             const int unitColumns = 10;
 
             foreach (GoalFrame frame in run.Goals)

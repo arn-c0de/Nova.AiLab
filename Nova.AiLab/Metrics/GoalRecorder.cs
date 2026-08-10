@@ -40,7 +40,8 @@ namespace Nova.AiLab
                 .Append(Army.WaveReady ? 1 : 0).Append(',')
                 .Append((int)Army.WaveMode).Append(',')
                 .Append(Army.Gathered).Append(',').Append(Army.Committed).Append(',')
-                .Append(Army.GatheredStrength).Append(',').Append(Army.WaveThreshold)
+                .Append(Army.GatheredStrength).Append(',').Append(Army.WaveThreshold).Append(',')
+                .Append(Army.HomeThreatened ? 1 : 0)
                 .Append(']');
 
             json.Append(",\"u\":[");

@@ -138,6 +138,21 @@ namespace Nova.AiLab
             // `wave-off` und `retreat-off` weiter oben spielen (M001).
             Derive("strength-off", waveStrengthPoints: 0),
 
+            // ---- die Basisverteidigung (r8) ----
+            //
+            // Die Referenz traegt seit r8 defendHomeCells 10, also ist
+            // `defend-off` die Aus-Stellung und die einzige Art, die Regel
+            // gegen ihre eigene Abwesenheit zu messen (M001). Dieselbe Rolle
+            // wie `wave-off`, `retreat-off` und `strength-off`.
+            //
+            // Die zwei Radien daneben sind die Messfrage, nicht die Regel:
+            // 8 ist der Rueckzugsradius, 16 der Sammelring. Wer sie
+            // ueberschreitet, ruft Verteidiger zu einem Scharmuetzel am
+            // Sammelpunkt — und genau das waere V002 unter neuem Namen.
+            Derive("defend-off", defendHomeCells: 0),
+            Derive("defend-8", defendHomeCells: 8),
+            Derive("defend-16", defendHomeCells: 16),
+
             // DIE EIGENTLICHE FRAGE, und sie braucht ZWEI Zeilen, nicht eine.
             // Bei Obergrenze 12 bindet die Erreichbarkeitsdecke zuerst (zwoelf
             // Allianz-Schuetzen SIND 1200 Punkte, und eine dreizehnte Einheit
@@ -227,7 +242,8 @@ namespace Nova.AiLab
             int? stagingToleranceCells = null,
             int? retreatHealthPercent = null,
             int? retreatDangerCells = null,
-            int? waveStrengthPoints = null)
+            int? waveStrengthPoints = null,
+            int? defendHomeCells = null)
         {
             AiProfile b = Reference;
             return new AiProfile(
@@ -249,7 +265,8 @@ namespace Nova.AiLab
                 stagingToleranceCells: stagingToleranceCells ?? b.StagingToleranceCells,
                 retreatHealthPercent: retreatHealthPercent ?? b.RetreatHealthPercent,
                 retreatDangerCells: retreatDangerCells ?? b.RetreatDangerCells,
-                waveStrengthPoints: waveStrengthPoints ?? b.WaveStrengthPoints);
+                waveStrengthPoints: waveStrengthPoints ?? b.WaveStrengthPoints,
+                defendHomeCells: defendHomeCells ?? b.DefendHomeCells);
         }
 
         /// <summary>Which values a candidate changed against the reference, for the report.</summary>
@@ -296,6 +313,8 @@ namespace Nova.AiLab
                 diffs.Add($"retreatDanger {r.RetreatDangerCells}→{candidate.RetreatDangerCells}");
             if (candidate.WaveStrengthPoints != r.WaveStrengthPoints)
                 diffs.Add($"waveStrength {r.WaveStrengthPoints}→{candidate.WaveStrengthPoints}");
+            if (candidate.DefendHomeCells != r.DefendHomeCells)
+                diffs.Add($"defendHome {r.DefendHomeCells}→{candidate.DefendHomeCells}");
             return diffs;
         }
     }
