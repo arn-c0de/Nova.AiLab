@@ -1,7 +1,7 @@
 # Roadmap — KI-Verhalten, eine Liste und eine Nummerierung
 
-**Stand:** KI-Verhalten `r6.E34435F9` · Commit `c8e46af5` (upstream `main`) ·
-Definitionstabelle `0x6326FA3E56CFF5A3` · Messgrundlage
+**Stand:** KI-Verhalten `r7.E34435F9` · Commit `5635009` (upstream `main`) ·
+Referenzlauf Entscheidung **3213**, Endzustand **`0xE002DD893916967B`** · Messgrundlage
 [`reports/latest.md`](reports/latest.md) · Historie
 [`reports/behavior-log.md`](reports/behavior-log.md)
 
@@ -37,6 +37,7 @@ schmeichelhafteste.
 | `r5` | Erreichbarkeitsdeckel am Wellentor (`f13f4d5`) | [V006](reports/behavior-log.md) | die Blockade, in der elf Einheiten bis zum Zeitlimit warteten |
 | `r6` | **Stärke-Wellentor** — Kampfpunkte statt Köpfe (PR #72) | [V007](reports/behavior-log.md) | mit angehobener Obergrenze: Legion 23 Verluste statt 51, Austausch 139 statt 45 |
 | — | ~~Rally-Punkt auf den Sammelpunkt~~ **gestrichen** | [F002](findings/F002-rallypoint-ist-die-spawnzelle.md) | der Rally-Punkt ist die Spawn-Zelle; das wäre Teleportation |
+| — | **Goal-System als Form** (Punkt 2) — benannte Module statt Zweige, dazu Beobachter und Goal-Maske | noch kein Journaleintrag: **es gibt keine Verhaltensänderung zu berichten** | Entscheidungstick **3213** und Endzustand **`0xE002DD893916967B`** unverändert, Artefakte byte-identisch bis auf `elapsedMilliseconds`. Kein `Revision`-Bump |
 
 > [!WARNING]
 > **`r6` ist gebaut und im ausgelieferten Spiel wirkungslos.** `waveStrengthPoints: 1200`
@@ -56,10 +57,18 @@ Die Nummer ist die **Reihenfolge**, nicht die Revision. Jede Zeile ist ein PR,
 jede bringt einen Profilwert mit Aus-Stellung mit und wird **einseitig**
 gemessen (Methodenbefund [M001](reports/behavior-log.md)).
 
+> [!WARNING]
+> **Die Spalte „Liefert" ist um eins verschoben und wird beim nächsten PR
+> korrigiert.** Sie wurde geschrieben, als `AiBehaviorId.Revision` bei 6 stand;
+> inzwischen steht sie bei **7** — der Inhaber hat sie für die
+> D-103-Voraussetzungskette vergeben (Refinery → Power → Barracks). Die
+> nächste Verhaltensänderung aus diesem Strang ist also **`r8`**, nicht `r7`,
+> und alles darunter rutscht mit. Die **Reihenfolge** in der ersten Spalte
+> stimmt, und nur die zählt.
+
 | # | Was | Liefert | Ort | Aus-Stellung | Erste Zahl, die man ansieht | Plan |
 |---:|---|---|---|---|---|---|
 | 1 | **Sammeln abbrechen, wenn die eigene Basis angegriffen wird** | `r7` | `AI/`, `AI.Data/` | `defendHomeThreatPoints: 0` | Ticks „wehrlos" (heute **19 %** der Zeit unter Feuer) | [VERTEIDIGUNG.md](VERTEIDIGUNG.md) |
-| 2 | **Goal-System als Form** — benannte Module statt Zweige, *verhaltensneutral* | kein Bump | `AI/` | entfällt (byte-identisch) | Endzustands-Hash und Entscheidungstick **unverändert** | [GOALS.md §2–§4](GOALS.md) |
 | 3 | **Nachschub-Doktrin** — hinter der laufenden Welle nachsenden, bei gebrochener Welle nicht | `r8` | `AI/`, `AI.Data/` | `reinforceMinStrengthPercent: 0` | **Intents je 1.000 Ticks** (der V002-Fehlermodus) | [KAMPFSTAERKE §6](KAMPFSTAERKE.md) |
 | 4 | **Zweites lohnendes Ziel** — Harvester und Refinery statt HQ-Kurzschluss | `r9` | `AI/` | `targetHqWeight` so hoch, dass er alles überstimmt | Zahl verschiedener Zielarten je Partie (heute faktisch 1) | [NEXT-STEPS §2](NEXT-STEPS.md) |
 | 5 | **Wellengrösse nach Lage** — Kampfpunkte der gesehenen Feindgruppe bestimmen die Schwelle | `r10` | `AI/`, `AI.Data/` | `waveOvermatchPercent: 0` | Verteilung der Wellengrössen (braucht **L1**) | [KAMPFSTAERKE §5a](KAMPFSTAERKE.md) |
@@ -77,7 +86,7 @@ gemessen (Methodenbefund [M001](reports/behavior-log.md)).
 |---|---|---|---|
 | **L1** | **Wellenmetrik**: Anzahl der Wellen, Stärke beim Losmarschieren, Abstand zwischen Wellen, als Verteilung | „mehr verschiedene Wellengrössen" ist ohne diese Spalte eine Behauptung. Heute misst nichts eine Welle als Ereignis | **vor 5** |
 | **L2** | **Szenario Anmarsch gegen stehende Verteidigung**: dieselbe Gruppe frontal, dann in zwei Hälften aus zwei Richtungen | Ohne dieses Szenario ist die Flanke nicht belegbar, nur plausibel | **vor 8b** |
-| **L3** | **Admin-Panel und Live-Modus** — Goal je Einheit ansehen, Kipppunkte, exakte Vorausschau, übersteuern | Damit man *sieht*, was die KI vorhat, statt es aus Kennzahlen zu erschliessen | nach **2** (vorher gibt es keine echten Goals) |
+| **L3** | ~~**Admin-Panel und Live-Modus**~~ — **gebaut, bis auf die Vorausschau**: `goals.ndjson`, das Goal je Einheit im Player samt Kipppunkten, und `live --port` mit Anhalten, Einzeltakt und Übersteuern. Offen bleibt allein die **Vorausschau** („was tut sie in den nächsten N Ticks") | Damit man *sieht*, was die KI vorhat, statt es aus Kennzahlen zu erschliessen | erledigt |
 
 ### Die vier neuen Punkte, in je einem Absatz
 
@@ -113,20 +122,34 @@ kommen, und das zweite ist eine Behauptung, bis **L2** sie stützt. Und eine
 geteilte Welle ist zwei kleinere Wellen — genau das Förderband, das `r3`
 beseitigt hat. Die Bedingung dagegen steht in [GOALS §5](GOALS.md).
 
-**2 · Goal-System als Form.** Die KI hat heute keinen Goal-Begriff: eine
-abgeleitete Haltung und eine Zuweisung je Einheit, verteilt über
-if-Zweige. Der Punkt gibt jedem Verhalten einen **Namen, eine Priorität und
-eine Aus-Stellung** — und zwar zuerst **ohne Verhaltensänderung**, byte-identisch
-nachgewiesen wie schon einmal beim Umbau auf Absichten je Einheit. Der Nutzen ist
-doppelt: jeder Punkt danach ist ein Modul statt eines weiteren Zweigs, und das
-Admin-Panel kann zeigen, was die KI vorhat, statt es zu erraten.
+**2 · Goal-System als Form — gebaut.** Die KI hatte keinen Goal-Begriff: eine
+abgeleitete Haltung und eine Zuweisung je Einheit, verteilt über if-Zweige. Jetzt
+wählt sie je Einheit und Kadenz **ein** Goal aus einer festen Prioritätsliste —
+`Retreat`, `Attack`, `Hold`, `Advance` — und wendet dessen Wirkung aus einer
+Tabelle an. Byte-identisch nachgewiesen, wie schon beim Umbau auf Absichten je
+Einheit.
+
+> **Eine Abweichung vom Plan, und sie ist der Kern des Nachweises.** Der Plan
+> wollte die Prioritäten als Profilwerte („0 = Modul aus"). Ein angehängtes
+> Profilfeld bewegt `AiProfile.ProfileHash` und damit `aiBehaviorId` — und das
+> steht in jedem `result.json`. Der Schritt wäre damit **nicht** byte-identisch
+> gewesen, und die Byte-Gleichheit ist genau das, was ihn auswertbar macht. Die
+> Reihenfolge ist deshalb fest im Code. **Eine Aus-Stellung bringt jedes Modul
+> mit, das eine Regel bekommt** — im PR, der ihm die Regel gibt, so wie es
+> `waveSize`, `waveStrengthPoints` und `retreatHealthPercent` schon halten.
+
+Der Nutzen ist doppelt: jeder Punkt danach ist ein Modul statt eines weiteren
+Zweigs, und das Panel **zeigt**, was die KI vorhat, statt es zu erraten. Dazu
+kamen zwei optionale Nähte in `AI/`, die der ausgelieferte Pfad nie füllt:
+`IAiGoalObserver` (das Labor liest mit) und `IAiGoalOverride` (das Panel greift
+ein — als *Eingabe* der Entscheidung, nicht als Zustand).
 
 ## 3 · Reihenfolgeregeln, die nicht verhandelbar sind
 
 | Regel | Warum |
 |---|---|
 | **1 vor jeder Anhebung der Obergrenze** | Der Defekt „wartet, während das HQ brennt" wächst mit der Obergrenze: wartende Einheit-Ticks je 1.000 gehen von 3.502 auf 12.326 |
-| **2 vor 3** | Die Nachschub-Doktrin wäre sonst ein dritter Zweig in `ResolveUnitAssignment`, den das Goal-System danach wieder auflösen müsste |
+| ~~**2 vor 3**~~ | **eingelöst.** Die Module stehen; die Nachschub-Doktrin wird eins davon, kein vierter Zweig |
 | **3 vor 5** | Der Abbruchwert ist ein Prozentsatz **der** Wellenschwelle. Wird die Schwelle im selben Zug variabel, misst man zwei Änderungen als eine |
 | **4 vor 5** | Wellengrösse nach Lage braucht mehr als eine Lage. Solange jedes Ziel das HQ ist, gibt es keine |
 | **L1 vor 5** | „Verschiedene Wellengrössen" ohne Wellenmetrik ist unbelegbar |
@@ -140,7 +163,7 @@ Admin-Panel kann zeigen, was die KI vorhat, statt es zu erraten.
 | Was | Warum es unsere Grenze überschreitet | Was es blockiert |
 |---|---|---|
 | **Armeeobergrenze** `targetArmySize` | `MatchRunner.cs:254` verdrahtet die Zahl; `Gameplay/Match/` gehört dem Netzstrang. Unsere Profilwerte greifen nur im Labor und in Tests | **Den ganzen Stärkestrang.** Bei 12 ist `r6` wirkungslos; einseitig gemessen wirkt 30: Legion entscheidet früher (5.005 statt 5.773 Ticks) bei 23 statt 51 Verlusten. **Anheben ohne das Tor geht in die andere Richtung** (51 → 64) |
-| **Ein Angriffsziel freigeben** | `Stop()` löscht `AttackTarget` nicht — der Weg dazu liegt in `Simulation/State/`, Inhaberentscheidung mit D-ID. Befund [F001](findings/F001-stop-loescht-attacktarget-nicht.md) | Zielwahl je Einheit; jede fünfte Fassung wäre dieselbe Sackgasse |
+| ~~**Ein Angriffsziel freigeben**~~ | **erledigt vom Inhaber**, PR #83 (`75973d3`): der `Stop`-Zweig setzt `AttackTarget = EntityId.Invalid`. Befund [F001](findings/F001-stop-loescht-attacktarget-nicht.md) ist aufgelöst | Nichts mehr. **Aber:** V003 bleibt gemessen und teuer — die Sperre ist weg, die Begründung für eine fünfte Fassung nicht da. Und „nur das Ziel aufgeben, weiterlaufen" gibt es weiterhin nicht: `Stop` nimmt den Marschbefehl mit |
 | **Sidecar-Block** | `MatchFingerprint` führt `SidecarSchemaVersion` bereits, unbelegt. Timer, Aufklärungsgedächtnis, Squad-Identität brauchen ihn | Alles mit echtem Gedächtnis. **Nicht** die Punkte 1–11: die sind absichtlich zustandslos formuliert |
 | **Legion-Waffenwerte** | `Simulation/Definitions/` ist geteilte Vertragsfläche | Issue 01. Das Labor *misst* sie, die Umsetzung braucht Absprache |
 | **Ein neues System einordnen** | Die Tick-Reihenfolge ist Vertrag; neu wird **eingeordnet, nicht angehängt** | Nichts auf dieser Liste — alle Punkte bleiben in `SkirmishAiSystem` |
@@ -150,7 +173,7 @@ Admin-Panel kann zeigen, was die KI vorhat, statt es zu erraten.
 | Vorhaben | Warum nicht |
 |---|---|
 | **Verteidigungsmodule bauen** (`InstallDefenseModule`) | `ValidateDomain` lehnt den Befehl **unbedingt** ab (G2/G4-Inhalt laut `mvp-v1.json`). Eine KI, die ihn benutzt, produziert nur `intentsRejected`. Ob das **Gebäude** `DefensePlatform` platzierbar ist, ist dagegen ungeprüft und gehört zu Punkt 9 |
-| **Zielen unter der Angriffsschwelle, fünfte Fassung** | Vier gemessen, alle teurer als gar nicht zielen (V003). Blockiert von F001 |
+| **Zielen unter der Angriffsschwelle, fünfte Fassung** | Vier gemessen, alle teurer als gar nicht zielen (V003). **Der Blocker F001 ist seit PR #83 weg** — die Sperre also, nicht der Befund: die vier Messungen stehen weiterhin. Wer eine fünfte anfängt, sagt vorher, was an ihr anders ist als an den vieren, und misst einseitig |
 | **`DefendBase` mit anderem Radius** | Gemessen: 8 → 9.564, 16 → 9.470, 24 → byte-identisch zu 16. Am Radius liegt es nicht (V002). Punkt 9 ändert das Mass, nicht den Radius |
 | **Kartenvarianz** | Erst nach Punkt 4. Vorher tunt man gegen die gebrochene `GetEnemyStartAreaCell`-Annahme |
 | **Ein automatischer Optimierer** | Nicht vertagt, sondern nicht vorgesehen (Entscheidung 11): es gibt keine skalare Gütefunktion, und für „sieht im Spiel richtig aus" gibt es keine Kennzahl |

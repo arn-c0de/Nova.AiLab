@@ -1,10 +1,28 @@
 # Goals — was die KI vorhat, sichtbar und übersteuerbar
 
-**Notiert am:** 2026-08-10 · **Status:** Plan, **nichts davon gebaut** ·
-**Ausgangsstand:** KI-Verhalten `r6.E34435F9`, Commit `c8e46af5` ·
+**Notiert am:** 2026-08-10 · **Status: Teile 1 und 3 gebaut** (Goal-System,
+Panel lesend, Live-Modus mit Eingriff), **Teil 2 (Flanke) offen**, und die
+**Vorausschau** aus §6.1 ebenfalls · **Stand:** KI-Verhalten `r7.E34435F9`,
+Commit `5635009` ·
 **Vorher lesen:** [`ROADMAP.md`](ROADMAP.md) §2 (Punkte 2, 8b, L3),
 [`reports/behavior-log.md`](reports/behavior-log.md) V002–V007,
 [`AGENTS.md`](AGENTS.md) §3–§4
+
+> [!IMPORTANT]
+> **Was davon steht, und wo der Bau vom Plan abweicht.** Der Plan bleibt
+> unverändert stehen — er ist der Grund, aus dem gebaut wurde, und nach dem Bau
+> kann man ihn nicht mehr rekonstruieren. Was daraus geworden ist:
+>
+> | Geplant | Stand |
+> |---|---|
+> | §2 Goal-System, verhaltensneutral | **gebaut.** `GoalKind` in `AI.Data/`, vier Module in `SkirmishAiSystem`. Entscheidungstick **3213** und Endzustand **`0xE002DD893916967B`** unverändert, Artefakte byte-identisch bis auf `elapsedMilliseconds` |
+> | §2 „Priorität aus dem Profil, 0 = Modul aus" | **anders gebaut, und der Unterschied trägt den Nachweis.** Ein angehängtes Profilfeld bewegt `ProfileHash` und damit `aiBehaviorId` in jedem `result.json` — der Schritt wäre dann nicht byte-identisch gewesen. Die Reihenfolge steht fest im Code; die Aus-Stellung bringt jedes Modul mit, das eine **Regel** bekommt |
+> | §3 `goals.ndjson`, delta-kodiert | **gebaut, nicht delta-kodiert.** Eine Zeile je Sitz und Kadenz: die kanonische Partie ergibt rund 2.000 Zeilen, und die Zahlen neben dem Goal ändern sich ohnehin in jeder Zeile — nur die Goal-Spalte liesse sich überhaupt verdichten |
+> | §6.1 Panel, lesend | **gebaut, im vorhandenen Player** statt als zweite Karte: Goal, seit wann, welches davor, die Zahlen der Bedingung, die Kipppunkte. Die als „derived" markierte Nachrechnung der Wellenschwelle ist damit **weg**, wo eine Aufzeichnung vorliegt |
+> | §6.1 Vorausschau | **offen.** Der Weg dahin ist inzwischen billiger als geplant: kein Snapshot-Fork nötig, sondern erneutes Abspielen von Tick 0 mit demselben Eingriffsprotokoll — deterministisch, also exakt, und bei 5.800 Ticks/s interaktiv |
+> | §6.2 Endpunkte in `report/gui_server.py` | **anders gebaut.** Die Partie ist C#; halten kann sie nur der Prozess, dem der Kernel gehört. `live --port` bringt seinen eigenen Server mit (nur Standardbibliothek, nur `127.0.0.1`), `gui_server.py` behält seine Aufgabe |
+> | §6.3 Goal-Maske als Eingabe, §6.4 `intervened` | **gebaut.** `IAiGoalOverride` als Konstruktor-Argument, `overrides.ndjson`, `intervened: true`. **Die Bedingung aus §8 ist geprüft:** Sitzung plus Protokoll erneut gefahren ergibt bitgleich dasselbe — mit Gegenprobe, dass ein Eingriff die Partie überhaupt verändert |
+> | §5 Flanke | **offen**, unverändert. Braucht **L2** |
 
 Dieses Dokument plant drei Dinge, die zusammengehören:
 

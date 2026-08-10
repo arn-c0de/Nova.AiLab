@@ -1,8 +1,11 @@
 # Nova.AiLab — Handreichung für Agenten
 
-**Stand:** KI-Verhalten `r6.E34435F9`, Commit `c8e46af5`, Definitionstabelle
-`0x6326FA3E56CFF5A3` · die Zahlen in §5 stammen aus der älteren Messmenge an
-Commit `3b3f27d` und sind als solche gekennzeichnet
+**Stand:** KI-Verhalten `r7.E34435F9`, Commit `5635009`, Referenzlauf
+Entscheidung **3213**, Endzustand **`0xE002DD893916967B`** · die Zahlen in §5
+stammen aus der älteren Messmenge an Commit `3b3f27d` und sind als solche
+gekennzeichnet — **sie gelten nicht mehr für den heutigen Stand**, upstream ist
+seither weitergezogen (endliche Aetheriumfelder D-102, Bauvoraussetzungen,
+`Stop` löscht `AttackTarget`)
 **Gilt zusätzlich:** `../CLAUDE.md` (Arbeitsvertrag), `../Project_Nova/AGENTS.md`,
 [`README.md`](README.md) nebenan
 **Erst lesen, wenn man neu hier ist:** [`UEBERGABE.md`](UEBERGABE.md) (der
@@ -44,6 +47,8 @@ Antwort. Alle vier kosten zusammen unter zehn Sekunden.
 | Ist sie besser oder nur anders? | `compare --out <dir>` | `resultset.json`, `report.html`, je Kandidat ein PR-Entwurf |
 | Woran liegt es? | `match --view-every 25 --fog --out <dir>` | `player.html` + `view.ndjson`, dazu `dashboard.html` |
 | Woran liegt es **bei dieser einen Einheit**? | derselbe Lauf | `player.html`: Einheit anklicken → Laufroute, Ereignisband, Detailfeld mit ihrem aktuellen Verhalten (Ziel, Angreifer, Ernte, Rückweg). Roh in `tracks.ndjson`, `events.ndjson`, `units.json` |
+| **Was hat die KI vorgehabt** — und wie weit ist sie vom nächsten Vorhaben? | derselbe Lauf | `goals.ndjson`, im Player unter „what the AI wants": Goal, seit wann, welches davor, die Zahlen der Bedingung und der Abstand zur nächsten Schwelle |
+| Und **was hätte sie getan, wenn** …? | `live --port 8787 --out <dir>` | die laufende Partie im Browser: anhalten, einzeln takten, einer Auswahl ein Goal aufzwingen. Schreibt `overrides.ndjson` und ein `result.json` mit `intervened: true` |
 | Und **auf einem anderen Branch**? | `./lab-gui.sh` | die Steuerseite: Branch auswählen, messen, gegen einen früheren Lauf legen. Der Arbeitscheckout wird nie umgeschaltet — gemessen wird in einem `git worktree` |
 
 Vorspann für alle Kommandos, falls `dotnet` nicht im PATH ist:
@@ -72,6 +77,11 @@ doppelt gefahren — genau dafür.
   nach einem Merge-Fenster wird neu vermessen, nicht über die Grenze hinweg verglichen.
 - **`orders refused — this row is not a measurement`**: Eine Zeile im Duell- oder
   Bewegungsbericht, deren Befehle abgelehnt wurden. Nicht als Ergebnis lesen.
+- **`intervened: true` in `result.json`**: In diesem Lauf hat jemand über das
+  Admin-Panel eingegriffen. Er sagt, was die KI *hätte* tun können, nie was sie
+  tut — er wird nicht archiviert und nicht mit einem Messlauf verglichen. Der
+  eine erlaubte Vergleich ist der gegen den **eigenen eingriffsfreien Zwilling**:
+  gleicher Seed, gleiche Spec, einmal mit und einmal ohne Eingriff.
 
 ---
 
@@ -88,7 +98,8 @@ vergleichbar statt schätzungsweise.
 | `trace.ndjson` | Metriktick | 21 Kennzahlen je Slot plus `buildingsByRole[9]` |
 | `view.ndjson` | Sichtframe | Position, Tätigkeit, Ziel, Fog-Ebene, **Entity-ID** (zehnte Spalte) — für `player.html` |
 | `tracks.ndjson` | Tick | Positionsspur je Einheit, verlustfrei: `a` absolut, `d` Delta, `x` beendet, `k` Keyframe |
-| `events.ndjson` | Ereignis | `spawn`, `death`, `damage`, `order`, `goal`, `moveStart/Stop`, `attackStart/Switch/Stop`, `harvest*`, `cargo*`, `site*`, `stuck`/`unstuck`, `retreat*` — mit exaktem Tick. `by` ist **hergeleitet**, `bySure` sagt wie sicher |
+| `events.ndjson` | Ereignis | `spawn`, `death`, `damage`, `order`, `pathGoal` (**hiess bis 2026-08-10 `goal`** — es ist die Wegzelle, nicht das Vorhaben; das Vorhaben steht in `goals.ndjson`), `moveStart/Stop`, `attackStart/Switch/Stop`, `harvest*`, `cargo*`, `site*`, `stuck`/`unstuck`, `retreat*` — mit exaktem Tick. `by` ist **hergeleitet**, `bySure` sagt wie sicher |
+| `goals.ndjson` | Entscheidung je Sitz | **was die KI vorhatte, an der Stelle aufgeschrieben, wo sie es entschieden hat**: je Kadenz eine Zeile mit der Haltung der Armee (`a`, 12 Spalten) und je beurteilter Einheit ihr Goal samt der Zahlen, die die Bedingung gewogen hat (`u`, 10 Spalten). Keine Herleitung — die anderen Dateien tragen Zustand, diese trägt die **Absicht** |
 | `units.json` | Einheit | `detourPercent`, `blockedTicks`, `orderChanges`, `damageTaken`, `pathLengthCells` — die Zahl hinter „kein gegenseitiges Blockieren" |
 | `duels.ndjson` | Duell (576) | `winner`, `decidedTick`, `noContact`, `parityWobbles`, `survivors*` |
 | `movement.ndjson` | Szenario × Fraktion (8) | `usableRangeOvershootCells` (nicht `overshootCells` — siehe unten), `blockedUnits`, `arrived`, `travelledCells`, `wallGapCells` |
@@ -225,6 +236,7 @@ Micro-Entscheidung eine Verhaltenswahl ist. Nichts zu tun.
 
 | Baustein | Stand |
 |---|---|
+| **Goal-System als Form** | **gebaut**, verhaltensneutral: vier benannte Module (`Retreat`, `Attack`, `Hold`, `Advance`) mit fester Priorität statt einer if-Kette. Entscheidungstick und Endzustand unverändert, Artefakte byte-identisch bis auf `elapsedMilliseconds`, kein `Revision`-Bump, **kein Profilfeld** — Prioritäten im Profil würden `ProfileHash` und damit `aiBehaviorId` in `result.json` bewegen und genau den Nachweis kaputt machen |
 | **Score-Zielwahl** | **gebaut** (`r1`, V001): Entscheidung 33 % früher, beide Seiten verlieren weniger, aber `early-push` fällt von 50 % auf 0 % |
 | **`Retreat`** je Einheit | **gebaut** (`r4`, V005), ohne Lebens-Hysterese — MS-1-Einheiten heilen nie |
 | **`DefendBase`** | **gebaut und verworfen** (V002), zweiter Anlauf als ROADMAP 9 — mit Kampfpunkten als Mass für „echte Bedrohung", nicht mit anderem Radius |

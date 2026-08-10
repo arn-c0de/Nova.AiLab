@@ -1,8 +1,23 @@
 # Übergabe — alles, was der nächste Agent wissen muss
 
-**Stand:** 2026-08-10 · KI-Verhalten `r6.E34435F9` · Spiel-Checkout auf `main`
-(`c8e46af5`) · Labor auf `main` (`c3266e4`) · beide Testsuiten grün
-(**655/655** im Spiel, **129/129** im Labor)
+**Stand:** 2026-08-10 · KI-Verhalten `r7.E34435F9` · Spiel-Checkout auf
+`feat/ai-goal-system` (aus `main`, `5635009`) · Labor auf `main` · beide
+Testsuiten grün (**715/715** im Spiel, **145/145** im Labor) · Referenzlauf
+Entscheidung **3213**, Endzustand **`0xE002DD893916967B`**
+
+> **Zwei Dinge, die seit der letzten Übergabe passiert sind und den Einstieg
+> ändern.**
+>
+> 1. **Upstream ist weitergezogen** (endliche Aetheriumfelder D-102,
+>    Bauvoraussetzungen, `Stop` löscht `AttackTarget`), und die Laborspiegelung
+>    baute nicht mehr: `CombatSystem` und `FogOfWarSystem` haben neue
+>    Konstruktor-Argumente bekommen. Nachgezogen in
+>    `MultiSlotAiHost.Build`. **Das ist der Normalfall, nicht der Notfall** — §7
+>    sagt, was zu tun ist, wenn die Laborsuite rot wird.
+> 2. **`Stop` löscht `AttackTarget` jetzt** (PR #83). Damit ist Befund
+>    [F001](findings/F001-stop-loescht-attacktarget-nicht.md) erledigt und die
+>    Zielwahl je Einheit nicht mehr gesperrt — *entsperrt*, nicht *begründet*:
+>    die vier Messungen aus V003 stehen weiterhin.
 
 Dieses Dokument ist der Einstieg für jemanden, der **nichts** über dieses
 Projekt weiss. Es sagt, worum es geht, was wem gehört, wo was liegt, wie
@@ -92,6 +107,7 @@ ProjectNova - HASHKRIEG/            ← Arbeitsverzeichnis, selbst KEIN git-Repo
     ├── KAMPFSTAERKE.md             Detailplan: Kampfpunkte, Wellengrösse, Ausbau
     ├── VERTEIDIGUNG.md             Detailplan: Sammeln abbrechen, wenn die Basis brennt
     ├── GOALS.md                    Detailplan: Goal-System, Flanke, Admin-Panel
+│                               — mit einer Tabelle vorn, was davon gebaut ist
     ├── PLAYTEST-CHECKLIST.md       was in der GESPIELTEN Partie zu prüfen ist
     ├── lab.sh / lab-gui.sh         messen im Terminal / im Browser
     ├── Nova.AiLab/                 der Laborquelltext, ein Ordner je Laufart
@@ -183,6 +199,8 @@ Einzeln, wenn man eine bestimmte Frage hat:
 | Rechnet es bitgleich? | `match --repeat 2` | **dem Exit-Code** |
 | Besser oder nur anders? | `compare --out out/c` | `resultset.json`, `report.html` |
 | Woran liegt es bei *dieser* Einheit? | `match --view-every 25 --fog --out out/x` | `player.html` |
+| Was hatte sie **vor**? | derselbe Lauf | `goals.ndjson`, im Player unter „what the AI wants" |
+| Was hätte sie getan, **wenn**? | `live --port 8787 --out out/x` | der Browser — und `intervened: true`, das den Lauf als Nicht-Messung kennzeichnet |
 
 **Exit-Codes sind der Befund, nicht der Text:** `0` durchgelaufen, `1`
 Bedienfehler, **`2` = nicht deterministisch → sofort aufhören.** Jede Zahl aus
@@ -264,6 +282,14 @@ Gebaut und in `upstream/main`: Score-Zielwahl (`r1`), Sammelpunkt und Wellen
 Stärke-Wellentor (`r6`, PR #72). Verworfen und **nicht noch einmal anfangen**:
 `DefendBase` in der Fassung von V002, Zielen unterhalb der Angriffsschwelle
 (V003), Rally-Punkt als Sammelbefehl (F002).
+
+**Seit dieser Übergabe dazugekommen, noch nicht im Upstream:** das
+**Goal-System als Form** (ROADMAP Punkt 2) auf `feat/ai-goal-system` — vier
+benannte Module statt einer if-Kette, verhaltensneutral und byte-identisch
+nachgewiesen, dazu zwei optionale Nähte, die der ausgelieferte Pfad nie füllt
+(`IAiGoalObserver`, `IAiGoalOverride`). Im Labor darauf aufbauend
+`goals.ndjson`, die Goal-Anzeige im Player und der `live`-Modus mit Eingriff.
+**Noch nicht committet, noch nicht gepusht, kein PR.**
 
 > **Der wichtigste offene Punkt:** `r6` ist gebaut und im ausgelieferten Spiel
 > **wirkungslos**. `waveStrengthPoints: 1200` gegen eine Armeeobergrenze von 12
