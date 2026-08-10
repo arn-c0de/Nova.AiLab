@@ -441,6 +441,51 @@ namespace Nova.AiLab
                 D = u.MaxHealth,
             });
 
+            // THE STATE A UNIT IS BORN IN IS AN EDGE TOO.
+            //
+            // Everything below the spawn is emitted on CHANGE against the
+            // previous tick of the same slot. A unit that is already in one of
+            // these states on its first tick never produces that change, so a
+            // reader rebuilding the flags from the event stream starts it in
+            // the opposite state and stays wrong until the unit happens to
+            // leave it. The frame says one thing, the events another, about
+            // the same unit in the same tick.
+            //
+            // Not hypothetical since production spawns at the footprint and
+            // walks to the rally point: a unit's very first tick is a moving
+            // one, and no MoveStart was ever written for it. The other two
+            // cost nothing to state and close the same hole for a unit born
+            // carrying cargo or born below the retreat mark.
+            if (u.IsMoving)
+            {
+                Add(new DebugEvent
+                {
+                    Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
+                    Kind = DebugEventKind.MoveStart,
+                    A = u.Transform.PositionX.RawValue,
+                    B = u.Transform.PositionY.RawValue,
+                });
+            }
+
+            if (u.IsReturningCargo)
+            {
+                Add(new DebugEvent
+                {
+                    Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
+                    Kind = DebugEventKind.CargoFull, A = u.CargoAE,
+                });
+            }
+
+            int spawnHealthPercent = u.MaxHealth > 0 ? u.CurrentHealth * 100 / u.MaxHealth : 0;
+            if (ViewRecorder.IsBelowRetreatMarker(u.Role, isSite, spawnHealthPercent))
+            {
+                Add(new DebugEvent
+                {
+                    Tick = tick, Id = raw, Slot = u.PlayerId, Role = u.Role,
+                    Kind = DebugEventKind.RetreatBelow, A = spawnHealthPercent,
+                });
+            }
+
             if (!isSite) return;
             Add(new DebugEvent
             {
