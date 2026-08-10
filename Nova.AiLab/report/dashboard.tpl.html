@@ -238,6 +238,16 @@ footer pre { background:var(--surface); border:1px solid var(--hair); border-rad
 <script>
 const D = JSON.parse(document.getElementById('labdata').textContent);
 
+/* Der Laborsatz kommt als DOM-Text herein (der JSON-Block oben) und laeuft von
+   dort in innerHTML. Profil-, Rollen- und Fraktionsnamen stammen aus den
+   Definitionsdateien, also aus Text, den niemand auf Markup prueft — jeder
+   Wert aus D geht deshalb durch escapeHtml(). Zahlen nicht: die kommen ueber
+   fmt() und koennen nach Number() kein Markup mehr tragen.
+   Gleiche Implementierung wie in gui.tpl.html, absichtlich. */
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+}
+
 (function sectionNav() {
   // Kurze Namen, nicht die Überschriften: „Kandidatenprofile gegen die
   // eingefrorene Referenz" ist eine gute Überschrift und ein schlechter Reiter.
@@ -252,8 +262,8 @@ const D = JSON.parse(document.getElementById('labdata').textContent);
   const sections = [...document.querySelectorAll('section[id]')];
   nav.innerHTML = sections.map(section => {
     const [icon, label] = marks[section.id] || ['chevron', section.id];
-    return '<a href="#' + section.id + '" title="' +
-           section.querySelector('h2').textContent.replace(/"/g, '') + '">' +
+    return '<a href="#' + escapeHtml(section.id) + '" title="' +
+           escapeHtml(section.querySelector('h2').textContent) + '">' +
            iconSvg(icon, 13) + '<span>' + label + '</span></a>';
   }).join('');
 
@@ -270,7 +280,7 @@ const D = JSON.parse(document.getElementById('labdata').textContent);
 })();
 const NS = 'http://www.w3.org/2000/svg';
 const tip = document.getElementById('tip');
-const fmt = n => n.toLocaleString('de-DE');
+const fmt = n => Number(n).toLocaleString('de-DE');
 
 function el(tag, attrs, parent) {
   const e = document.createElementNS(NS, tag);
@@ -310,22 +320,22 @@ const SLOT = [
 ];
 
 document.getElementById('runmeta').innerHTML =
-  `Commit <code>${D.compare.commit.slice(0,8)}</code> · Definitionstabelle <code>${R.definitionsHash64}</code> ·
-   Seed <code>${R.seed}</code> · Tickbudget ${fmt(R.tickBudget)} · specVersion ${R.specVersion}`;
+  `Commit <code>${escapeHtml(D.compare.commit.slice(0,8))}</code> · Definitionstabelle <code>${escapeHtml(R.definitionsHash64)}</code> ·
+   Seed <code>${escapeHtml(R.seed)}</code> · Tickbudget ${fmt(R.tickBudget)} · specVersion ${escapeHtml(R.specVersion)}`;
 
 document.getElementById('matchtiles').innerHTML = [
-  ['Ausgang', 'Sieg', `Slot ${R.winnerSlot} · ${R.slots[R.winnerSlot].faction} · Elimination`],
+  ['Ausgang', 'Sieg', `Slot ${escapeHtml(R.winnerSlot)} · ${escapeHtml(R.slots[R.winnerSlot].faction)} · Elimination`],
   ['Entschieden bei Tick', fmt(R.decidedTick), `von ${fmt(R.tickBudget)} Budget`],
-  ['Rechenzeit', R.elapsedMilliseconds + ' ms', fmt(Math.round(R.finalTick/R.elapsedMilliseconds*1000)) + ' Ticks/s'],
-  ['Metrikproben', fmt(R.traceSamples), `alle ${R.traceIntervalTicks} Ticks`],
-  ['Hash-Kette', fmt(R.hashChainEntries), `alle ${R.hashIntervalTicks} Ticks`],
-  ['Endzustands-Hash', `<span class="mono" style="font-size:13px">${R.finalStateHash}</span>`,
+  ['Rechenzeit', fmt(R.elapsedMilliseconds) + ' ms', fmt(Math.round(R.finalTick/R.elapsedMilliseconds*1000)) + ' Ticks/s'],
+  ['Metrikproben', fmt(R.traceSamples), `alle ${fmt(R.traceIntervalTicks)} Ticks`],
+  ['Hash-Kette', fmt(R.hashChainEntries), `alle ${fmt(R.hashIntervalTicks)} Ticks`],
+  ['Endzustands-Hash', `<span class="mono" style="font-size:13px">${escapeHtml(R.finalStateHash)}</span>`,
    `bei Tick ${fmt(R.finalTick)}`]
 ].map(([l,v,s]) => `<div class="card tile"><div class="lbl">${l}</div>
    <div class="val">${v}</div><div class="sub mono">${s}</div></div>`).join('');
 
 document.getElementById('matchlegend').innerHTML =
-  SLOT.map(s => `<span class="key"><i style="background:${s.color}"></i>${s.name}</span>`).join('') +
+  SLOT.map(s => `<span class="key"><i style="background:${s.color}"></i>${escapeHtml(s.name)}</span>`).join('') +
   `<span style="color:var(--muted);font-size:12.5px">x-Achse: Tick 0 – ${fmt(R.finalTick)} · alle Werte ganzzahlig, kein Float verlässt die Simulation</span>`;
 
 function lineChart(host, title, sub, seriesVals, fmtVal) {
@@ -378,7 +388,7 @@ function lineChart(host, title, sub, seriesVals, fmtVal) {
       dots[i].setAttribute('opacity', 1);
     });
     showTip(ev, `<b>Tick ${fmt(xs[k])}</b><br>` + seriesVals.map((v,i) =>
-      `<span class="r"><span style="color:${SLOT[i].color}">■</span> ${SLOT[i].name}: <b>${fmt(v[k])}</b></span>`).join('<br>'));
+      `<span class="r"><span style="color:${SLOT[i].color}">■</span> ${escapeHtml(SLOT[i].name)}: <b>${fmt(v[k])}</b></span>`).join('<br>'));
   });
   hit.addEventListener('mouseleave', () => {
     cross.setAttribute('opacity', 0); dots.forEach(d => d.setAttribute('opacity', 0)); hideTip();
@@ -437,10 +447,10 @@ function barChart(host, title, sub, key, fmtVal, refVal) {
     const hit = el('rect', {class:'hitrect', x:0, y:y, width:W, height:rowH}, s);
     const delta = refVal ? Math.round((v-refVal)/refVal*100) : null;
     hit.addEventListener('mousemove', ev => showTip(ev,
-      `<b>${c.profileId}</b>${isRef?' <span class="r">(Referenz)</span>':''}<br>
-       <span class="r">${title}: <b>${(fmtVal||fmt)(v)}</b>${
+      `<b>${escapeHtml(c.profileId)}</b>${isRef?' <span class="r">(Referenz)</span>':''}<br>
+       <span class="r">${title}: <b>${escapeHtml((fmtVal||fmt)(v))}</b>${
          (!isRef && delta !== null && isFinite(delta)) ? ` (${delta>0?'+':''}${delta}% zur Referenz)` : ''}</span><br>
-       <span class="r">geändert: ${c.changes || '—'}</span>`));
+       <span class="r">geändert: ${escapeHtml(c.changes || '—')}</span>`));
     hit.addEventListener('mouseleave', hideTip);
   });
   if (refVal > 0) {
@@ -464,14 +474,14 @@ document.getElementById('cmptable').innerHTML =
   CAND.map(c => {
     const isRef = c.profileId === REFID;
     const d = (v, r) => (isRef || !r) ? '' : ` <span style="color:var(--muted);font-size:11px">${v>r?'+':''}${Math.round((v-r)/r*100)}%</span>`;
-    return `<tr class="${isRef?'ref':''}"><td><b>${c.profileId}</b>${isRef?' <span style="color:var(--muted);font-weight:400">Referenz</span>':''}</td>
-      <td style="color:var(--muted);white-space:normal">${c.changes || '—'}</td>
-      <td>${c.winPercent}%</td><td>${c.wins}/${c.losses}/${c.draws}</td>
+    return `<tr class="${isRef?'ref':''}"><td><b>${escapeHtml(c.profileId)}</b>${isRef?' <span style="color:var(--muted);font-weight:400">Referenz</span>':''}</td>
+      <td style="color:var(--muted);white-space:normal">${escapeHtml(c.changes || '—')}</td>
+      <td>${escapeHtml(c.winPercent)}%</td><td>${escapeHtml(c.wins)}/${escapeHtml(c.losses)}/${escapeHtml(c.draws)}</td>
       <td>${fmt(c.averageDecidedTick)}${d(c.averageDecidedTick, ref.averageDecidedTick)}</td>
       <td>${fmt(c.averageCredits)}${d(c.averageCredits, ref.averageCredits)}</td>
-      <td>${c.averageArmySize}${d(c.averageArmySize, ref.averageArmySize)}</td>
-      <td>${c.averageUnitsLost}${d(c.averageUnitsLost, ref.averageUnitsLost)}</td>
-      <td>${fmt(c.intentsSubmitted)}</td><td>${c.intentsRejected}</td></tr>`;
+      <td>${escapeHtml(c.averageArmySize)}${d(c.averageArmySize, ref.averageArmySize)}</td>
+      <td>${escapeHtml(c.averageUnitsLost)}${d(c.averageUnitsLost, ref.averageUnitsLost)}</td>
+      <td>${fmt(c.intentsSubmitted)}</td><td>${escapeHtml(c.intentsRejected)}</td></tr>`;
   }).join('') + '</tbody>';
 
 document.getElementById('cmpnote').innerHTML =
@@ -479,8 +489,8 @@ document.getElementById('cmpnote').innerHTML =
    nach Güte sortiert. Eine einzelne Zahl belohnt zuverlässig das Falsche — eine KI, die 5 %
    häufiger gewinnt, weil sie den Gegner mit Bauarbeitern zumüllt, ist keine bessere KI.
    <br><b>${D.compare.seeds.length} Seed${D.compare.seeds.length>1?'s':''} je Kandidat</b> —
-   die Seed-Achse ist heute leer (siehe oben), also sind das ${CAND[0].matches} Partien je Kandidat,
-   nicht ${CAND[0].matches} unabhängige Stichproben.`;
+   die Seed-Achse ist heute leer (siehe oben), also sind das ${fmt(CAND[0].matches)} Partien je Kandidat,
+   nicht ${fmt(CAND[0].matches)} unabhängige Stichproben.`;
 
 /* ---------------- 3. DUEL HEATMAP ---------------- */
 const U = D.duel.units;
@@ -522,12 +532,12 @@ const divVar = v => v === 0 ? 'var(--div-0)' : (v > 0 ? `var(--div-p${Math.min(3
     hit.addEventListener('mousemove', ev => {
       const rows = ['Contact','LongestWeapon','OutOfSight'].map(r => {
         const d = c.ranges[r]; if (!d) return '';
-        const who = d.winner === 0 ? `<b>${a}</b>` : d.winner === 1 ? `<b>${b}</b>` : 'unentschieden';
+        const who = d.winner === 0 ? `<b>${escapeHtml(a)}</b>` : d.winner === 1 ? `<b>${escapeHtml(b)}</b>` : 'unentschieden';
         return `<span class="r">${RANGE_DE[r]}: ${who}${d.noContact ? ' — <span style="color:var(--warning)">kein Kontakt</span>'
-          : d.winner < 0 ? ' (Tickbudget aus)' : ` nach ${fmt(d.tick)} Ticks, ${d.winner===0?d.survA:d.survB} übrig`}</span>`;
+          : d.winner < 0 ? ' (Tickbudget aus)' : ` nach ${fmt(d.tick)} Ticks, ${fmt(d.winner===0?d.survA:d.survB)} übrig`}</span>`;
       }).join('<br>');
-      showTip(ev, `<b>${a}</b> zuerst gespawnt<br>gegen <b>${b}</b><br>
-        <span class="r">Bilanz ${v > 0 ? '+'+v : v} · ${c.w} S / ${c.l} N / ${c.u} offen</span><br>${rows}`);
+      showTip(ev, `<b>${escapeHtml(a)}</b> zuerst gespawnt<br>gegen <b>${escapeHtml(b)}</b><br>
+        <span class="r">Bilanz ${v > 0 ? '+'+v : v} · ${fmt(c.w)} S / ${fmt(c.l)} N / ${fmt(c.u)} offen</span><br>${rows}`);
     });
     hit.addEventListener('mouseleave', hideTip);
   }));
@@ -551,16 +561,16 @@ function budgetSpan(duel) {
   if (!span) return duel.budget != null ? `${fmt(duel.budget)} AE (eine Paarung)` : '—';
   return span[0] === span[1]
     ? `${fmt(span[0])} AE`
-    : `${fmt(span[0])}–${fmt(span[1])} AE über ${duel.budgetValues} verschiedene Werte`;
+    : `${fmt(span[0])}–${fmt(span[1])} AE über ${fmt(duel.budgetValues)} verschiedene Werte`;
 }
 
 const dc = D.duel.counts;
 document.getElementById('duelnote').innerHTML =
-  `<b>${fmt(dc.total)} Duelle in Sekunden</b> — ${dc.decided} entschieden, ${dc.timeout} liefen ins Tickbudget.
+  `<b>${fmt(dc.total)} Duelle in Sekunden</b> — ${fmt(dc.decided)} entschieden, ${fmt(dc.timeout)} liefen ins Tickbudget.
    AE-Budget ${budgetSpan(D.duel)} — <b>je Paarung bemessen, nicht global</b>: so viel, wie die teurere
    Seite für ihre Stückzahl braucht; die billigere stellt, was dieselben AE kaufen.
    <br><b>Der auffälligste Befund ist eine leere Zeile.</b> Artillerie gewinnt 4 von 36 (Allianz) und
-   2 von 36 (Legion) — und in 12 von 36 Duellen fällt kein einziger Schuss. Alle ${dc.noContact}
+   2 von 36 (Legion) — und in 12 von 36 Duellen fällt kein einziger Schuss. Alle ${fmt(dc.noContact)}
    kontaktlosen Duelle liegen in der Staffel <em>Waffenreichweite</em>: Artillerie schiesst 20 bzw. 18
    Tiles weit, die Standardsichtweite liegt bei 10. Ohne Aufklärung kann sie ihre Reichweite nicht
    benutzen. Das ist ein echter Balance-Befund, kein Messfehler — <span class="mono">CombatSystem</span>
@@ -570,7 +580,7 @@ document.getElementById('duelnote').innerHTML =
    dokumentierte Duell-Asymmetrie, bei gegenseitigem Kill im selben Tick gewinnt der niedrigere
    Entity-Index. Bleiben <b>5 echte Rollenpaarungen</b>, die so knapp sind, dass die Spawnreihenfolge
    sie kippt. Das gehört in den Bericht, nicht wegkalibriert.
-   <br><b>${dc.wobble} Paarungen</b> liessen über 10 % eines Budgets ungenutzt — dort wackelt die
+   <br><b>${fmt(dc.wobble)} Paarungen</b> liessen über 10 % eines Budgets ungenutzt — dort wackelt die
    AE-Parität selbst, ihr Ausgang ist schwaches Material.`;
 
 /* ---------------- 4. SIEGE ---------------- */
@@ -613,9 +623,9 @@ document.getElementById('duelnote').innerHTML =
         fmt(r.tick) + (lost ? ` · ${lost} verloren` : '');
       const hit = el('rect', {class:'hitrect', x:0, y:y-1, width:W, height:gh+2}, s);
       hit.addEventListener('mousemove', ev => showTip(ev,
-        `<b>${a}</b> gegen <b>${b}</b><br>
+        `<b>${escapeHtml(a)}</b> gegen <b>${escapeHtml(b)}</b><br>
          <span class="r">${fmt(r.tick)} Ticks bis zum Abriss</span><br>
-         <span class="r">${r.countA} Einheiten für ${fmt(r.spentA)} AE, ${r.survA} überlebten</span>`));
+         <span class="r">${fmt(r.countA)} Einheiten für ${fmt(r.spentA)} AE, ${fmt(r.survA)} überlebten</span>`));
       hit.addEventListener('mouseleave', hideTip);
     });
   });
@@ -716,7 +726,7 @@ document.getElementById('duelnote').innerHTML =
       if (v === 0 && ['straightLineCells','usableRangeOvershootCells','travelledCells'].includes(c[1])) v = '—';
       const flag = (c[1] === 'usableRangeOvershootCells' && r.usableRangeOvershootCells > 0)
         || (c[1] === 'arrived' && r.arrived === 0 && r.scenario !== 'Standoff');
-      return `<td class="${flag?'flag':''}">${v}</td>`;
+      return `<td class="${flag?'flag':''}">${escapeHtml(v)}</td>`;
     }).join('') + '</tr>').join('') + '</tbody>';
 })();
 
@@ -730,10 +740,10 @@ dotnet run --project tools/Nova.AiLab -c Release -- compare  --out tools/Nova.Ai
 
 document.getElementById('footmeta').innerHTML =
   `Nova.AiLab ist lokales Werkzeug, kein Beitrag — es gerät in keinen <span class="mono">feat/</span>-Branch
-   und wird nie gemergt. Ergebnismenge gebunden an Commit <span class="mono">${D.compare.commit.slice(0,8)}</span>,
-   Definitionstabelle <span class="mono">${D.compare.definitionsHash64}</span>, specVersion ${D.compare.specVersion}.
+   und wird nie gemergt. Ergebnismenge gebunden an Commit <span class="mono">${escapeHtml(D.compare.commit.slice(0,8))}</span>,
+   Definitionstabelle <span class="mono">${escapeHtml(D.compare.definitionsHash64)}</span>, specVersion ${escapeHtml(D.compare.specVersion)}.
    Nach dem nächsten Merge-Fenster des Maintainers sind diese Zahlen nicht mehr vergleichbar und werden neu vermessen.
-   <br><em>${D.compare.evidence}</em>`;
+   <br><em>${escapeHtml(D.compare.evidence)}</em>`;
 </script>
 </body>
 </html>
