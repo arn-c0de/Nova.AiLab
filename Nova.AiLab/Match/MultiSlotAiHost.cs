@@ -219,8 +219,8 @@ namespace Nova.AiLab
             var economy = new EconomySystem(entities, spec.StartingCreditsAE);
             var construction = new ConstructionSystem(entities, economy, pathfinding.CostField);
             var production = new ProductionSystem(entities, economy, construction);
-            var fogOfWar = new FogOfWarSystem(entities, construction, teamCount: slotCount, spec.MapWidth, spec.MapHeight);
-            var combat = new CombatSystem(entities, fogOfWar, economy);
+            var fogOfWar = new FogOfWarSystem(entities, construction, economy, teamCount: slotCount, spec.MapWidth, spec.MapHeight);
+            var combat = new CombatSystem(entities, fogOfWar, economy, construction);
             var victory = new VictorySystem(entities, construction);
 
             var session = new MatchSession(HostSlot, activeSlots, inputDelayTicks: 1);
