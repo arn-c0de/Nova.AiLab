@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Nova.AI;
 using Nova.AI.Data;
 using NUnit.Framework;
 

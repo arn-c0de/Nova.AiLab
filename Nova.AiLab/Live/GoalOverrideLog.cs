@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Nova.AI;
 using Nova.AI.Data;
 using Nova.Core;
 using Nova.Simulation.State;
