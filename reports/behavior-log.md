@@ -19,6 +19,10 @@ beginnt.** Der Zweck ist nicht Buchhaltung, sondern zweierlei:
 > **Und nichts hier ist im Spiel gesehen worden.** Jeder Eintrag sagt in der
 > Kopfzeile, ob er nur gemessen oder tatsächlich gespielt wurde.
 
+↩ [Labor](../README.md) · [Start hier](../START-HIER.md) ·
+**[Roadmap](../ROADMAP.md)** — dieses Journal sagt, was *war*; die Roadmap sagt,
+was als nächstes drankommt und in welcher Reihenfolge.
+
 ## Vorlage
 
 ```markdown
@@ -1198,7 +1202,7 @@ Gebäude, sonst erste sichtbare Einheit". Entscheidung bei Tick 12.975,
 Endzustand `0x4947D4769384585C`, Verluste 113 / 137.
 
 Die Etappen E0–E6 stehen im Plan
-([`docs/feature-ideas/AiSimulationEnvironment.md`](../../../docs/feature-ideas/AiSimulationEnvironment.md)
+([`docs/feature-ideas/AiSimulationEnvironment.md`](https://github.com/arn-c0de/Project_Nova/blob/lab/ai-simulation/docs/feature-ideas/AiSimulationEnvironment.md)
 §9) und werden hier nicht wiederholt: sie haben das Labor gebaut, nicht das
 Verhalten geändert. E6 hat die Zahlen aus dem Code in Daten verschoben —
 nachweislich verhaltensneutral, denn die Baselines blieben grün.

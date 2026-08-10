@@ -152,6 +152,13 @@ geändert.**
 
 ## 5 · Was hier offen bleibt
 
+- **Das Ereignis `goal` heisst missverständlich.** Es ist die **Wegzelle**
+  (`GoalGridPos`), nicht das Vorhaben der KI. Sobald das Goal-System steht,
+  zeigt das Panel beides nebeneinander — deshalb wird das Ereignis laborseitig
+  auf `pathGoal` umbenannt und das Neue heisst `aiGoal`. Zwei verschiedene Dinge
+  unter einem Wort sind im Panel ein Anzeigefehler, den niemand als solchen
+  erkennt. Siehe [`GOALS.md`](GOALS.md) §1.
+
 - **Im laufenden Spiel gesehen wurde davon nichts.** Es ist ein
   Laborwerkzeug — die Spur zeigt, was die Simulation gerechnet hat, nicht, wie
   es sich im DMG anfühlt.

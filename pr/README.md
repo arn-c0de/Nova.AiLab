@@ -31,18 +31,20 @@ lauffähig.
 - **3 vor 4**, weil der Rückzug ein Ziel braucht, zu dem er zurückläuft — den
   Sammelpunkt aus 3.
 
-## Die nächste Serie — Kampfstärke
+## Was danach kam — und wo die Reihenfolge steht
 
-Der Einheitenstrang oben ist gemergt. Was darauf folgt, steht in
-[`../KAMPFSTAERKE.md`](../KAMPFSTAERKE.md); der erste PR daraus ist ausgeschrieben:
+Der Einheitenstrang oben ist gemergt, das Stärketor auch. **Die verbindliche
+Reihenfolge aller weiteren PRs steht in [`../ROADMAP.md`](../ROADMAP.md)** —
+hier stand vorher eine eigene Nummerierung, die zweimal die 8 vergab und mit
+den Tabellen in `NEXT-STEPS.md` und `KAMPFSTAERKE.md` nicht übereinstimmte.
 
-| # | Branch | Verhalten | Stand |
-|---|---|---|---|
-| 6 | `feat/ai-strength-wave-gate-de` | `r5` → `r6` — die Welle **kann** auf Kampfstärke messen statt auf Kopfzahl. Bei Obergrenze 12 nachweislich verhaltensneutral: eine Entkopplung, keine Verbesserung | [`6-staerketor.md`](6-staerketor.md) · **649/649 grün, PR noch nicht offen** |
-| 7 | `feat/ai-abort-on-threat` | **neu und vorgezogen:** die Welle bricht das Sammeln ab, wenn die eigene Basis angegriffen wird. Grund ist eine Beobachtung am Player (B003), nicht ein Plan-Punkt | Plan steht: [`../VERTEIDIGUNG.md`](../VERTEIDIGUNG.md) · nichts gebaut |
-| 8 | `fix/ai-army-cap` | Armeeobergrenze — **erst nach 7**, weil sie die Aussetzzeit am Sammelpunkt verdreifacht (B003). Und sie liegt in `MatchRunner`, also in fremdem Terrain: eine Rückfrage, kein PR | offen — Journal V007 |
-| 8 | `feat/ai-reinforce-doctrine` | nachschicken, solange die Welle intakt ist; sammeln, wenn sie gebrochen ist | offen |
-| 9 | `feat/ai-vehicle-buildout` | Bauliste bis Fahrzeugwerk, Kaufregel nach Stärke je AE | offen |
+| Branch | Verhalten | Stand |
+|---|---|---|
+| `feat/ai-strength-wave-gate-de` | `r5` → `r6` — die Welle **kann** auf Kampfstärke messen statt auf Kopfzahl. Bei Obergrenze 12 nachweislich verhaltensneutral: eine Entkopplung, keine Verbesserung | ✅ **gemergt als #72**, PR-Text: [`6-staerketor.md`](6-staerketor.md) |
+| `feat/ai-abort-on-threat` | Die Welle bricht das Sammeln ab, wenn die eigene Basis angegriffen wird. Grund ist eine Beobachtung am Player (B003), nicht ein Plan-Punkt | **der nächste PR** — [ROADMAP](../ROADMAP.md) 1, Plan: [`../VERTEIDIGUNG.md`](../VERTEIDIGUNG.md) |
+| `fix/ai-army-cap` | Armeeobergrenze. Sie liegt in `MatchRunner`, also in fremdem Terrain — **eine Rückfrage, kein PR von uns** | [ROADMAP §4](../ROADMAP.md) · Journal V007. Ohne sie bleibt `r6` im Spiel wirkungslos |
+| `feat/ai-reinforce-doctrine` | nachschicken, solange die Welle intakt ist; sammeln, wenn sie gebrochen ist | [ROADMAP](../ROADMAP.md) 3 |
+| `feat/ai-vehicle-buildout` | Bauliste bis Fahrzeugwerk, Kaufregel nach Stärke je AE | [ROADMAP](../ROADMAP.md) 6 |
 
 **Ziel-Repo ist jetzt [`VibecodingGermany/HashKrieg`](https://github.com/VibecodingGermany/HashKrieg)**
 — dasselbe Repository unter neuem Namen (vorher `Project_Nova`). Der Fork heisst

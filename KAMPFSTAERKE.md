@@ -1,12 +1,29 @@
 # Kampfstärke — Nachschub, Ausbau und die eine Zahl darunter
 
-**Notiert am:** 2026-08-09 · **Status:** Plan, **nichts davon gebaut** ·
-**Ausgangsstand:** KI-Verhalten **`r5`**, Commit `3d28f24` (mit `f13f4d5`),
-Definitionstabelle `0x6326FA3E56CFF5A3` ·
-**Messgrundlage:** §1, frisch gemessen auf r5 ·
-**Vorher lesen:** [`reports/behavior-log.md`](reports/behavior-log.md),
+**Notiert am:** 2026-08-09 · **Fortgeschrieben:** 2026-08-10 ·
+**Status:** Regel 1 **gebaut** (`r6`, PR #72), Regel 2 bis 4 **Plan** ·
+**Ausgangsstand der Messungen in §1:** KI-Verhalten `r5`, Commit `3d28f24`
+(mit `f13f4d5`), Definitionstabelle `0x6326FA3E56CFF5A3` ·
+**Heutiger Stand:** `r6.E34435F9`, Commit `c8e46af5` ·
+**Vorher lesen:** [`ROADMAP.md`](ROADMAP.md) (Reihenfolge und Stand),
+[`reports/behavior-log.md`](reports/behavior-log.md) V006/V007,
 [`NEXT-STEPS.md`](NEXT-STEPS.md) §0 und §7, [`AGENTS.md`](AGENTS.md) §3–§4 ·
 **Gegenprobe mit Forschung und ausgelieferten RTS-Titeln:** §17
+
+> [!IMPORTANT]
+> **Was seit dem Notieren passiert ist.** Das Kampfstärke-System (§3) und das
+> Stärke-Wellentor (§5) sind gebaut und als PR #72 in `upstream/main`; die
+> Formel liegt in `AI/CombatStrength.cs`, die Torarithmetik in
+> `AI/WaveStrengthGate.cs`. **Im ausgelieferten Spiel ist das Tor wirkungslos:**
+> `waveStrengthPoints: 1200` gegen eine Armeeobergrenze von 12 lässt den
+> Erreichbarkeitsdeckel greifen, und übrig bleibt „sammle die ganze Armee" —
+> das Verhalten von `r3`. Das Tor entscheidet erst ab Obergrenze 13 (Allianz)
+> bzw. 29 (Legion), und diese Zahl steht in `MatchRunner.cs:254`, also in
+> fremdem Terrain. Sie ist eine **Rückfrage**, kein PR ([ROADMAP §4](ROADMAP.md)).
+>
+> Neu in diesem Dokument: **§5a — die Wellengrösse bemisst sich an der Lage**
+> statt an einer Konstante. Das ist die Überarbeitung, mit der Wellen
+> verschieden gross werden.
 
 Dieses Dokument plant drei Wünsche, die wie drei Themen aussehen und eines sind:
 
@@ -375,6 +392,130 @@ Folgen, alle messbar:
 
 ---
 
+## 5a · Die Wellengrösse bemisst sich an der Lage
+
+**Notiert am:** 2026-08-10 · **Status:** Plan, nichts gebaut ·
+**Roadmap:** Punkt 5, nach Punkt 3 und 4 und nach **L1**
+
+**Was der Spieler heute merkt.** Jede Welle ist gleich gross. Ein einzelner
+Harvester am Kartenrand zieht denselben Verband wie eine verteidigte Basis, und
+wer die erste Welle abgewehrt hat, bekommt die zweite in genau derselben Grösse.
+`waveStrengthPoints` ist eine Konstante, und die Lage auf dem Feld geht nirgends
+ein.
+
+**Was daraus wird.** Die Schwelle wird je Entscheidung ausgerechnet — aus der
+gesehenen Feindgruppe am Ziel, aus dem, was die eigene Welle draussen noch hält,
+aus der Art des Ziels und aus dem eigenen Ausbaustand. Kleine Stösse gegen kleine
+Gruppen, Grossangriff gegen eine verteidigte Basis, und beides ohne Sonderfall.
+
+### 5a.1 Die Überarbeitung: Punkte **gruppieren**, nicht nur summieren
+
+Heute summiert die KI Kampfpunkte über die **eigenen** Einheiten
+(`gatheredStrength`) und bewertet **Feinde einzeln** (`ScoreTarget`). Was
+fehlt, ist die Summe der Gruppe, gegen die sie antritt:
+
+```
+S_feind(ziel) = Σ S(u)  über alle SICHTBAREN Feindeinheiten u,
+                        deren Zelle innerhalb GroupRadiusCells um die Zielzelle liegt
+```
+
+- **Ein Scan**, über die Sichtliste, die `CollectVisibleThreatCells` je
+  Entscheidung ohnehin baut. Keine Allokation, aufsteigend, kein Gedächtnis.
+- **Gebäude tragen S = 0**, weil unbewaffnet — Ausnahme `DefensePlatform`. Das ist
+  richtig für die Frage „wer schiesst zurück"; die Belagerungszeit fängt §5a.3
+  getrennt ein, weil sie kein Schaden, sondern Dauer ist.
+- **Nur die committed Team-Sicht.** Was die KI nicht sieht, zählt nicht. Damit
+  unterschätzt eine KI ohne Aufklärung die Gruppe und läuft in sie hinein — ein
+  **gewollter** Fehler: sie schummelt sichtbar nicht, und Aufklärung
+  ([ROADMAP](ROADMAP.md) Punkt 10) wird zum ersten Mal nützlich statt nur teuer.
+
+### 5a.2 Die Schwelle
+
+```
+S_ziel   = clamp( S_feind(ziel) × WaveOvermatchPercent / 100  +  Belagerungsaufschlag,
+                  WaveMinStrengthPoints,
+                  WaveMaxStrengthPoints )
+
+S_bedarf = max(0, S_ziel − S_draussen)          // was die laufende Welle noch hält, zählt an (§6)
+
+WaveReady = S_sammelnd >= min( S_bedarf, erreichbar )   // Deckel aus WaveStrengthGate, UNVERÄNDERT
+```
+
+Drei Dinge daran sind wichtiger als die Formel:
+
+- **Aus der Schwelle wird die Obergrenze.** `WaveMaxStrengthPoints` ist die
+  heutige Zahl `1200` in neuer Rolle. Ihre gemessene Bedeutung bleibt damit
+  erhalten, statt durch eine frei laufende Rechnung ersetzt zu werden.
+- **Die Untergrenze ist keine Kosmetik.** Ohne sie marschiert bei unsichtbarem
+  Gegner (`S_feind = 0`) jede einzelne Einheit sofort los — das ist wörtlich das
+  Förderband, das `r3` beseitigt hat (Verluste 175 → 41, Intervalle mit Verlusten
+  64 → 11). Diese beiden Zahlen sind die Kontrolle.
+- **Der Erreichbarkeitsdeckel bleibt unangetastet.** Eine variable Schwelle macht
+  die Falle grösser, nicht kleiner: eine Schwelle, die auf etwas wartet, das die
+  Armeeobergrenze nie liefern kann, lässt die Welle bis zum Zeitlimit stehen. So
+  ist `f13f4d5` entstanden, und `WaveStrengthGate.Threshold` löst das bereits.
+
+### 5a.3 Die vier Lagefaktoren
+
+| Faktor | Wie er eingeht | Warum das zustandslos geht |
+|---|---|---|
+| **Gesehene Feindstärke** | `S_feind(ziel) × WaveOvermatchPercent / 100` | ein Scan über die Sichtliste derselben Kadenz |
+| **Lage der eigenen Welle** | `S_bedarf = S_ziel − S_draussen` — Nachschub füllt nur die **Lücke**, deshalb sind mitten im Gefecht kleine Wellen möglich | `S_draussen` ist abgeleitet (`IsCommittedToTheWave`), nicht gemerkt. Das ist dieselbe Grösse, auf der §6 steht |
+| **Wert des Ziels** | **braucht keinen Sonderfall:** um einen abseits stehenden Harvester steht eine kleine Gruppe, also entsteht eine kleine Welle. Nur **Gebäudeziele** bekommen `WaveSiegeBonusPoints` dazu, weil Belagerung dauert und in dieser Zeit Verteidigung eintrifft — Gebäude schiessen nicht zurück und kommen in `S_feind` gar nicht vor | folgt der Zielwahl. **Deshalb Punkt 4 vor Punkt 5**: solange jedes Ziel das HQ ist, gibt es nur eine Lage |
+| **Partiephase** | **nicht die Uhr, der Ausbaustand.** Ohne Fahrzeugwerk gilt `WaveMaxStrengthPoints`, mit ihm `WaveMaxStrengthPointsT2` | Der Ausbaustand steht im committeten Zustand und erklärt sich im Spiel von selbst („seit ihre Fabrik steht, kommen grössere Wellen"). Eine Tickschwelle wäre **erlaubt** (Ticks sind committed, keine Wanduhr) und ist trotzdem abgelehnt: sie erklärt nichts, was der Zustand nicht besser sagt. Falls eine Messung eine echte Zeitregel verlangt, ist die Tür offen |
+
+### 5a.4 Aus-Stellung und Startwerte
+
+| Profilwert | Aus | Startwert zum Messen | Bedeutung |
+|---|---:|---:|---|
+| `waveOvermatchPercent` | **`0`** | `150` | 0 heisst: `S_ziel = WaveStrengthPoints`, bitgenau das heutige `r6`-Verhalten. **Das ist die Aus-Stellung der ganzen Regel** |
+| `waveMinStrengthPoints` | — | `600` | halbe Welle als Untergrenze, gegen die Rückkehr des Förderbands |
+| `waveMaxStrengthPoints` | — | `1200` | die heutige Zahl, jetzt als Obergrenze |
+| `waveMaxStrengthPointsT2` | `= waveMaxStrengthPoints` | `2400` | Obergrenze, sobald das Fahrzeugwerk steht |
+| `waveSiegeBonusPoints` | `0` | `400` | Aufschlag, wenn das Ziel ein Gebäude ist |
+| `groupRadiusCells` | — | `10` | Gruppenradius um die Zielzelle; 10 ist die Sichtweite, also die Entfernung, über die die KI ohnehin urteilen kann |
+
+`waveOvermatchPercent: 0` ist Pflicht und nicht Stil: eine Coderegel erreicht im
+Selbstspiel beide Sitze, und zwei stärkere Armeen sehen dort aus wie eine
+schlechtere KI (Methodenbefund M001). Gemessen wird **einseitig**.
+
+### 5a.5 Was das Labor vorher braucht — L1
+
+Ohne Wellenmetrik ist „die Wellen sind verschieden gross" eine Behauptung. Heute
+misst nichts eine Welle als **Ereignis**. L1 schreibt je Welle eine Zeile:
+
+| Feld | Inhalt |
+|---|---|
+| `launchTick` | wann sie losmarschiert ist |
+| `strengthAtLaunch` | Punkte, die dabei losgelaufen sind |
+| `headsAtLaunch` | Kopfzahl dazu — der Vergleich Punkte gegen Köpfe ist der ganze Witz von `r6` |
+| `targetKind` | worauf sie losgegangen ist (Einheit, Harvester, Gebäude, Startgebiet) |
+| `enemyGroupStrength` | `S_feind(ziel)` in diesem Moment — die Zahl, gegen die entschieden wurde |
+| `gapToPreviousLaunch` | Ticks seit der vorigen Welle: der Rhythmus, den der Spieler hört |
+
+Daraus die Kennzahl, die diese Regel belegt oder kippt: **Verteilung der
+Wellengrössen** je Partie. Heute ist sie ein einzelner Wert.
+
+### 5a.6 Woran die Regel scheitern darf
+
+| Beobachtung | Was sie bedeutet |
+|---|---|
+| Die Welle marschiert häufiger und verliert **mehr** | Übermachtfaktor oder Gruppenradius zu klein — sie greift Gruppen an, die sie nur halb sieht. Erst der Radius, dann der Faktor, nie beides zugleich |
+| **Intervalle mit Verlusten** steigen wieder Richtung 64 | Die Untergrenze ist zu niedrig, das Förderband ist zurück. Das ist die Kontrollzahl aus V004 |
+| **Intents je 1.000 Ticks** steigen ohne besseres Spiel | Das ist V002 in neuer Form, und hier der naheliegendste Verdacht: eine Schwelle, die je Kadenz wandert, könnte die Welle im Wechseltakt losschicken und zurückhalten |
+| Die Partie endet nur noch im Zeitlimit | Zwei Armeen, die aufeinander warten, weil beide die Gruppe der anderen sehen und aufrunden. Der Fehlermodus von `retreat-75` in neuer Form |
+
+> [!NOTE]
+> **Zum Zappelverdacht, im Code nachgesehen:** Der Schutz ist schon da und heisst
+> `IsCommittedToTheWave` — es ist eine **Einbahnstrasse**. Wer den Ring verlassen
+> hat, gilt als draussen und marschiert weiter; eine in der nächsten Kadenz
+> gestiegene Schwelle holt niemanden zurück. Zappeln kann deshalb nur die
+> *Startentscheidung* vor dem ersten Schritt, und die kostet keinen Befehl, weil
+> eine wartende Einheit ohnehin schweigt (§2.1 in [`GOALS.md`](GOALS.md)). Das ist
+> ein Argument, keine Messung — nachgesehen wird trotzdem, und zwar zuerst.
+
+---
+
 ## 6 · Regel 2 — die Nachschub-Doktrin
 
 Das ist der Kern der Anfrage. Drei Lagen, ein Vergleich.
@@ -635,13 +776,23 @@ ist die ehrlichste Antwort auf „gibt die KI ihre Punkte aus".
 Alle `int`, alle in `AiProfile` (`Assets/_Project/Scripts/AI.Data/AiProfile.cs`),
 alle mit Aus-Stellung.
 
-| Feld | Aus | Startwert | Wirkt in |
-|---|---:|---:|---|
-| `WaveStrengthPoints` | 0 | 1200 | §5 Wellentor |
-| `ReinforceMinStrengthPercent` | 0 | 50 | §6 Nachschub |
-| `BuildOutDepth` | 2 | 3 | §7 Bauliste |
-| `ConstructionReserveAE` | 0 | 900 | §7.3 Rücklage |
-| `TargetArmyStrengthPoints` | 0 | 2400 | §8 Kaufmenge |
+| Feld | Aus | Startwert | Wirkt in | Stand |
+|---|---:|---:|---|---|
+| `WaveStrengthPoints` | 0 | 1200 | §5 Wellentor | **gebaut** (`r6`) |
+| `WaveOvermatchPercent` | 0 | 150 | §5a Wellengrösse nach Lage | Plan |
+| `WaveMinStrengthPoints` | — | 600 | §5a Untergrenze | Plan |
+| `WaveMaxStrengthPoints` | — | 1200 | §5a Obergrenze | Plan |
+| `WaveMaxStrengthPointsT2` | `= Max` | 2400 | §5a Partiephase | Plan |
+| `WaveSiegeBonusPoints` | 0 | 400 | §5a Gebäudeziel | Plan |
+| `GroupRadiusCells` | — | 10 | §5a Feindgruppe | Plan |
+| `ReinforceMinStrengthPercent` | 0 | 50 | §6 Nachschub | Plan |
+| `BuildOutDepth` | 2 | 3 | §7 Bauliste | Plan |
+| `ConstructionReserveAE` | 0 | 900 | §7.3 Rücklage | Plan |
+| `TargetArmyStrengthPoints` | 0 | 2400 | §8 Kaufmenge | Plan |
+
+Die Goal-Prioritäten und die Flankenwerte kommen aus demselben `AiProfile` und
+stehen in [`GOALS.md`](GOALS.md) §2 und §5.2 — sie folgen denselben vier Regeln
+unten.
 
 Vier Dinge, die dabei zu tun sind und leicht vergessen werden:
 
@@ -774,6 +925,24 @@ die Referenz, gegen die alles weitere gehalten wird.
 
 ## 13 · PR-Serie
 
+> [!IMPORTANT]
+> **Die verbindliche Reihenfolge steht in [`ROADMAP.md`](ROADMAP.md) §2.** Die
+> Nummern hier sind die dieses Plans und waren nie mit denen aus
+> `NEXT-STEPS.md` deckungsgleich — das war die Ursache von drei
+> widersprüchlichen Nummerierungen. Diese Tabelle bleibt als **Bautagebuch des
+> Stärkestrangs** stehen: sie sagt, was aus jedem Schritt geworden ist. Die
+> Reihenfolgeregeln darunter gelten weiter und stehen in der Roadmap in
+> derselben Form.
+>
+> | Hier | In der Roadmap |
+> |---|---|
+> | 2 · Stärke-Wellentor | **gebaut**, `r6`, PR #72 — und im Spiel wirkungslos, bis die Obergrenze steigt (ROADMAP §1 und §4) |
+> | *neu* · Wellengrösse nach Lage (§5a) | Punkt 5 |
+> | 3 · Nachschub / Abbruch | Punkt 3 |
+> | 4 · Bauliste **+** Kaufregel | Punkt 6 |
+> | 5 · Armee-Stärkeziel | Punkt 7 |
+> | 6 · Schwierigkeitsgrade | Punkt 11 |
+
 Gestapelt, je eine Verhaltensänderung, je eine Aus-Stellung, je ein
 Journaleintrag mit Abschnitt „Schlechter".
 
@@ -899,9 +1068,9 @@ selbst schon vermerkt hatten.
 
 | Baustein | Woher | Was er bei uns täte |
 |---|---|---|
-| **Eine Ober- *und* eine Untergrenze für die Gruppe** | AoE2 führt `minimum` **und** `maximum attack group size` | Wir haben nur eine Schwelle. Sobald die Armeeobergrenze steigt (§8.2), fehlt die Regel „mehr als das schickt man nicht auf einmal los" — sonst wartet die KI auf eine Welle, die immer noch grösser werden könnte |
-| **Wellengrösse wächst mit der Zeit seit der letzten Welle** | AI War: Multiplikator 0,1 bis 3,0, je nach Abstand zur letzten Welle | Der elegante Ausweg aus der Sackgasse „nie ganz voll". Braucht bei uns einen Zeitbezug und damit Gedächtnis — **es sei denn**, man leitet ihn aus etwas Committetem ab (gebunkerte Credits, Wartezeit als Stillstand am Sammelpunkt). Wert, es zu prüfen, bevor Hysterese-Bastelei (§6.4) gebaut wird |
-| **Mehrere Angriffsgruppen statt einer Armee** | AoE2 fährt typisch 4 Gruppen zu 11–21 Einheiten | Unsere KI hat *eine* Armee und *ein* Ziel. Das ist die Ursache hinter NEXT-STEPS Punkt 2 („immer dieselbe Linie") und liegt hinter diesem Plan, nicht darin |
+| **Eine Ober- *und* eine Untergrenze für die Gruppe** | AoE2 führt `minimum` **und** `maximum attack group size` | Wir hatten nur eine Schwelle. **§5a führt beide ein** — `WaveMinStrengthPoints` und `WaveMaxStrengthPoints`, in Punkten statt in Köpfen. Der Einwand ist damit eingearbeitet, nicht nur notiert |
+| **Wellengrösse wächst mit der Zeit seit der letzten Welle** | AI War: Multiplikator 0,1 bis 3,0, je nach Abstand zur letzten Welle | Der elegante Ausweg aus der Sackgasse „nie ganz voll". Bei uns wächst die Welle stattdessen mit der **Lage** (§5a.3): gesehene Feindgruppe, Ausbaustand, Gebäudeziel. Der Zeitbezug bleibt offen — er wäre erlaubt (Ticks sind committed) und ist abgelehnt, weil der Zustand mehr erklärt. `gapToPreviousLaunch` aus **L1** ist die Zahl, an der sich das prüfen lässt |
+| **Mehrere Angriffsgruppen statt einer Armee** | AoE2 fährt typisch 4 Gruppen zu 11–21 Einheiten | Unsere KI hat *eine* Armee und *ein* Ziel. **Zwei Gruppen sind inzwischen geplant** — als Flanke, nicht als Selbstzweck: [`GOALS.md`](GOALS.md) §5, [ROADMAP](ROADMAP.md) 8b. Die Sicherung dagegen, dass daraus zwei zu schwache Wellen werden, ist dort die Hauptsache |
 
 ### 17.3 Zwei Einwände, die wir gegen uns gelten lassen
 

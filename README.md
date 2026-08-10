@@ -1,5 +1,22 @@
 # Nova.AiLab — KI-Simulationslabor
 
+**Wofür:** Es fährt die KI-Partie von [HashKrieg](https://github.com/VibecodingGermany/HashKrieg)
+ohne Unity, tausendfach, und schreibt auf, was dabei passiert — damit eine
+Änderung am KI-Verhalten in Sekunden beurteilbar ist statt in gespielten Partien.
+
+**Warum überhaupt:** Weil man einer KI beim Zusehen alles zutraut. Das Labor
+liefert Zahlen, die zwei Läufe vergleichbar machen, statt Eindrücke — und sagt
+selbst, wo sie nichts beweisen.
+
+**Wie:** `./lab.sh` messen → [`reports/latest.md`](reports/latest.md) lesen →
+`out/player.html` hinsehen. Ohne Kommandozeile: `./lab-gui.sh`.
+
+> [!TIP]
+> **Neu hier? → [`START-HIER.md`](START-HIER.md)** — eine Seite: wofür, warum,
+> wie, was als nächstes, und welches der Dokumente man wann aufmacht.
+> **Was als nächstes gebaut wird → [`ROADMAP.md`](ROADMAP.md).**
+> Diese Seite hier ist der Aufbau im Detail: jede Datei, jedes Kommando.
+
 ## Zusehen
 
 **▶ [Video: die Oberfläche im Betrieb, mit einem Gefecht der beiden Armeen](https://www.youtube.com/watch?v=SNa8hs-Odxo)**
@@ -28,14 +45,16 @@ auch für alles, was in diesem Video überzeugend aussieht.
 > gegentesten, ohne Hin- und Herbauen.** `git checkout` drüben genügt, hier
 > ändert sich nichts.
 
-## → [Gesamtübersicht](reports/README.md) · [Letzter Lauf](reports/latest.md) · [Verhaltensjournal](reports/behavior-log.md) · [Nächste Schritte](NEXT-STEPS.md)
+## → [Gesamtübersicht](reports/README.md) · [Letzter Lauf](reports/latest.md) · [Verhaltensjournal](reports/behavior-log.md) · [Roadmap](ROADMAP.md)
 
 | Wohin | Was dort steht |
 |---|---|
 | **[reports/README.md](reports/README.md)** | die Gesamtübersicht: jeder archivierte Laborlauf eine Zeile, der Verlauf innerhalb der aktuellen Definitionstabelle, Links in die Historie |
 | **[reports/latest.md](reports/latest.md)** | der zuletzt vermessene Lauf vollständig — Partie, Kandidatenprofile, Gegentabelle, Belagerung, Bewegung. Ohne Browser lesbar |
 | **[reports/behavior-log.md](reports/behavior-log.md)** | das Verhaltensjournal, **von Hand geführt**: was geändert wurde, was besser und was schlechter wurde, und was schon widerlegt ist. Vor jeder neuen Änderung lesen |
-| **[NEXT-STEPS.md](NEXT-STEPS.md)** | was als nächstes ansteht — sortiert danach, **was ein Spieler in einer Partie merkt**, nicht nach Laborkennzahl. Dazu die begründete Liste dessen, was man nicht anfangen sollte |
+| **[ROADMAP.md](ROADMAP.md)** | was gebaut ist, was als nächstes kommt, in welcher Reihenfolge und was Rückfrage an den Maintainer ist — **die einzige Nummerierung** |
+| **[NEXT-STEPS.md](NEXT-STEPS.md)** | **warum** die Punkte so eingeordnet sind: sieben Beobachtungen, sortiert danach, was ein Spieler in einer Partie merkt |
+| **[KAMPFSTAERKE.md](KAMPFSTAERKE.md)** · **[VERTEIDIGUNG.md](VERTEIDIGUNG.md)** · **[GOALS.md](GOALS.md)** | die Detailpläne: Kampfpunkte und Wellengrösse · Basisverteidigung · Goal-System, Flanke und Admin-Panel |
 
 Die interaktive Fassung derselben Zahlen ist `out/dashboard.html` — sie braucht
 einen Browser, die drei Seiten oben nicht.
@@ -52,7 +71,7 @@ Drei Repositories, die dabei auseinanderzuhalten sind:
 
 | Repository | Rolle |
 |---|---|
-| [`VibecodingGermany/Project_Nova`](https://github.com/VibecodingGermany/Project_Nova) | das Spiel selbst — Ziel jedes Pull Requests. Wird nur gefetcht, nie dorthin gepusht |
+| [`VibecodingGermany/HashKrieg`](https://github.com/VibecodingGermany/HashKrieg) | das Spiel selbst — Ziel jedes Pull Requests. Wird nur gefetcht, nie dorthin gepusht. **Vormals `VibecodingGermany/Project_Nova`**; der Fork und der Checkout daneben heissen weiterhin `Project_Nova` |
 | [`arn-c0de/Project_Nova`](https://github.com/arn-c0de/Project_Nova) | mein Fork davon, üblicherweise der Checkout unter `Project_Nova/` — von hier geht ein PR nach oben |
 | [`arn-c0de/Nova.AiLab`](https://github.com/arn-c0de/Nova.AiLab) | dieses Labor. Kein Beitrag zum Spiel, sondern das Werkzeug, das es vermisst |
 
@@ -71,7 +90,7 @@ Ein zweiter Checkout (oder ein `git worktree`) ist der bequeme Weg, zwei
 Branches nebeneinander zu messen, ohne dauernd umzuschalten.
 
 **Wem was gehört:** Das Labor gehört mir ([`LICENSE`](LICENSE)) — der Maintainer
-und die Mitwirkenden von [Project Nova](https://github.com/VibecodingGermany/Project_Nova)
+und die Mitwirkenden von [HashKrieg](https://github.com/VibecodingGermany/HashKrieg)
 dürfen es benutzen, um Branches zu vermessen, nur nicht weitergeben. Was ich am
 *Spiel* ändere und per Pull Request einreiche, richtet sich dagegen nach den
 Bedingungen des Hauptrepos, und zwar nur der eingereichte Diff. Beide Richtungen
@@ -149,7 +168,7 @@ python3 Nova.AiLab/report/build_reports.py out
 python3 Nova.AiLab/report/build_reports.py --regenerate
 
 # nur die eine Seite: out/dashboard.html
-python3 Nova.AiLab/report/build_dashboard.py Nova.AiLab/out
+python3 Nova.AiLab/report/build_dashboard.py out
 ```
 
 ### Auf dem Telefon (Termux, arm64)

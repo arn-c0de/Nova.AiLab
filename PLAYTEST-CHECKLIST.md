@@ -1,4 +1,8 @@
-# Was in der gespielten Partie zu prüfen ist — KI-Verhalten `r4.779A1B5B`
+# Was in der gespielten Partie zu prüfen ist
+
+**Geschrieben gegen** KI-Verhalten `r4.779A1B5B` · **heutiger Stand**
+`r6.E34435F9` — die Punkte 1 bis 6 gelten unverändert, seit `r5`/`r6` kommen
+zwei Fragen dazu (§7).
 
 **Wofür das hier ist.** Das Labor misst Stärke, Tempo und Rhythmus. Ob sich eine
 Partie **gut anfühlt**, misst es nicht und soll es nicht (Entscheidung 11). Das
@@ -7,10 +11,19 @@ Nachweis, den es gibt. Alles unten ist mit blossem Auge zu sehen; keine Zahl,
 kein Overlay, keine Logdatei nötig.
 
 > [!IMPORTANT]
-> **Kein Haken hier ist gesetzt.** Der Linux-Build steht aus, gespielt wurde
-> zuletzt der Stand `r2.A037B84D` ([Journal B001](reports/behavior-log.md)).
-> Alles, was seither dazukam — Wellen (V004) und Rückzug (V005) —, ist
-> **ungesehen**. Genau so gehört es in den PR-Text.
+> **Kein Haken hier ist gesetzt.** Der Linux-Build steht aus. Gespielt sind zwei
+> Stände: `r2.A037B84D` ([B001](reports/behavior-log.md)) und `r4.779A1B5B`
+> ([B002](reports/behavior-log.md), wo Wellen und Rückzug bestätigt und die
+> Zielwahl ausdrücklich **nicht** bestätigt wurden). `r5` und `r6` sind
+> **ungesehen** — B003 ist eine Beobachtung an der Laboraufnahme, keine gespielte
+> Partie. Genau so gehört es in den PR-Text.
+
+> [!NOTE]
+> **Zwei Fragen, die seit `r6` dazugehören** — beide ohne eine Zahl zu lesen:
+> **Lässt sie ihr HQ zusammenschiessen**, während Einheiten am Sammelpunkt
+> warten? (der Defekt aus [B003](reports/behavior-log.md), Gegenmittel ist
+> [ROADMAP](ROADMAP.md) 1.) Und: **sind die Wellen verschieden gross**, oder
+> jede wie die vorige? (heute jede gleich; ROADMAP 5.)
 
 **Wie ausfüllen.** Beobachtung wörtlich notieren, dann einordnen. Ein „ja, wie
 erwartet" ist weniger wert als ein „nein, und zwar so". Ergebnisse wandern als
@@ -21,9 +34,10 @@ Beobachtung, nicht `V` wie Verhaltensmessung.
 
 ## 0 · Vor dem Start
 
-- [ ] Bezeichner im F3-HUD steht auf **`r4.779A1B5B`**. Steht dort etwas
-      anderes, ist der Build älter als diese Liste und die Punkte unten
-      beschreiben eine andere KI.
+- [ ] **Bezeichner im F3-HUD notieren**, bevor gespielt wird — er gehört in den
+      Journaleintrag. Zu dieser Liste passen `r4.779A1B5B` (Stand, gegen den sie
+      geschrieben ist) und `r6.E34435F9` (heutiger `upstream/main`). Steht dort
+      etwas anderes, beschreiben die Punkte unten eine andere KI.
 - [ ] Zwei Partien einplanen, nicht eine. Die halbe Liste fragt „passiert das
       **zweimal** gleich".
 - [ ] Mitschreiben, während gespielt wird. Nach der Partie erinnert man das

@@ -4,9 +4,13 @@
 > Laboraufnahme fiel auf: die KI sammelt am Sammelpunkt weiter, während ihr
 > eigenes Hauptquartier beschossen wird. Journal [B003](reports/behavior-log.md).
 >
-> **Stand:** Entwurf, nichts gebaut. Vorgesehen als PR 7,
-> `feat/ai-abort-on-threat`, Bezeichner `r6` → **`r7`**.
+> **Stand:** Entwurf, nichts gebaut. **[ROADMAP](ROADMAP.md) Punkt 1** — der
+> nächste Verhaltens-PR, `feat/ai-abort-on-threat`, Bezeichner `r6` → **`r7`**.
 > Der Vorgänger [`pr/6-staerketor.md`](pr/6-staerketor.md) ist eingereicht.
+>
+> **Warum er zuerst kommt:** Der Defekt wächst mit der Armeeobergrenze (wartende
+> Einheit-Ticks je 1.000 von 3.502 auf 12.326), und die Obergrenze anzuheben ist
+> die Rückfrage, an der der ganze Stärkestrang hängt ([ROADMAP §4](ROADMAP.md)).
 
 ---
 

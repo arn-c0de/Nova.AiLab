@@ -7,6 +7,10 @@
 > **Vom FORK** `arn-c0de/Project_Nova` (`feat/ai-strength-wave-gate-de`,
 > `9079c7d`) **ins HAUPTREPO** `VibecodingGermany/HashKrieg` → `main`.
 > Bezeichner `r5.779A1B5B` → `r6.E34435F9`.
+>
+> **Stand 2026-08-10: eingereicht und gemergt als #72.** Was daraus im Spiel
+> geworden ist — nämlich vorerst nichts, weil die Armeeobergrenze bei 12 steht —,
+> steht in [`../ROADMAP.md`](../ROADMAP.md) §1 und §4.
 
 ## Titel des PR
 

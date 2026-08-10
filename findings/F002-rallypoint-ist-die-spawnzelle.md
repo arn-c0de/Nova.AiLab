@@ -1,8 +1,8 @@
 # F002 · `SetRallyPoint` ist die **Spawn-Zelle**, kein Sammelbefehl
 
 **Gefunden am:** 2026-08-09 · **Beim Bauen von:** Rally-Punkt der Kaserne auf den
-Sammelpunkt (NEXT-STEPS §5, PR 3) · **Status:** Befund, kein PR, **Vorhaben
-abgebrochen**
+Sammelpunkt (`NEXT-STEPS.md` §5) · **Status:** Befund, kein PR, **Vorhaben
+abgebrochen** — in [`../ROADMAP.md`](../ROADMAP.md) §1 als gestrichen geführt
 
 > Fremdes Terrain. `Simulation/Production/` ist uns nicht zugeteilt
 > (`CLAUDE.md` §2, „nicht zugeteilt, also nicht unseres ohne Rückfrage").
@@ -53,7 +53,7 @@ wartenden Welle wäre also auch mechanisch eine Bremse.
 
 ## Folge für den Einheitenstrang
 
-**PR 3 aus NEXT-STEPS wird nicht gebaut.** Die Absicht dahinter — Nachschub
+**Das Vorhaben wird nicht gebaut.** Die Absicht dahinter — Nachschub
 sammelt sich, statt einzeln loszulaufen — ist seit Verhaltensrevision `r3`
 ohnehin erfüllt: Eine neu gebaute Einheit bekommt spätestens eine Kadenz später
 (20 Ticks) einen Marschbefehl zum Sammelpunkt und wartet dort, bis die Welle

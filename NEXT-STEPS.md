@@ -1,28 +1,37 @@
-# Nächste Schritte am KI-Verhalten — sortiert danach, was ein Spieler merkt
+# Warum die Punkte so stehen — sieben Beobachtungen aus gespielten Partien
 
-**Stand:** KI-Verhalten **`r4.779A1B5B`** · Referenzpartie Tick **9.164**,
-Endzustand **`0x8054A759F73E1F81`**, gemessen auf `feat/ai-waves-and-retreat`
-über dem neuen `upstream/main` (Journal V006 — die älteren Zahlen stammen von
-vor dem Merge-Fenster und sind nicht mit diesen vergleichbar) ·
+**Was dieses Dokument ist:** die **Begründung** hinter der Roadmap, sortiert
+danach, was ein Spieler in einer Partie *Mensch gegen KI* merkt. **Was als
+nächstes gebaut wird, in welcher Reihenfolge und mit welchem Stand, steht
+ausschliesslich in [`ROADMAP.md`](ROADMAP.md).**
+
+**Stand des Dokuments:** geschrieben gegen `r2`/`r4`, fortgeschrieben am
+2026-08-10 · **Heutiger Stand der KI:** `r6.E34435F9`, Commit `c8e46af5` ·
 Messgrundlage: [`reports/latest.md`](reports/latest.md) ·
 Historie: [`reports/behavior-log.md`](reports/behavior-log.md) ·
 Für die gespielte Partie: [`PLAYTEST-CHECKLIST.md`](PLAYTEST-CHECKLIST.md)
 
-> [!NOTE]
-> **Die nächsten fünf PRs sind ausgeplant:** [`KAMPFSTAERKE.md`](KAMPFSTAERKE.md)
-> — Nachschub hinter der laufenden Welle, Abbruch bei gebrochener Welle, Ausbau
-> bis zur Fahrzeugfabrik, und darunter **eine** ganzzahlige Kampfwertformel, an
-> der später der Schwierigkeitsgrad als Zahlensatz hängt. Enthält die Fortsetzung
-> der Wellenregel, die der Spieler in [Journal B002](reports/behavior-log.md)
-> selbst benannt hat.
-
-> [!NOTE]
-> **Punkt 1 und Punkt 3 sind gebaut** (Journal V004 und V005), Punkt 5 ist
-> **gestrichen** (Befund F002: `SetRallyPoint` ist die Spawn-Zelle, kein
-> Sammelbefehl). Die Beschreibungen unten sind der Stand **vor** diesen
-> Änderungen und bleiben als Begründung stehen; was daraus wurde, steht in der
-> PR-Tabelle am Ende und im Journal. Gespielt ist nach wie vor nur `r2` —
-> **alles seither ist ungesehen.**
+> [!IMPORTANT]
+> **Die Beschreibungen unten sind der Stand vor den Änderungen, die sie
+> ausgelöst haben, und bleiben genau deshalb stehen** — sie sind der Grund, aus
+> dem gebaut wurde, und nach einem Umbau kann man ihn nicht mehr rekonstruieren.
+> Was daraus geworden ist, steht in [`ROADMAP.md`](ROADMAP.md) §1 und im
+> Verhaltensjournal:
+>
+> | Hier | Was daraus wurde |
+> |---|---|
+> | Punkt 1 · Armee tröpfelt | **gebaut** (`r3`, V004): Sammelpunkt und Wellengrösse |
+> | Punkt 3 · keine Reaktion auf Angriff | **teilweise gebaut** (`r4`, V005): Rückzug je Einheit. Verteidigung offen → ROADMAP 1 und 9 |
+> | Punkt 4 · kein Zielen unter der Schwelle | **zurückgenommen** (V003), blockiert von Befund F001 |
+> | Punkt 5 · Nachschub sammelt sich nicht | **gestrichen** (F002): der Rally-Punkt ist die Spawn-Zelle |
+> | Punkt 2 · immer dieselbe Linie | offen → ROADMAP 4, 8a, 8b |
+> | Punkt 6 · Abstand und Aufklärung | offen → ROADMAP 10 |
+>
+> **Gespielt** sind zwei Stände: `r2` (Journal B001) und `r4` (B002, wo der
+> Spieler Wellen und Rückzug bestätigt und die Zielwahl ausdrücklich **nicht**
+> bestätigt hat). B003 ist eine Beobachtung an der **Laboraufnahme** von `r6` —
+> aufschlussreich, aber kein gespielter Befund. **`r5` und `r6` sind
+> ungesehen.**
 
 Diese Liste ist **nicht** nach Aufwand oder nach Laborkennzahl sortiert, sondern
 danach, was in einer Partie *Mensch gegen KI* auffällt. Eine Verbesserung, die
@@ -462,63 +471,29 @@ drei Fragen dafür stehen unten.
 
 ---
 
-## Reihenfolge der PRs — je einer, je eine Verhaltensänderung
+## Reihenfolge, Stand und „nicht anfangen" → [`ROADMAP.md`](ROADMAP.md)
 
-Die Reihenfolge oben sagt, was ein Spieler zuerst merkt. Diese hier sagt, in
-welcher Folge man es baut, ohne zweimal dasselbe anzufassen: Zielen vor
-Marschieren, Sammelpunkt vor Rally-Punkt, Rückzug erst, wenn es einen Ort
-gibt, an den man sich zurückzieht.
+Hier stand bis 2026-08-10 eine zweite PR-Tabelle mit eigener Nummerierung, die
+sich mit der in [`KAMPFSTAERKE.md`](KAMPFSTAERKE.md) §13 und der in
+[`AGENTS.md`](AGENTS.md) §6 überschnitten hat, ohne mit ihr übereinzustimmen.
+Es gibt jetzt **eine** Liste: [`ROADMAP.md`](ROADMAP.md) — dort auch die
+Reihenfolgeregeln, die Rückfragen an den Maintainer und die begründete Liste
+dessen, was man **nicht** anfangen soll.
 
-| # | Was | Punkt | Ort | Stand |
-|---:|---|---|---|---|
-| 0 | Form: Absicht je Einheit, **verhaltensneutral** | §0 | `AI/` | ✅ **gebaut**, byte-identisch nachgewiesen |
-| ~~1~~ | ~~Zielen unabhängig von der Schwelle~~ | 4 | — | **zurückgenommen**, Journal V003; blockiert von Befund F001 |
-| 2 | Sammelpunkt und Wellengrösse | 1 | `AI/`, `AI.Data/` | ✅ **gebaut** (`r3`, Journal V004). Einseitig: Verluste 41 statt 175, Intervalle mit Verlusten 11 statt 64. `waveSize: 12` = ganze Armee, `1` schaltet ab |
-| ~~3~~ | ~~Rally-Punkt der Kaserne auf den Sammelpunkt~~ | 5 | — | **gestrichen**, Befund [F002](findings/F002-rallypoint-ist-die-spawnzelle.md): der Rally-Punkt ist die **Spawn-Zelle**, das wäre Teleportation. Die Absicht erfüllt seit `r3` die Wellenregel |
-| 4 | `Retreat` als Einheitenfilter | 3 | `AI/`, `AI.Data/` | ✅ **gebaut** (`r4`, Journal V005) — **ohne** Lebens-Hysterese: MS-1-Einheiten heilen nie. Einseitig: Verluste 35 statt 62, Austausch 123 statt 93 |
-| 5 | Zweites lohnendes Ziel (Harvester, Refinery) | 2 | `AI/` | offen — jetzt der nächste Punkt |
-| 6 | Annäherung über eine Route statt der Luftlinie | 2 | `AI/`, `Pathfinding/` | offen |
-| 7 | Abstandhalten **plus** Aufklärung | 6 | `Movement/`, `AI/` | offen |
-| neu | `DefendBase`, zweiter Anlauf | 3 | `AI/` | **wichtiger geworden**: seit `r4` greift die KI erst mit voller Armee an, ein früher Konter trifft eine wartende Armee. Jetzt mit Aus-Stellung und einseitig messen |
-| 8–13 | Kampfwert, Nachschub-Doktrin, Fahrzeuge, Stärkeziel, Schwierigkeitsgrade | 1, 7 | `AI/`, `AI.Data/`, Labor | ausgeplant in [`KAMPFSTAERKE.md`](KAMPFSTAERKE.md) — sechs gestapelte PRs, jeder mit Aus-Stellung. **Schritt 0 ist reine Laborarbeit** (Stärkekurve als Referenz) und muss vor dem ersten Verhaltens-PR stehen |
+Zwei Erkenntnisse aus der alten Tabelle, die es wert sind, hier stehen zu
+bleiben, weil sie die Sortierung oben tragen:
 
-Was Schritt 0 und der ausgefallene Schritt 1 zusammen gezeigt haben: **die
-Form ist billig, die Regel ist teuer.** Der Umbau war byte-identisch und in
-einem Zug erledigt; die eine Verhaltensregel darauf brauchte vier Messungen und
-endete als Befund. Wer die Liste unten abarbeitet, sollte damit rechnen, dass
-jeder Punkt so ausgeht — und die Form trotzdem bauen, weil ohne sie keiner der
-Punkte formulierbar ist.
+> **Die Form ist billig, die Regel ist teuer.** Der Umbau auf „Absicht je
+> Einheit" war byte-identisch und in einem Zug erledigt; die eine
+> Verhaltensregel darauf brauchte vier Messungen und endete als Befund. Wer
+> diese Liste abarbeitet, sollte damit rechnen, dass jeder Punkt so ausgeht —
+> und die Form trotzdem bauen, weil ohne sie keiner der Punkte formulierbar ist.
 
-Zwei Reihenfolgeregeln, die nicht verhandelbar sind: **3 nach 2**, weil der
-Rally-Punkt derselbe Punkt ist wie der Sammelpunkt, und **7 als Paar**, weil
-„auf Reichweite stehenbleiben" ohne Aufklärung im Kontrolllauf über 2.000
-Ticks null Schaden angerichtet hat.
-
-Bei jedem PR ab 5: Referenz sichern, Determinismus zuerst (Exit 2 = Ende),
-Hash-Kette gegen die Referenz diffen (der **erste abweichende Tick** ist die
-wertvollste Zahl), beide Suiten fahren, `AiBehaviorId.Revision` bumpen,
-Journaleintrag mit Abschnitt „Schlechter". Der Abschnitt „Im laufenden Spiel
-gesehen" bleibt leer, solange der Linux-Build aussteht.
-
-**Und ab jetzt eine Regel mehr, aus §7:** Jeder dieser PRs bringt seinen
-Profilwert **mit Aus-Stellung** mit und wird **einseitig** gemessen — ein
-`compare`-Lauf, in dem ein Kandidat mit dem neuen Verhalten gegen die Referenz
-ohne es spielt. Selbstspiel misst bei einer Coderegel beide Seiten zugleich und
-kann „zwei stärkere Armeen" nicht von „schlechtere KI" unterscheiden. V002 und
-V003 wurden so beurteilt; ob ihre Rückweisung trägt, ist damit offen.
-
----
-
-## Nicht anfangen — begründet
-
-| Vorhaben | Warum nicht |
-|---|---|
-| **Verteidigungsmodule bauen** (`InstallDefenseModule`) | `ValidateDomain` lehnt diesen Befehl **unbedingt** ab: G2/G4-Inhalt laut `mvp-v1.json`. Eine KI, die ihn benutzt, produziert nur `intentsRejected`. Der Plan führt ihn als Position 1 der fehlenden Befehle — der Code widerspricht. |
-| **Zielen unter der Angriffsschwelle, fünfte Fassung** | Vier gemessen, alle teurer als gar nicht zielen (Journal V003). Nicht die Zielformel ist schuld, sondern die unlösbare Zielsperre — solange Befund F001 offen ist, ist jede weitere Fassung dieselbe Sackgasse. |
-| **`DefendBase` erneut, mit anderem Radius** | Gemessen: 8 → 9.564, 16 → 9.470, 24 → byte-identisch zu 16. Am Radius liegt es nicht (Journal V002). |
-| **Legion-Waffenwerte ändern** (Issue 01) | `Simulation/Definitions/` ist geteilte Vertragsfläche. Das Labor *misst* Issue 01, die Umsetzung braucht Absprache. |
-| **Kartenvarianz** | Erst nach dem Goal-System. Vorher tunt man gegen die gebrochene `GetEnemyStartAreaCell`-Annahme statt gegen Verhalten. |
-| **Ein automatischer Optimierer** | Nicht vertagt, sondern nicht vorgesehen (Entscheidung 11). Es gibt keine skalare Gütefunktion, und für „sieht im Spiel richtig aus" gibt es keine Kennzahl. |
+> **Jeder Verhaltens-PR bringt seine Aus-Stellung mit und wird einseitig
+> gemessen.** Eine Coderegel steckt im Binary und erreicht im Selbstspiel beide
+> Sitze; „zwei stärkere Armeen" ist dort von „schlechtere KI" nicht zu
+> unterscheiden. V002 und V003 wurden so beurteilt — ob ihre Rückweisung trägt,
+> ist damit offen (Methodenbefund M001).
 
 ---
 

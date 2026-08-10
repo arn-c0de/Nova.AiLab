@@ -1,12 +1,15 @@
 # Nova.AiLab — Handreichung für Agenten
 
-**Stand:** Messmenge in `out/` gemessen an Commit `3b3f27d` · Definitionstabelle
-`0x6326FA3E56CFF5A3` · Etappen E0–E6 erledigt, E7 offen
-**Gilt zusätzlich:** `../../CLAUDE.md` (Arbeitsvertrag), `../../AGENTS.md`, `README.md` nebenan,
-Plan: [`docs/feature-ideas/AiSimulationEnvironment.md`](../../docs/feature-ideas/AiSimulationEnvironment.md)
+**Stand:** KI-Verhalten `r6.E34435F9`, Commit `c8e46af5`, Definitionstabelle
+`0x6326FA3E56CFF5A3` · die Zahlen in §5 stammen aus der älteren Messmenge an
+Commit `3b3f27d` und sind als solche gekennzeichnet
+**Gilt zusätzlich:** `../CLAUDE.md` (Arbeitsvertrag), `../Project_Nova/AGENTS.md`,
+[`README.md`](README.md) nebenan
+**Erst lesen, wenn man neu hier ist:** [`START-HIER.md`](START-HIER.md)
 
-Dieses Dokument beantwortet zwei Fragen: **wie ein Agent das Labor für automatische
-Evaluierung benutzt**, und **welche Schritte als nächstes das KI-Verhalten verbessern.**
+Dieses Dokument beantwortet **eine** Frage: wie ein Agent das Labor für
+automatische Evaluierung benutzt. **Was als nächstes gebaut wird, steht in
+[`ROADMAP.md`](ROADMAP.md)** — eine Liste, eine Nummerierung.
 
 ---
 
@@ -194,35 +197,35 @@ absichtlich nicht auswertet.
 
 ---
 
-## 6. Nächste Schritte für besseres KI-Verhalten
+## 6. Codewissen, das jede Verhaltensänderung braucht
 
-Reihenfolge ist nicht beliebig: **E7 vor E8**, weil ein neuer Befehlstyp ohne Ziel,
-das ihn auslöst, nur Rauschen erzeugt.
+> [!IMPORTANT]
+> **Was als nächstes gebaut wird, steht in [`ROADMAP.md`](ROADMAP.md).** Hier
+> stand bis 2026-08-10 eine dritte Liste (E7–E11), die sich mit den Tabellen in
+> `NEXT-STEPS.md` und `KAMPFSTAERKE.md` überschnitten hat, ohne mit ihnen
+> übereinzustimmen. Sie ist in die Roadmap eingegangen. Was hier bleibt, ist das,
+> was man **am Code nachgesehen** haben muss, bevor man ihn anfasst — der Teil,
+> der einen Agenten davor bewahrt, eine gemessene Sackgasse ein zweites Mal zu
+> laufen.
 
-### 6.1 Zuerst: der Doku-Fix, der nichts kostet
+### 6.1 Erledigt: der Doku-Fix im Spielcode
 
-`SkirmishAiSystem` beruft sich in seiner Klassendoku auf GB-002 („kein Auto-Acquire"),
-während `CombatSystem` unter D-087 Auto-Acquisition bereits implementiert. **Der Code
-gilt**, die Doku ist veraltet — ebenso die zweite Stelle (`SkirmishAiSystem.cs:63`),
-die behauptet, `SetRallyPoint` akzeptiere das Refinery nicht. Ein winziger PR in
-`AI/`, verhaltensneutral, Baselines bleiben grün. Guter erster Beitrag für einen
-Agenten, weil er den ganzen PR-Weg einmal durchläuft, ohne etwas zu riskieren.
+Hier stand ein Auftrag, zwei veraltete Kommentare in `SkirmishAiSystem` zu
+richten (angebliches „kein Auto-Acquire" trotz D-087, angeblich abgelehnter
+`SetRallyPoint` am Refinery). **Am 2026-08-10 nachgeprüft: beide Stellen sind
+korrekt** — `SkirmishAiSystem.cs:77` nennt D-087 ausdrücklich, und der Kommentar
+bei `:365` sagt richtig, dass der Rally-Punkt akzeptiert würde und die
+Micro-Entscheidung eine Verhaltenswahl ist. Nichts zu tun.
 
-### 6.2 E7 — Reaktive KI, Stufe 1 *(verhaltensändernd)*
+### 6.2 Die Bausteine der reaktiven KI — Stand
 
-> **Score-Targeting ist erledigt** — siehe [`reports/behavior-log.md`](reports/behavior-log.md)
-> V001. Entscheidung 33 % früher, beide Seiten verlieren weniger, aber
-> `early-push` fällt von 50 % auf 0 %. Vier von fünf Bausteinen stehen noch aus.
-
-Fünf Bausteine, jeder mit einer Zahl, an der er gemessen wird:
-
-| Baustein | Was er tut | Messgrösse vorher → nachher |
-|---|---|---|
-| **Score-Targeting** | ersetzt „HQ vor Gebäude vor Einheit" durch `DamageMatrix`-gewichtete Zielwahl | Verluste je Slot, Entscheidungstick, `armyHealthSum` |
-| **`DefendBase`** | sichtbarer Feind nahe HQ → Armee heim | Ticks zwischen Feindsichtung am HQ und Ankunft der Armee |
-| **`DefendField`** | Feind am eigenen Aetherium-Feld → Teilarmee hin, Harvester weichen aus | `harvesters`, `idleHarvesters`, `fieldReserveAE` |
-| **`Retreat`** | *pro Einheit* unter Lebensschwelle, kein globales Ziel | `unitsLost` gegen `healthLost` |
-| **`Farm`** | Credits unter Schwelle → Harvester bauen, Untätige aufs Feld | `credits`-Kurve, `idleHarvesters` |
+| Baustein | Stand |
+|---|---|
+| **Score-Zielwahl** | **gebaut** (`r1`, V001): Entscheidung 33 % früher, beide Seiten verlieren weniger, aber `early-push` fällt von 50 % auf 0 % |
+| **`Retreat`** je Einheit | **gebaut** (`r4`, V005), ohne Lebens-Hysterese — MS-1-Einheiten heilen nie |
+| **`DefendBase`** | **gebaut und verworfen** (V002), zweiter Anlauf als ROADMAP 9 — mit Kampfpunkten als Mass für „echte Bedrohung", nicht mit anderem Radius |
+| **`DefendField`** (Feind am eigenen Feld) | offen, in der Roadmap noch nicht eingeordnet |
+| **`Farm`** (Credits unter Schwelle) | offen; die Bank ist heute nicht leer, sondern zu voll → ROADMAP 6 |
 
 **Der Zustand steckt schon in der Welt.** Ein Snapshot-Block wäre eine
 Inhaberentscheidung; vorher lohnt der Weg ohne. Die stehenden Befehle der eigenen
@@ -253,10 +256,11 @@ Falls, in dem die Reaktion falsch war. Das hängt am Linux-Build, der Bringschul
 Netzstrangs ist und aussteht. Bis dahin bleibt der Beobachtungsabschnitt sichtbar
 leer, und der PR sagt selbst, dass er unfertig ist.
 
-### 6.3 E8 — fehlende Befehlsarten, je einer pro PR
+### 6.3 Die acht Befehlsarten, die die KI nicht benutzt
 
-Die KI benutzt 5 von 13 Befehlsarten. Nach Nutzen sortiert, **mit einer Korrektur
-gegenüber dem Plan**:
+Die KI benutzt 5 von 13. Nach Nutzen sortiert, **mit einer Korrektur gegenüber
+dem Plan** — und je Befehl höchstens ein PR, weil ein neuer Befehlstyp ohne ein
+Ziel, das ihn auslöst, nur Rauschen erzeugt:
 
 | Rang | Befehl | Begründung |
 |---:|---|---|
@@ -270,28 +274,34 @@ gegenüber dem Plan**:
 Die Zahlen 10 HP/Tick, 50 % und 75 % stimmen mit dem Code überein, sind dort aber als
 „Q-040 candidate" provisorisch markiert.
 
-### 6.4 Danach: E9 bis E11
+### 6.4 Was Gedächtnis bräuchte — und deshalb Rückfrage ist
 
-- **E9 — Sidecar-Vorschlag, kein Code.** Aus den E7/E8-Auswertungen belegen, wo
-  Zustandslosigkeit nachweislich schadet: Timer in Ticks, Aufklärungsgedächtnis,
-  Squad-Identität, Schadens*rate* statt Schadenssumme. `MatchFingerprint` führt
-  `SidecarSchemaVersion` bereits — der Platz ist reserviert, nur unbelegt. Die Anfrage
-  wäre das Einlösen eines vorgesehenen Vertrags, keine Architekturänderung.
-- **E10 — Goal-System mit Zustand.** Erst nach D-ID.
-- **E11 — Teams.** Strukturell offen (8 Slots, 8 Team-Masken), inhaltlich blockiert:
-  Freund/Feind liegt bei uns, geteilte Sicht und Niederlage je Seite beim Netzstrang.
-  4-Slot-Freiforall im Labor geht sofort — endet heute allerdings im
-  Zeitlimit-Unentschieden, weil `GetEnemyStartAreaCell` bei vier Basen für niemanden
-  stimmt. Reproduzierbar, aber kein Befund.
+- **Sidecar-Block.** Timer in Ticks, Aufklärungsgedächtnis, Squad-Identität,
+  Schadens*rate* statt Schadenssumme. `MatchFingerprint` führt
+  `SidecarSchemaVersion` bereits — der Platz ist reserviert, nur unbelegt. Eine
+  Anfrage dafür löst einen vorgesehenen Vertrag ein und ist keine
+  Architekturänderung; gestellt wird sie trotzdem, nicht umgesetzt
+  ([ROADMAP §4](ROADMAP.md)).
+- **Goal-System.** Braucht **keinen** Sidecar, solange es zustandslos bleibt: die
+  Goals werden je Kadenz abgeleitet, der Verlauf lebt in der Aufzeichnung des
+  Labors. So ist es geplant → [`GOALS.md`](GOALS.md). Erst ein Goal, das sich
+  etwas *merken* muss, wäre D-ID.
+- **Teams.** Strukturell offen (8 Slots, 8 Team-Masken), inhaltlich blockiert:
+  Freund/Feind liegt bei uns, geteilte Sicht und Niederlage je Seite beim
+  Netzstrang. 4-Slot-Freiforall im Labor geht sofort — endet heute allerdings im
+  Zeitlimit-Unentschieden, weil `GetEnemyStartAreaCell` bei vier Basen für
+  niemanden stimmt. Reproduzierbar, aber kein Befund.
 
-### 6.5 Was nicht auf der Liste steht, und warum
+### 6.5 Nicht anfangen → [`ROADMAP.md`](ROADMAP.md) §5
 
-- **Kartenvarianz** erst nach E7 — sonst tunt man gegen die gebrochene
-  `GetEnemyStartAreaCell`-Annahme statt gegen das Verhalten.
-- **Neue Legion-Waffenwerte** (Issue 01): Die Duell-Arena *misst* sie, die *Umsetzung*
-  hängt an `Simulation/Definitions/` — geteilte Vertragsfläche, Absprache nötig.
-  Blockiert, nicht vergessen.
-- **Ein automatischer Optimierer.** Nicht vertagt, sondern nicht vorgesehen: Verfahren,
-  die einen Skalar brauchen, sind mit Entscheidung 11 aus dem Plan.
-- **`Decide()` entschlacken** (rund elf Listen je Entscheidungstick): gemessen, kein
-  Problem — 143.000 Ticks/s über 24 Kerne. Es gibt keinen Grund, es anzufassen.
+Die begründete Liste steht dort, damit sie an einer Stelle steht. Zwei Punkte
+gehören ins Codewissen und bleiben deshalb hier:
+
+- **`InstallDefenseModule`** wird von `ValidateDomain` **unbedingt** abgelehnt
+  (G2/G4-Inhalt laut `mvp-v1.json`). Eine KI, die ihn benutzt, produziert nur
+  `intentsRejected`. Ob das **Gebäude** `DefensePlatform` platzierbar ist — es ist
+  bewaffnet, 20 Schaden, 10 Reichweite —, ist dagegen **ungeprüft**.
+- **`Decide()` entschlacken** (rund elf Listen je Entscheidungstick): gemessen,
+  kein Problem — 143.000 Ticks/s über 24 Kerne. Es gibt keinen Grund, es
+  anzufassen. Das ist auch die Kostengrenze für neue Goal-Module: eine
+  Allokation je Modul und Kadenz wäre eine.
