@@ -5,7 +5,7 @@
 
 erzeugt aus den Artefakten von `match`, `duel`, `movement` und `compare`:
 
-    tools/Nova.AiLab/out/dashboard.html    interaktiv, lokal, kein Server
+    out/dashboard.html    interaktiv, lokal, kein Server
     reports/latest.md     immer der zuletzt vermessene Lauf
     reports/runs/<id>.md  die Historie, ein Bericht je Lauf
     reports/README.md     die Gesamtuebersicht ueber alle Laeufe

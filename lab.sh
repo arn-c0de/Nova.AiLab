@@ -2,8 +2,8 @@
 #
 # lab.sh — ein Laborlauf und seine Berichte, in einem Kommando.
 #
-# Faehrt alle vier Laufarten nach `Nova.AiLab/out/` und schreibt danach
-# `out/dashboard.html` sowie den Markdown-Satz unter `Nova.AiLab/reports/`
+# Faehrt alle vier Laufarten nach `out/` und schreibt danach
+# `out/dashboard.html` sowie den Markdown-Satz unter `reports/`
 # (latest.md, runs/<id>.md, README.md). Der Berichtsteil laeuft auch allein:
 #
 #   ./lab.sh                     messen und berichten

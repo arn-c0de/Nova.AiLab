@@ -15,10 +15,10 @@ Dieser Ordner ist die **lesbare Fassung** der Laborläufe: [`latest.md`](latest.
 
 ```bash
 # messen, Bericht schreiben, Historie fortschreiben — ein Kommando
-python3 tools/Nova.AiLab/report/build_reports.py tools/Nova.AiLab/out
+python3 Nova.AiLab/report/build_reports.py out
 
 # nur neu rendern, ohne zu messen (nach einer Formatänderung)
-python3 tools/Nova.AiLab/report/build_reports.py --regenerate
+python3 Nova.AiLab/report/build_reports.py --regenerate
 ```
 
 ## Zuletzt vermessen — [`20260810-1504-c8e46af5`](latest.md)

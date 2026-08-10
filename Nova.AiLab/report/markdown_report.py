@@ -61,11 +61,11 @@ DEFECT_SCHEMA1 = (
 
 REPRO = """```bash
 export DOTNET_ROOT="$PWD/.dotnet"; export PATH="$DOTNET_ROOT:$PATH"
-dotnet run --project tools/Nova.AiLab -c Release -- match --trace-every 50 --hash-every 500 --view-every 25 --fog --out tools/Nova.AiLab/out/match
-dotnet run --project tools/Nova.AiLab -c Release -- duel     --out tools/Nova.AiLab/out/duel
-dotnet run --project tools/Nova.AiLab -c Release -- movement --out tools/Nova.AiLab/out/movement
-dotnet run --project tools/Nova.AiLab -c Release -- compare  --out tools/Nova.AiLab/out/compare
-python3 tools/Nova.AiLab/report/build_reports.py tools/Nova.AiLab/out
+dotnet run --project Nova.AiLab -c Release -- match --trace-every 50 --hash-every 500 --view-every 25 --fog --out out/match
+dotnet run --project Nova.AiLab -c Release -- duel     --out out/duel
+dotnet run --project Nova.AiLab -c Release -- movement --out out/movement
+dotnet run --project Nova.AiLab -c Release -- compare  --out out/compare
+python3 Nova.AiLab/report/build_reports.py out
 ```"""
 
 # Mehr Stuetzstellen macht den Mermaid-Block breiter, nicht lesbarer. Die
@@ -572,10 +572,10 @@ def index_markdown(summaries):
         'aufgeschrieben hat, wird ein zweites Mal gelaufen.', '',
         '```bash',
         '# messen, Bericht schreiben, Historie fortschreiben — ein Kommando',
-        'python3 tools/Nova.AiLab/report/build_reports.py tools/Nova.AiLab/out',
+        'python3 Nova.AiLab/report/build_reports.py out',
         '',
         '# nur neu rendern, ohne zu messen (nach einer Formatänderung)',
-        'python3 tools/Nova.AiLab/report/build_reports.py --regenerate',
+        'python3 Nova.AiLab/report/build_reports.py --regenerate',
         '```', '',
     ]
 
