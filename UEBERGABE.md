@@ -1,9 +1,10 @@
 # Übergabe — alles, was der nächste Agent wissen muss
 
-**Stand:** 2026-08-10 · KI-Verhalten `r7.E34435F9` · Spiel-Checkout auf
-`feat/ai-goal-system` (aus `main`, `5635009`) · Labor auf `main` · beide
-Testsuiten grün (**715/715** im Spiel, **145/145** im Labor) · Referenzlauf
-Entscheidung **3213**, Endzustand **`0xE002DD893916967B`**
+**Stand:** 2026-08-10 · KI-Verhalten `r8.1E6E7AE3` · Spiel-Checkout auf
+`feat/ai-goal-system-r8` (`1d330a05`, gepusht in den Fork) · Labor auf `main` ·
+Laborsuite **149/149** · Referenzlauf
+[`20260810-1858-1d330a05`](reports/latest.md): Entscheidung **6.490**,
+Endzustand **`0x0F892EFC042D6514`**, Definitionstabelle `0xD5F219A3F68088FF`
 
 > **Zwei Dinge, die seit der letzten Übergabe passiert sind und den Einstieg
 > ändern.**
@@ -283,13 +284,24 @@ Stärke-Wellentor (`r6`, PR #72). Verworfen und **nicht noch einmal anfangen**:
 `DefendBase` in der Fassung von V002, Zielen unterhalb der Angriffsschwelle
 (V003), Rally-Punkt als Sammelbefehl (F002).
 
-**Seit dieser Übergabe dazugekommen, noch nicht im Upstream:** das
-**Goal-System als Form** (ROADMAP Punkt 2) auf `feat/ai-goal-system` — vier
-benannte Module statt einer if-Kette, verhaltensneutral und byte-identisch
-nachgewiesen, dazu zwei optionale Nähte, die der ausgelieferte Pfad nie füllt
-(`IAiGoalObserver`, `IAiGoalOverride`). Im Labor darauf aufbauend
-`goals.ndjson`, die Goal-Anzeige im Player und der `live`-Modus mit Eingriff.
-**Noch nicht committet, noch nicht gepusht, kein PR.**
+**Auf `feat/ai-goal-system-r8` im Fork, noch kein PR:** drei Commits.
+
+1. **Goal-System als Form** (ROADMAP Punkt 2) — benannte Module statt einer
+   if-Kette, verhaltensneutral und byte-identisch nachgewiesen.
+2. **Beobachter und Goal-Maske** (`IAiGoalObserver`, `IAiGoalOverride`) — zwei
+   optionale Nähte, die der ausgelieferte Pfad nie füllt.
+3. **`DefendHome`** (`r8`, ROADMAP Punkt 1) — das erste Goal mit einer eigenen
+   Regel, Aus-Stellung `defendHomeCells: 0`.
+
+Im Labor darauf aufbauend `goals.ndjson`, die Goal-Anzeige im Player und der
+`live`-Modus mit Eingriff — alles auf `main`, gemessen in
+[`reports/latest.md`](reports/latest.md).
+
+> **Was `r8` wert ist, steht in [V008](reports/behavior-log.md) und ist
+> unangenehm:** wehrlos im Beschussfenster fällt von 96 % auf 60 %, die Legion
+> verliert dafür 60 statt 18 Einheiten und die Partie trotzdem. Es verschiebt
+> die Niederlage von Tick 3.213 auf 6.490, es wendet sie nicht ab. Wer hier
+> weiterbaut, fängt bei dieser Zahl an und nicht bei der ersten.
 
 > **Der wichtigste offene Punkt:** `r6` ist gebaut und im ausgelieferten Spiel
 > **wirkungslos**. `waveStrengthPoints: 1200` gegen eine Armeeobergrenze von 12

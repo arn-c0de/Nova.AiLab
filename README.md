@@ -63,6 +63,8 @@ Vorführung, sondern als **Vergleichspunkt**: Wellenrhythmus, Anmarsch, Rückzug
 und Zielwahl in Bewegung, so wie sie vor den nächsten Änderungen aussehen. Wenn
 [ROADMAP](ROADMAP.md) 1, 3 und 5 gebaut sind, wird gegen genau diese Aufnahme
 verglichen — was sich verändert hat, sieht man dann, ohne eine Zahl zu lesen.
+**Punkt 1 ist inzwischen gebaut, und der Vergleich ist gezogen:** die zweite
+Aufnahme unten zeigt denselben Fall mit `DefendHome` ([B004](reports/behavior-log.md)).
 
 | Aufnahme | `Nova.AiLab-Behavior-a6-20260809-181200-feat_ai-strength-wave-gate-308d8cf` |
 |---|---|

@@ -11,8 +11,8 @@ Repository, eigene Lizenz, kein Pull Request ins Spiel.
 | **Wie** | `./lab.sh` messen, `reports/latest.md` lesen, `out/player.html` hinsehen |
 | **Was als nächstes** | [`ROADMAP.md`](ROADMAP.md) — eine Liste, eine Nummerierung |
 
-**Stand:** KI-Verhalten `r6.E34435F9`, Commit `c8e46af5`, Definitionstabelle
-`0x6326FA3E56CFF5A3` · gemessen in [`reports/latest.md`](reports/latest.md)
+**Stand:** KI-Verhalten `r8.1E6E7AE3`, Commit `1d330a05`, Definitionstabelle
+`0xD5F219A3F68088FF` · gemessen in [`reports/latest.md`](reports/latest.md)
 
 ---
 

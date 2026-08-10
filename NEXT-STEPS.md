@@ -6,7 +6,8 @@ nächstes gebaut wird, in welcher Reihenfolge und mit welchem Stand, steht
 ausschliesslich in [`ROADMAP.md`](ROADMAP.md).**
 
 **Stand des Dokuments:** geschrieben gegen `r2`/`r4`, fortgeschrieben am
-2026-08-10 · **Heutiger Stand der KI:** `r6.E34435F9`, Commit `c8e46af5` ·
+2026-08-10 · **Heutiger Stand der KI:** `r8.1E6E7AE3`, Commit `1d330a05`
+(`feat/ai-goal-system-r8`) ·
 Messgrundlage: [`reports/latest.md`](reports/latest.md) ·
 Historie: [`reports/behavior-log.md`](reports/behavior-log.md) ·
 Für die gespielte Partie: [`PLAYTEST-CHECKLIST.md`](PLAYTEST-CHECKLIST.md)

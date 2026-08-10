@@ -1,7 +1,10 @@
 # Roadmap — KI-Verhalten, eine Liste und eine Nummerierung
 
-**Stand:** KI-Verhalten `r7.E34435F9` · Commit `5635009` (upstream `main`) ·
-Referenzlauf Entscheidung **3213**, Endzustand **`0xE002DD893916967B`** · Messgrundlage
+**Stand:** KI-Verhalten `r8.1E6E7AE3` · Commit `1d330a05`
+(`feat/ai-goal-system-r8`, noch nicht in `upstream/main`) · Definitionstabelle
+`0xD5F219A3F68088FF` · Referenzlauf
+[`20260810-1858-1d330a05`](reports/latest.md): Entscheidung **6.490**,
+Endzustand **`0x0F892EFC042D6514`** · Messgrundlage
 [`reports/latest.md`](reports/latest.md) · Historie
 [`reports/behavior-log.md`](reports/behavior-log.md)
 
@@ -38,6 +41,7 @@ schmeichelhafteste.
 | `r6` | **Stärke-Wellentor** — Kampfpunkte statt Köpfe (PR #72) | [V007](reports/behavior-log.md) | mit angehobener Obergrenze: Legion 23 Verluste statt 51, Austausch 139 statt 45 |
 | — | ~~Rally-Punkt auf den Sammelpunkt~~ **gestrichen** | [F002](findings/F002-rallypoint-ist-die-spawnzelle.md) | der Rally-Punkt ist die Spawn-Zelle; das wäre Teleportation |
 | — | **Goal-System als Form** (Punkt 2) — benannte Module statt Zweige, dazu Beobachter und Goal-Maske | noch kein Journaleintrag: **es gibt keine Verhaltensänderung zu berichten** | Entscheidungstick **3213** und Endzustand **`0xE002DD893916967B`** unverändert, Artefakte byte-identisch bis auf `elapsedMilliseconds`. Kein `Revision`-Bump |
+| `r8` | **`DefendHome`** (Punkt 1) — Sammeln abbrechen, wenn die eigene Basis brennt. Aus-Stellung `defendHomeCells: 0` | [V008](reports/behavior-log.md), am Player angesehen ([B004](reports/behavior-log.md)) | „wehrlos im Beschussfenster" **96 % → 60 %** — und dafür **60 statt 18** eigene Verluste. **Verschiebt die Niederlage, wendet sie nicht ab** |
 
 > [!WARNING]
 > **`r6` ist gebaut und im ausgelieferten Spiel wirkungslos.** `waveStrengthPoints: 1200`
@@ -57,27 +61,25 @@ Die Nummer ist die **Reihenfolge**, nicht die Revision. Jede Zeile ist ein PR,
 jede bringt einen Profilwert mit Aus-Stellung mit und wird **einseitig**
 gemessen (Methodenbefund [M001](reports/behavior-log.md)).
 
-> [!WARNING]
-> **Die Spalte „Liefert" ist um eins verschoben und wird beim nächsten PR
-> korrigiert.** Sie wurde geschrieben, als `AiBehaviorId.Revision` bei 6 stand;
-> inzwischen steht sie bei **7** — der Inhaber hat sie für die
-> D-103-Voraussetzungskette vergeben (Refinery → Power → Barracks). Die
-> nächste Verhaltensänderung aus diesem Strang ist also **`r8`**, nicht `r7`,
-> und alles darunter rutscht mit. Die **Reihenfolge** in der ersten Spalte
-> stimmt, und nur die zählt.
+> [!NOTE]
+> **Die Spalte „Liefert" ist nachgezogen.** Sie war um eins verschoben: `r7`
+> hat der Inhaber für die D-103-Voraussetzungskette vergeben (Refinery → Power
+> → Barracks), und `r8` ist seit `DefendHome` ebenfalls vergeben. Die Nummern
+> unten sind jetzt die tatsächlich nächsten freien. Die **Reihenfolge** in der
+> ersten Spalte ist die verbindliche — die Revision ist nur eine Zusage darüber,
+> wie der Bezeichner danach heisst.
 
 | # | Was | Liefert | Ort | Aus-Stellung | Erste Zahl, die man ansieht | Plan |
 |---:|---|---|---|---|---|---|
-| 1 | **Sammeln abbrechen, wenn die eigene Basis angegriffen wird** | `r7` | `AI/`, `AI.Data/` | `defendHomeThreatPoints: 0` | Ticks „wehrlos" (heute **19 %** der Zeit unter Feuer) | [VERTEIDIGUNG.md](VERTEIDIGUNG.md) |
-| 3 | **Nachschub-Doktrin** — hinter der laufenden Welle nachsenden, bei gebrochener Welle nicht | `r8` | `AI/`, `AI.Data/` | `reinforceMinStrengthPercent: 0` | **Intents je 1.000 Ticks** (der V002-Fehlermodus) | [KAMPFSTAERKE §6](KAMPFSTAERKE.md) |
-| 4 | **Zweites lohnendes Ziel** — Harvester und Refinery statt HQ-Kurzschluss | `r9` | `AI/` | `targetHqWeight` so hoch, dass er alles überstimmt | Zahl verschiedener Zielarten je Partie (heute faktisch 1) | [NEXT-STEPS §2](NEXT-STEPS.md) |
-| 5 | **Wellengrösse nach Lage** — Kampfpunkte der gesehenen Feindgruppe bestimmen die Schwelle | `r10` | `AI/`, `AI.Data/` | `waveOvermatchPercent: 0` | Verteilung der Wellengrössen (braucht **L1**) | [KAMPFSTAERKE §5a](KAMPFSTAERKE.md) |
-| 6 | **Basis ausbauen und Fahrzeuge kaufen** — Bauliste bis Fahrzeugwerk, Kaufregel nach Punkten je 100 AE | `r11` | `AI/`, `AI.Data/` | `buildVehiclePlant: false` | `buildingsByRole`, Credits-Kurve, Armeezusammensetzung | [KAMPFSTAERKE §7–§8.1](KAMPFSTAERKE.md) |
-| 7 | **Armee-Stärkeziel statt Kopfzahl** — produziert wird auf Punkte hin | `r12` | `AI/`, `AI.Data/` | `targetArmyStrengthPoints: 0` | Credits-Kurve: steigt sie immer noch monoton? | [KAMPFSTAERKE §8.2](KAMPFSTAERKE.md) |
-| 8a | **Anmarsch über eine Route statt der Luftlinie** | `r13` | `AI/`, `Pathfinding/` | `detourDamageBudget: 0` | Schaden vor dem ersten eigenen Schuss | [NEXT-STEPS §2](NEXT-STEPS.md) |
-| 8b | **Formationsangriff / Flanke** — zwei Anmarschwege auf dasselbe Ziel | `r14` | `AI/` | `flankMinGroupPoints: 0` | Austauschverhältnis; Schaden vor dem ersten Schuss (braucht **L2**) | [GOALS §5](GOALS.md) |
-| 9 | **`DefendBase`, zweiter Anlauf** — mit Kampfpunkten als Mass für „echte Bedrohung" | `r15` | `AI/` | `defenseRadiusCells: 0` | Intents je 1.000 Ticks, dann Reaktionslatenz | [NEXT-STEPS §3](NEXT-STEPS.md) |
-| 10 | **Abstandhalten *plus* Aufklärung** — nur als Paar | `r16` | `Movement/`, `AI/` | `standoffSlackCells: 0` | `usableRangeOvershootCells` (heute **7** von 20) | [NEXT-STEPS §6](NEXT-STEPS.md) |
+| 3 | **Nachschub-Doktrin** — hinter der laufenden Welle nachsenden, bei gebrochener Welle nicht | `r9` | `AI/`, `AI.Data/` | `reinforceMinStrengthPercent: 0` | **Intents je 1.000 Ticks** (der V002-Fehlermodus) | [KAMPFSTAERKE §6](KAMPFSTAERKE.md) |
+| 4 | **Zweites lohnendes Ziel** — Harvester und Refinery statt HQ-Kurzschluss | `r10` | `AI/` | `targetHqWeight` so hoch, dass er alles überstimmt | Zahl verschiedener Zielarten je Partie (heute faktisch 1) | [NEXT-STEPS §2](NEXT-STEPS.md) |
+| 5 | **Wellengrösse nach Lage** — Kampfpunkte der gesehenen Feindgruppe bestimmen die Schwelle | `r11` | `AI/`, `AI.Data/` | `waveOvermatchPercent: 0` | Verteilung der Wellengrössen (braucht **L1**) | [KAMPFSTAERKE §5a](KAMPFSTAERKE.md) |
+| 6 | **Basis ausbauen und Fahrzeuge kaufen** — Bauliste bis Fahrzeugwerk, Kaufregel nach Punkten je 100 AE | `r12` | `AI/`, `AI.Data/` | `buildVehiclePlant: false` | `buildingsByRole`, Credits-Kurve, Armeezusammensetzung | [KAMPFSTAERKE §7–§8.1](KAMPFSTAERKE.md) |
+| 7 | **Armee-Stärkeziel statt Kopfzahl** — produziert wird auf Punkte hin | `r13` | `AI/`, `AI.Data/` | `targetArmyStrengthPoints: 0` | Credits-Kurve: steigt sie immer noch monoton? | [KAMPFSTAERKE §8.2](KAMPFSTAERKE.md) |
+| 8a | **Anmarsch über eine Route statt der Luftlinie** | `r14` | `AI/`, `Pathfinding/` | `detourDamageBudget: 0` | Schaden vor dem ersten eigenen Schuss | [NEXT-STEPS §2](NEXT-STEPS.md) |
+| 8b | **Formationsangriff / Flanke** — zwei Anmarschwege auf dasselbe Ziel | `r15` | `AI/` | `flankMinGroupPoints: 0` | Austauschverhältnis; Schaden vor dem ersten Schuss (braucht **L2**) | [GOALS §5](GOALS.md) |
+| 9 | **`DefendBase`, zweiter Anlauf** — mit Kampfpunkten als Mass für „echte Bedrohung" | `r16` | `AI/` | `defenseRadiusCells: 0` | Intents je 1.000 Ticks, dann Reaktionslatenz | [NEXT-STEPS §3](NEXT-STEPS.md) |
+| 10 | **Abstandhalten *plus* Aufklärung** — nur als Paar | `r17` | `Movement/`, `AI/` | `standoffSlackCells: 0` | `usableRangeOvershootCells` (heute **7** von 20) | [NEXT-STEPS §6](NEXT-STEPS.md) |
 | 11 | **Schwierigkeitsgrade** — drei Zahlensätze, keine zweite KI | kein Bump | `AI.Data/` | entfällt | drei Profile nebeneinander, **keine Rangliste** | [KAMPFSTAERKE §11](KAMPFSTAERKE.md) |
 
 ### Laborarbeit — kein PR ins Spiel, aber Voraussetzung
@@ -148,7 +150,7 @@ ein — als *Eingabe* der Entscheidung, nicht als Zustand).
 
 | Regel | Warum |
 |---|---|
-| **1 vor jeder Anhebung der Obergrenze** | Der Defekt „wartet, während das HQ brennt" wächst mit der Obergrenze: wartende Einheit-Ticks je 1.000 gehen von 3.502 auf 12.326 |
+| ~~**1 vor jeder Anhebung der Obergrenze**~~ | **eingelöst** mit `DefendHome` (`r8`). Der Defekt „wartet, während das HQ brennt" wächst mit der Obergrenze — wartende Einheit-Ticks je 1.000 gingen von 3.502 auf 12.326 —, und deshalb musste er vor jeder Anhebung fallen. **Er ist gemildert, nicht behoben:** wehrlos im Beschussfenster 96 % → 60 % (V008) |
 | ~~**2 vor 3**~~ | **eingelöst.** Die Module stehen; die Nachschub-Doktrin wird eins davon, kein vierter Zweig |
 | **3 vor 5** | Der Abbruchwert ist ein Prozentsatz **der** Wellenschwelle. Wird die Schwelle im selben Zug variabel, misst man zwei Änderungen als eine |
 | **4 vor 5** | Wellengrösse nach Lage braucht mehr als eine Lage. Solange jedes Ziel das HQ ist, gibt es keine |

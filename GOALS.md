@@ -2,8 +2,9 @@
 
 **Notiert am:** 2026-08-10 · **Status: Teile 1 und 3 gebaut** (Goal-System,
 Panel lesend, Live-Modus mit Eingriff), **Teil 2 (Flanke) offen**, und die
-**Vorausschau** aus §6.1 ebenfalls · **Stand:** KI-Verhalten `r7.E34435F9`,
-Commit `5635009` ·
+**Vorausschau** aus §6.1 ebenfalls · **Stand:** KI-Verhalten `r8.1E6E7AE3`,
+Commit `1d330a05`, Referenzlauf
+[`20260810-1858-1d330a05`](reports/latest.md) ·
 **Vorher lesen:** [`ROADMAP.md`](ROADMAP.md) §2 (Punkte 2, 8b, L3),
 [`reports/behavior-log.md`](reports/behavior-log.md) V002–V007,
 [`AGENTS.md`](AGENTS.md) §3–§4
@@ -15,7 +16,7 @@ Commit `5635009` ·
 >
 > | Geplant | Stand |
 > |---|---|
-> | §2 Goal-System, verhaltensneutral | **gebaut.** `GoalKind` in `AI.Data/`, vier Module in `SkirmishAiSystem`. Entscheidungstick **3213** und Endzustand **`0xE002DD893916967B`** unverändert, Artefakte byte-identisch bis auf `elapsedMilliseconds` |
+> | §2 Goal-System, verhaltensneutral | **gebaut.** `GoalKind` in `AI.Data/`, die Module in `SkirmishAiSystem`. Nachgewiesen an dem Stand, an dem er zu führen war — Commit `5635009`, Entscheidungstick **3213**, Endzustand **`0xE002DD893916967B`**, Artefakte byte-identisch bis auf `elapsedMilliseconds`. Die Zahlen stehen hier, weil ein Neutralitätsnachweis nur gegen den Stand gilt, an dem er gemessen wurde; `r8` hat danach bewusst Verhalten geändert |
 > | §2 „Priorität aus dem Profil, 0 = Modul aus" | **anders gebaut, und der Unterschied trägt den Nachweis.** Ein angehängtes Profilfeld bewegt `ProfileHash` und damit `aiBehaviorId` in jedem `result.json` — der Schritt wäre dann nicht byte-identisch gewesen. Die Reihenfolge steht fest im Code; die Aus-Stellung bringt jedes Modul mit, das eine **Regel** bekommt |
 > | §3 `goals.ndjson`, delta-kodiert | **gebaut, nicht delta-kodiert.** Eine Zeile je Sitz und Kadenz: die kanonische Partie ergibt rund 2.000 Zeilen, und die Zahlen neben dem Goal ändern sich ohnehin in jeder Zeile — nur die Goal-Spalte liesse sich überhaupt verdichten |
 > | §6.1 Panel, lesend | **gebaut, im vorhandenen Player** statt als zweite Karte: Goal, seit wann, welches davor, die Zahlen der Bedingung, die Kipppunkte. Die als „derived" markierte Nachrechnung der Wellenschwelle ist damit **weg**, wo eine Aufzeichnung vorliegt |

@@ -1,8 +1,8 @@
 # Was in der gespielten Partie zu prüfen ist
 
 **Geschrieben gegen** KI-Verhalten `r4.779A1B5B` · **heutiger Stand**
-`r6.E34435F9` — die Punkte 1 bis 6 gelten unverändert, seit `r5`/`r6` kommen
-zwei Fragen dazu (§7).
+`r8.1E6E7AE3` — die Punkte 1 bis 6 gelten unverändert, seit `r5`/`r6` kommen
+zwei Fragen dazu (§7), seit `r8` eine dritte (§8).
 
 **Wofür das hier ist.** Das Labor misst Stärke, Tempo und Rhythmus. Ob sich eine
 Partie **gut anfühlt**, misst es nicht und soll es nicht (Entscheidung 11). Das
@@ -36,8 +36,9 @@ Beobachtung, nicht `V` wie Verhaltensmessung.
 
 - [ ] **Bezeichner im F3-HUD notieren**, bevor gespielt wird — er gehört in den
       Journaleintrag. Zu dieser Liste passen `r4.779A1B5B` (Stand, gegen den sie
-      geschrieben ist) und `r6.E34435F9` (heutiger `upstream/main`). Steht dort
-      etwas anderes, beschreiben die Punkte unten eine andere KI.
+      geschrieben ist), `r7.E34435F9` (heutiger `upstream/main`) und
+      `r8.1E6E7AE3` (Branch `feat/ai-goal-system-r8`, für den §8 gilt). Steht
+      dort etwas anderes, beschreiben die Punkte unten eine andere KI.
 - [ ] Zwei Partien einplanen, nicht eine. Die halbe Liste fragt „passiert das
       **zweimal** gleich".
 - [ ] Mitschreiben, während gespielt wird. Nach der Partie erinnert man das
@@ -153,3 +154,34 @@ seit `r2` neu ist; die dritte prüft, was bekannt kaputt ist.
   Laborzahl.
 - Erst danach darf in einem PR-Text „im laufenden Spiel gesehen" stehen — und
   auch dann nur für genau das, was tatsächlich gesehen wurde.
+
+---
+
+## 8 · Seit `r8`: bricht sie das Sammeln ab, wenn die Basis brennt?
+
+**Die Frage, mit einem Auge zu beantworten:** Stell dich mit ein paar Einheiten
+an ihr Hauptquartier und schiess darauf, während ihre Armee am Sammelpunkt
+wartet. **Drehen die Wartenden um und kommen heim?**
+
+Bis `r7` taten sie das nicht: eine Einheit, die am Sammelpunkt angekommen ist,
+bekommt absichtlich **keinen** Befehl, und sie hängt damit ganz an der
+Auto-Erfassung — die reicht sechs bis sieben Zellen, der Sammelpunkt liegt
+zwölf von der Basis entfernt. Sie stand also daneben und sah zu.
+
+**Was `r8` daraus macht, und was nicht.** Im Labor fällt „wehrlos im
+Beschussfenster" von 96 % auf 60 % — sie reagiert. Sie **gewinnt deshalb
+nicht**: dieselbe Messung zeigt dreimal so viele eigene Verluste und dieselbe
+Niederlage, nur später. Beim Spielen ist deshalb die zweite Frage die
+wichtigere:
+
+> **Sieht das Heimkommen richtig aus oder kaputt?** Kommen sie als Gruppe und
+> stellen sich hin — oder pendeln sie zwischen Sammelpunkt und Basis hin und
+> her? Pendeln wäre `DefendBase` in neuer Form, und daran ist V002 gestorben.
+
+Zwei Dinge, die absichtlich so sind und **kein** Befund sind:
+
+- **Wer schon draussen marschiert, kommt nicht zurück.** Nur die Wartenden im
+  Sammelring drehen um. Eine Welle zurückzurufen ist genau der Fehler aus V002.
+- **Sie laufen auf die HQ-Zelle, nicht auf den Angreifer.** Ein festes Ziel
+  bedeutet einen Befehl statt einem je Kadenz — das ist der Grund, warum es
+  diesmal nicht am Befehlsrauschen scheitert.

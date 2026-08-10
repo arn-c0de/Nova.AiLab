@@ -1,11 +1,10 @@
 # Nova.AiLab — Handreichung für Agenten
 
-**Stand:** KI-Verhalten `r7.E34435F9`, Commit `5635009`, Referenzlauf
-Entscheidung **3213**, Endzustand **`0xE002DD893916967B`** · die Zahlen in §5
-stammen aus der älteren Messmenge an Commit `3b3f27d` und sind als solche
-gekennzeichnet — **sie gelten nicht mehr für den heutigen Stand**, upstream ist
-seither weitergezogen (endliche Aetheriumfelder D-102, Bauvoraussetzungen,
-`Stop` löscht `AttackTarget`)
+**Stand:** KI-Verhalten `r8.1E6E7AE3`, Commit `1d330a05`
+(`feat/ai-goal-system-r8`), Definitionstabelle `0xD5F219A3F68088FF` ·
+Referenzlauf [`20260810-1858-1d330a05`](reports/latest.md): Entscheidung
+**6.490**, Endzustand **`0x0F892EFC042D6514`** · **die Zahlen in §5 stammen
+aus genau diesem Lauf**
 **Gilt zusätzlich:** `../CLAUDE.md` (Arbeitsvertrag), `../Project_Nova/AGENTS.md`,
 [`README.md`](README.md) nebenan
 **Erst lesen, wenn man neu hier ist:** [`UEBERGABE.md`](UEBERGABE.md) (der
@@ -192,23 +191,40 @@ nur ausfüllen, wenn ein Mensch tatsächlich gespielt hat.
 
 ## 5. Was die Zahlen heute sagen
 
-Aus dem letzten vollständigen Lauf (`out/`, Commit `3b3f27d`). Diese Werte sind
-der Ausgangspunkt jeder Verbesserung — wer sie verschiebt, muss sagen, um wieviel.
+Aus dem letzten vollständigen Lauf: [`20260810-1858-1d330a05`](reports/latest.md),
+Commit `1d330a05`, Definitionstabelle `0xD5F219A3F68088FF`. Diese Werte sind der
+Ausgangspunkt jeder Verbesserung — wer sie verschiebt, muss sagen, um wieviel.
+
+> [!WARNING]
+> **Die Historie beginnt hier faktisch neu.** Upstream hat die
+> Definitionstabelle bewegt (`0x6326FA3E56CFF5A3` → `0xD5F219A3F68088FF`,
+> fünf endliche Aetheriumfelder D-102 und die Bauvoraussetzungen). Die
+> siebzehn älteren archivierten Läufe sind damit **nicht** mehr
+> vergleichbar, und der Bericht lehnt den Vergleich von sich aus ab
+> (`COMPARISON REFUSED`). Das ist gewolltes Verhalten, kein Defekt.
 
 | Befund | Zahl | Quelle |
 |---|---|---|
-| Fernkämpfer laufen bis auf **0 Zellen** heran | Reichweite 20, Sicht 10, **Feuereröffnung bei 7** (Allianz; Legion 18/10/7) → nutzbarer Überlauf **7**, nicht 20 | `movement.ndjson`, `standoff`: `usableRangeOvershootCells` |
-| Artillerie kann ihre Reichweite ohne Aufklärung nicht nutzen | 4 von 36 Siegen (Allianz), 2 von 36 (Legion); alle 100 kontaktlosen Duelle liegen auf Waffenreichweite | `duels.ndjson` |
+| Fernkämpfer laufen bis auf **0 Zellen** heran | Reichweite 20, Sicht 10, **Feuereröffnung bei 7** (Allianz; Legion 18/10/7) → nutzbarer Überlauf **7 von 7**, nicht 20 | `movement.ndjson`, `standoff`: `usableRangeOvershootCells` |
+| Artillerie kann ihre Reichweite ohne Aufklärung nicht nutzen | **100 von 576** Duellen enden ohne einen einzigen Schuss; jede Artilleriezeile der Gegentabelle trägt das Kontaktzeichen | `duels.ndjson` |
 | Belagerung: Explosiv liegt über dem Matrixwert, aber nicht um Faktor 12 | Legion gegen die eigene Barracks, je 6 Einheiten: `BasicInfantry` 632 Ticks für 360 AE, `AntiArmorInfantry` 52 für 1.200 AE. Reine Zeit 12,2× — **je AE aber 3,65×** gegen die 2,5× der Matrix | `duels.ndjson`, `siege: true` |
 | Die Spawnreihenfolge kippt echte Paarungen | **5** Richtungsabweichungen (Spiegelpaarungen werden nicht mehr mit sich selbst verglichen) | `duels.ndjson`, beide Richtungen |
-| Die KI wird **nie** abgelehnt | `intentsRejected` 0 von 1021 | `trace.ndjson` |
+| Die KI wird **nie** abgelehnt | `intentsRejected` **0 von 461** | `trace.ndjson` |
 | Enge Stellen sind kein Problem | 16 Einheiten durch eine **Zwei-Zellen**-Engstelle, 0 Blockaden, Ankunft 158/178 | `movement.ndjson`, `blocking`: `wallGapCells` |
+| **`DefendHome` greift, und sparsam** | **31 Beurteilungen in 8 Entscheidungen**, ausschliesslich Legion, Tick 2.820–4.460 — und dafür nur 25 Befehle auf **eine** statische Zielzelle | `goals.ndjson` |
+| Aktionen je Minute bleiben unter menschlichem Niveau | Allianz **41,4**, Legion **30,1** Intents je 1.000 Ticks (bei 10 Hz also 24,8 bzw. 18,1 Aktionen/Minute) | `trace.ndjson` |
 
-Die vorletzte Zeile ist die interessanteste für einen Agenten: **`intentsRejected` ist
-heute strukturell 0**, weil die KI nur fünf brave Befehlsarten benutzt. Sobald E7/E8
-mehr Befehle erzeugt, wird diese Spalte das Frühwarnsignal dafür, dass die KI gegen
-Executor-Regeln anrennt — überall sonst ist das stumm, weil `Submit()` das Verdikt
-absichtlich nicht auswertet.
+**`intentsRejected` ist weiterhin strukturell 0**, weil die KI fünf brave
+Befehlsarten benutzt. Sobald ein Punkt der Roadmap mehr Befehlsarten erzeugt
+(`SetRallyPoint`, `ReturnCargo`, `Repair`), wird diese Spalte das
+Frühwarnsignal dafür, dass die KI gegen Executor-Regeln anrennt — überall
+sonst ist das stumm, weil `Submit()` das Verdikt absichtlich nicht auswertet.
+
+**Und die Zeile, die man beim Lesen dieses Laufs im Kopf behalten muss:** die
+Legion verliert ihn, mit 60 gegen 25 Verlusten. `DefendHome` verschiebt die
+Entscheidung von 3.213 auf 6.490 Ticks, wendet die Niederlage aber nicht ab —
+die einseitige Messung dazu steht in [V008](reports/behavior-log.md), und sie
+ist der Grund, warum dieser Lauf eine Aufnahme ist und kein Beleg.
 
 ---
 

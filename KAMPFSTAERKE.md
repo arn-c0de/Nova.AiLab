@@ -4,7 +4,10 @@
 **Status:** Regel 1 **gebaut** (`r6`, PR #72), Regel 2 bis 4 **Plan** ·
 **Ausgangsstand der Messungen in §1:** KI-Verhalten `r5`, Commit `3d28f24`
 (mit `f13f4d5`), Definitionstabelle `0x6326FA3E56CFF5A3` ·
-**Heutiger Stand:** `r6.E34435F9`, Commit `c8e46af5` ·
+**Heutiger Stand:** `r8.1E6E7AE3`, Commit `1d330a05`, Definitionstabelle
+`0xD5F219A3F68088FF` — **die Messungen in §1 sind damit nicht mehr
+vergleichbar**, sie stammen aus der alten Definitionstabelle und stehen als
+Begründung, nicht als Bezugswert ·
 **Vorher lesen:** [`ROADMAP.md`](ROADMAP.md) (Reihenfolge und Stand),
 [`reports/behavior-log.md`](reports/behavior-log.md) V006/V007,
 [`NEXT-STEPS.md`](NEXT-STEPS.md) §0 und §7, [`AGENTS.md`](AGENTS.md) §3–§4 ·
