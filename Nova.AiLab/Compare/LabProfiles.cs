@@ -295,6 +295,14 @@ namespace Nova.AiLab
             // Trennsteuerung nimmt die Einheit wieder heraus. Ueber 100 steht
             // sie ausser Schussweite: als Kandidat drin, weil eine Achse, die
             // nur dort misst, wo es gut ausgeht, keine Achse ist.
+            // DIE AUS-STELLUNG IST SEIT r12 EIN KANDIDAT UND KEINE REFERENZ
+            // MEHR. Solange die Referenz auf 0 stand, war sie es; mit dem
+            // Verhalten ist der ausgelieferte Wert 80, und eine Achse ohne
+            // ihre Aus-Stellung kann die Regel nicht gegen ihre eigene
+            // Abwesenheit messen (M001). Ohne diese Zeile misst die Reihe nur
+            // noch, welcher Prozentsatz der beste ist, und nie, ob die Regel
+            // ueberhaupt einen macht.
+            Derive("standoff-off", engagementStandoffPercent: 0),
             Derive("standoff-25", engagementStandoffPercent: 25),
             Derive("standoff-40", engagementStandoffPercent: 40),
             Derive("standoff-55", engagementStandoffPercent: 55),
@@ -308,15 +316,16 @@ namespace Nova.AiLab
             // HQ-Gewicht: ein einzelner guter Wert ist erst dann keine
             // Einzelpartie, wenn er eine ANDERE Variation ueberlebt. Jede Kappe
             // gegen dieselbe Kappe ohne Standoff, sonst misst man die Kappe.
-            // Die AUS-Seite dieser Gegenprobe hat schon einen Namen: die
-            // Referenz steht auf 0, also IST `army-16` zugleich
-            // `army-16-standoff-off`. Ein zweiter Name auf dasselbe Profil
-            // misst nichts doppelt, er macht die Liste nur laenger und eine
-            // Zeile zur scheinbaren Bestaetigung der anderen. Hier steht
-            // deshalb nur die AN-Seite.
-            Derive("army-16-standoff-80", targetArmySize: 16, engagementStandoffPercent: 80),
-            Derive("army-20-standoff-80", targetArmySize: 20, engagementStandoffPercent: 80),
-            Derive("army-30-standoff-80", targetArmySize: 30, engagementStandoffPercent: 80),
+            // DIE SEITE, DIE HIER STEHT, HAT SICH MIT r12 GEDREHT. Solange die
+            // Referenz auf 0 stand, war `army-N` selbst die Aus-Seite und nur
+            // die AN-Seite brauchte einen Namen. Jetzt steht die Referenz auf
+            // 80, also IST `army-N-hq-100` zugleich `army-N-standoff-80` — ein
+            // zweiter Name auf dasselbe Profil misst nichts doppelt, er macht
+            // die Liste laenger und eine Zeile zur scheinbaren Bestaetigung der
+            // anderen. Benannt wird deshalb die AUS-Seite.
+            Derive("army-16-standoff-off", targetArmySize: 16, engagementStandoffPercent: 0),
+            Derive("army-20-standoff-off", targetArmySize: 20, engagementStandoffPercent: 0),
+            Derive("army-30-standoff-off", targetArmySize: 30, engagementStandoffPercent: 0),
             Derive("army-16-hq-100", targetArmySize: 16, targetHqWeight: 100),
             Derive("army-20-hq-100", targetArmySize: 20, targetHqWeight: 100),
             Derive("army-30-hq-100", targetArmySize: 30, targetHqWeight: 100),

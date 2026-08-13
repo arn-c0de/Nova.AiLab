@@ -39,6 +39,186 @@ was als nächstes drankommt und in welcher Reihenfolge.
 
 ---
 
+## V012 · 2026-08-13 · Kämpfende Einheiten halten Abstand voneinander — **angenommen**, und sie ist der Anlass für die zweite Schwelle in V011
+
+**Lauf:** einseitig über zwei Checkouts, Seed `0xA17E57DE57`, `20260813-1925-795044c7` (ohne) gegen `20260813-1927-6232ce1c` (mit) ·
+**Status:** im Labor gemessen **und im laufenden Spiel gesehen** ·
+**KI-Verhalten:** `r12.CA58924C`, **unverändert** — das hier ist Simulation, nicht KI ·
+**Stand:** `feat/movement-engaged-spacing`
+
+### Was genau geändert wurde
+
+In der Trennsteuerung von `MovementSystem` ist der Mindestabstand eines Paars
+nicht mehr immer `Radius + Radius`. Tragen **beide** Einheiten ein Angriffsziel
+**und gehören sie demselben Spieler**, kommen 0,5 m dazu — 1,5 m statt 1,0 m.
+`SimFixed.Zero` ist die Aus-Stellung.
+
+**Warum nicht immer.** Tuchfühlung ist für eine Kolonne richtig: wer 50 % breiter
+läuft, braucht durch jede Lücke 50 % länger, und das Flow-Field schickt Gruppen
+absichtlich durch Lücken. Falsch wird es in dem Moment, in dem die Gruppe stehen
+bleibt und schiesst — jede bewaffnete Einheit in MS-1 ist eine Fernkämpferin,
+und eine auf Tuchfühlung gepackte Linie ist ein Klumpen, dessen hintere Reihe
+nichts beiträgt ausser einem Körper zum Draufschiessen.
+
+**Symmetrisch, und das ist ein Determinismus-Argument.** Jede Einheit rechnet den
+Mindestabstand des Paars für sich, in einer anderen Iteration desselben
+Durchlaufs. Eine einseitige Regel hätte eine Einheit, die sich von einer
+Nachbarin wegdrückt, die weder ausweicht noch folgt — ein Driften, das auf zwei
+Rechnern **identisch** wäre und deshalb an keiner Determinismusprüfung
+auflaufen würde. Einen Feind weiter wegzudrücken wäre ausserdem keine Formation,
+sondern ein Kraftfeld.
+
+### Besser
+
+Kanonische Partie, Spiegelpartie gegen Spiegelpartie, also direkt vergleichbar:
+
+| Kennzahl | ohne die Regel | mit der Regel |
+|---|---:|---:|
+| Entscheidungstick | 4.905 | **4.337** |
+| Eigene Verluste | 29 | **23** |
+| Intents | 407 | **361** |
+
+Die Regel kostet nichts, sie spart. Das war **nicht** der erste Befund, siehe
+unten.
+
+### Schlechter
+
+- **Der erste Bau war ein Rückschritt und ist der eigentliche Ertrag dieses
+  Eintrags.** Mit der Standoff-Regel in ihrer ersten Fassung — *eine* Schwelle
+  für „hinlaufen" und „bleiben" — kostete dieselbe Partie **956 Intents statt
+  222** und dreimal so viele Verluste. Ursache: eine Trennkraft, die jeden Tick
+  nachdrückt, schob angekommene Einheiten aus ihrem Standoff-Ring, worauf die KI
+  sie jede Kadenz zurückbeorderte. Das ist die V002-Signatur, erzeugt durch das
+  Zusammenspiel zweier Regeln, die einzeln beide sauber messen.
+- Erst die zweite Schwelle (V011) macht die beiden verträglich. **Wer diese Regel
+  wieder ausbaut, nimmt der Hysterese ihren Anlass, nicht ihre Berechtigung.**
+
+### Unverändert
+
+- **Die vier Determinismus-Baselines bleiben grün, und das ist kein Freispruch.**
+  Ihre Szenarien bringen nie zwei Einheiten *eines* Spielers gleichzeitig ins
+  Gefecht — dort kämpft Spieler gegen Spieler, und für ein gegnerisches Paar
+  greift die Regel bewusst nicht. Der Nachweis, dass sie überhaupt feuert, sind
+  die vier Fälle in `EngagedSpacingTests`.
+
+### Offen
+
+- **Die Linienformation bleibt Inhaberentscheidung** (D-088). Was hier steht, ist
+  Abstand, keine Formation: die Verteilung der Zielzellen macht weiterhin
+  `ApplyMove`.
+
+---
+
+## V011 · 2026-08-13 · Der Standoff-Ring — **angenommen**, und im laufenden Spiel bestätigt
+
+**Lauf:** einseitig, Seed `0xA17E57DE57`, `20260813-1927-6232ce1c` ·
+**Status:** im Labor gemessen **und im laufenden Spiel gesehen** — Einheiten halten Abstand und kämpfen sauber miteinander ·
+**KI-Verhalten:** `r11.E750CBB3` → **`r12.CA58924C`** ·
+**Stand:** `feat/ai-standoff-engagement`
+
+### Was genau geändert wurde
+
+Das Marschziel einer angreifenden Einheit ist nicht mehr die Zelle des Feindes,
+sondern ein Punkt auf **ihrem eigenen** Waffenreichweiten-Ring darum.
+`engagementStandoffPercent` geht von 0 (r11 legte nur das Feld an) auf **80**.
+
+**Es ist kein Kampf-, sondern ein Bewegungsbefund.** Jede bewaffnete Einheit in
+MS-1 ist eine Fernkämpferin — Legion-Rekrut 6 Kacheln, Artillerie 18 — und
+`CombatSystem` hat die ganze Zeit auf Distanz geschossen. Was fehlte, war ein
+Grund **anzuhalten**. Hitscan-Leuchtspuren werden zwischen Schütze und Ziel
+gezeichnet; auf Tuchfühlung bleibt davon nichts, und das Spiel sah aus, als
+hätte es Nahkampf, den ihm keine Definition gibt. B002 hat genau das gespielt
+gesehen.
+
+**Ein Prozentsatz, keine Kachelzahl**, weil die Einheiten keine gemeinsame
+Reichweite haben: eine feste Distanz stellte die Artillerie in die erste Reihe
+oder hielte die Rekruten ausser Schussweite. Aus **einer** Zahl sortiert sich
+eine gemischte Armee nach Waffe.
+
+**Zwei Schwellen, nicht eine, und das ist gemessen statt ordentlich.** Hinlaufen
+und Bleiben sind verschiedene Fragen: eine angekommene Einheit sitzt **auf** dem
+Ring, also nimmt sie jeder Schubs um Haaresbreite heraus und kostet einen Befehl
+pro Kadenz. Eine **stehende** Einheit gilt deshalb bis eine Kachel weiter aussen
+als in Position — dieselbe Unterscheidung, die `IsAtTheStagingCell` über
+`IsMoving` trifft, ohne Gedächtnis. Die Schleppe ist auf `Reichweite − Standoff`
+gedeckelt, sonst hielte man eine Einheit auf einer Distanz fest, die ihre eigene
+Waffe nicht erreicht — genau der Fehler, gegen den die Regel gebaut ist.
+
+**Der Ring zieht auch zurück, nicht nur heran.** `MoveCell -1` heisst „kein neuer
+Befehl", nicht „anhalten": eine Einheit, der man nichts sagt, führt ihren alten
+Marschbefehl weiter aus. Und was sie üblicherweise ausführt, ist der Marsch auf
+das feindliche **Startgebiet** — das Ziel, solange nichts sichtbar ist. Eine
+Kadenz sind 20 Ticks, Infanterie legt darin acht Kacheln zurück, der Gegner
+taucht bei zehn auf und steht bei zwei, wenn das nächste Mal jemand fragt.
+**Innerhalb des Rings anzukommen ist der Normalfall**, nicht der Sonderfall.
+Ohne das Zurückziehen sah die Regel in den Befehlen richtig aus, während das
+Spiel weiter Tuchfühlung zeigte — der teuerste Befund dieses Eintrags, und
+gefunden hat ihn eine gespielte Runde, kein Test.
+
+### Besser
+
+Allianz-Sitz, einseitig gegen dieselbe Partie mit der Aus-Stellung:
+
+| Kennzahl | `standoff-off` | **80** |
+|---|---:|---:|
+| Entscheidungstick | 7.212 | **4.337** (−40 %) |
+| Eigene Verluste | 49 | **23** (−53 %) |
+| Intents | 531 | **361** |
+| Geringste Annäherung an etwas Feindliches | **0,0 Kacheln** | **2,0 Kacheln** |
+
+Die 0,0 ist wörtlich: die Einheiten standen im selben Feld wie der Gegner.
+
+**Gegengeprüft auf einer zweiten echten Achse.** Je Armeeobergrenze gegen
+**dieselbe** Obergrenze mit Aus-Stellung:
+
+| Obergrenze | Eigene Verluste | Entscheidung |
+|---|---|---:|
+| 16 | 82 → **61** | 9.626 → **7.844** |
+| 20 | 74 → **61** | 9.645 → **8.488** |
+| 30 | 37 → **36** | 5.979 → 5.983 |
+
+Zwei von drei deutlich besser, die dritte ein Gleichstand. Kein Ausreisser nach
+unten — anders als bei V010, wo eine Kappe schlechter wurde.
+
+### Schlechter
+
+- **Die Reihe stützt die 80 nicht.** 40 (32 Verluste), 70 (37) und 100 (44)
+  liegen ähnlich, 55 (51), 65 (51) und 90 (73) deutlich schlechter, ohne dass
+  die Kurve monoton wäre. Über **einen** Seed ist das eine Partie pro Wert. Die
+  80 ruht auf dem Margenargument — bei 100 hält die Einheit exakt auf der
+  Grenze, die `IsInRange` prüft, und der erste Schubs nimmt sie heraus, wozu
+  noch bis zu eine Kachel Quantisierung kommt — **nicht auf einer Messung.**
+- **120 % ist absichtlich ausser Schussweite und kostet 2.100 Intents** gegen
+  361. Das ist die Kontrolle, die zeigt, dass die Achse etwas Echtes misst.
+- **Das Zurückziehen kostet.** Ohne es lag dieselbe Partie bei 3.364 Ticks, 13
+  Verlusten, 222 Intents; mit ihm bei 4.905/29/407 (Stand ohne Abstandsregel).
+  Die KI spielt also messbar schlechter und sieht dafür richtig aus. Das ist die
+  Entscheidung, und sie fiel für das Spiel, nicht für die Tabelle.
+
+### Unverändert
+
+- **`engagementStandoffPercent: 0` ist der Zweig von vor der Regel**, tickgenau
+  und hashgenau, was `EngagementStandoffTests` festhält.
+- **Angriffsziel, Goal-Tabelle, Wellentor, Rückzugsregel und Sammelpunkt** sind
+  unangetastet. Der Standoff-Punkt ist eine dritte vom Aufrufer errechnete
+  Tatsache neben Verfolger und Zuhause-Flagge, damit `ApplyGoal` die reine
+  Funktion bleibt, auf der ein erzwungenes Goal beruht.
+- **Die vier Determinismus-Baselines** — sie fahren die Skirmish-KI nicht.
+
+### Offen
+
+- **Spielerbefohlene Fernkämpfer laufen weiterhin auf Tuchfühlung.** Das
+  Bewegungsszenario `standoff` misst es: Überlauf 7 von 7 Kacheln, nächster
+  Abstand 0. Die Regel sitzt in der KI-Entscheidung, nicht in der Bewegung, also
+  gilt sie für einen direkten Move-Befehl nicht. Ein Reichweiten-Stopp im
+  `MovementSystem` wäre der offensichtliche Ort — er würde aber gegen diese
+  Regel arbeiten (zwei Wohnorte für eine Distanz) und einen expliziten
+  Spielerbefehl übergehen. Offen, bewusst.
+- **Die 80 wartet auf eine Seed-Achse.** Solange es die nicht gibt, ist jeder
+  Wert dieser Reihe eine Partie.
+
+---
+
 ## V010 · 2026-08-13 · Das HQ wird ein Gewicht — **angenommen**, und es ist die erste Regel, die die Zielvielfalt bewegt
 
 **Lauf:** einseitig, Seed `0xA17E57DE57`, kanonische Spec, `out/r10-messreihe/` ·
