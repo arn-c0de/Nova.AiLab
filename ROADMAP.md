@@ -1,10 +1,10 @@
 # Roadmap — KI-Verhalten, eine Liste und eine Nummerierung
 
-**Stand:** KI-Verhalten `r8.1E6E7AE3` · Commit `1d330a05`
-(`feat/ai-goal-system-r8`, noch nicht in `upstream/main`) · Definitionstabelle
-`0xD5F219A3F68088FF` · Referenzlauf
-[`20260810-1858-1d330a05`](reports/latest.md): Entscheidung **6.490**,
-Endzustand **`0x0F892EFC042D6514`** · Messgrundlage
+**Stand:** KI-Verhalten `r9.800C26B0` · Branch `integration/ai-goals`
+(Goal-System `r8` aus PR #96 und der Feld-Fix aus PR #97 lokal
+zusammengeführt, **beides noch nicht in `upstream/main`**) ·
+Definitionstabelle `0xD5F219A3F68088FF` · Referenzlauf auf diesem Stand:
+Entscheidung **7.381**, Endzustand **`0x68A90A2C0FAB6EE2`** · Messgrundlage
 [`reports/latest.md`](reports/latest.md) · Historie
 [`reports/behavior-log.md`](reports/behavior-log.md)
 
@@ -41,6 +41,7 @@ schmeichelhafteste.
 | `r6` | **Stärke-Wellentor** — Kampfpunkte statt Köpfe (PR #72) | [V007](reports/behavior-log.md) | mit angehobener Obergrenze: Legion 23 Verluste statt 51, Austausch 139 statt 45 |
 | — | ~~Rally-Punkt auf den Sammelpunkt~~ **gestrichen** | [F002](findings/F002-rallypoint-ist-die-spawnzelle.md) | der Rally-Punkt ist die Spawn-Zelle; das wäre Teleportation |
 | — | **Goal-System als Form** (Punkt 2) — benannte Module statt Zweige, dazu Beobachter und Goal-Maske | noch kein Journaleintrag: **es gibt keine Verhaltensänderung zu berichten** | Entscheidungstick **3213** und Endzustand **`0xE002DD893916967B`** unverändert, Artefakte byte-identisch bis auf `elapsedMilliseconds`. Kein `Revision`-Bump |
+| `r9` | **Nachschub-Doktrin** (Punkt 3) — das Nachrücken bekommt eine Bedingung und einen Schalter. **Ausgeschaltet ausgeliefert** (`reinforceMinStrengthPercent: 0`) | [V009](reports/behavior-log.md) | die zwei Sitze überschneiden sich in **einem** Prozentwert; bei Obergrenze 30 ist **jede** Stellung schlechter als ohne die Regel, drei davon verlieren eine gewonnene Partie |
 | `r8` | **`DefendHome`** (Punkt 1) — Sammeln abbrechen, wenn die eigene Basis brennt. Aus-Stellung `defendHomeCells: 0` | [V008](reports/behavior-log.md), am Player angesehen ([B004](reports/behavior-log.md)) | „wehrlos im Beschussfenster" **96 % → 60 %** — und dafür **60 statt 18** eigene Verluste. **Verschiebt die Niederlage, wendet sie nicht ab** |
 
 > [!WARNING]
@@ -71,7 +72,7 @@ gemessen (Methodenbefund [M001](reports/behavior-log.md)).
 
 | # | Was | Liefert | Ort | Aus-Stellung | Erste Zahl, die man ansieht | Plan |
 |---:|---|---|---|---|---|---|
-| 3 | **Nachschub-Doktrin** — hinter der laufenden Welle nachsenden, bei gebrochener Welle nicht | `r9` | `AI/`, `AI.Data/` | `reinforceMinStrengthPercent: 0` | **Intents je 1.000 Ticks** (der V002-Fehlermodus) | [KAMPFSTAERKE §6](KAMPFSTAERKE.md) |
+| ~~3~~ | ~~**Nachschub-Doktrin**~~ — **gebaut und gemessen, liegt aus** (`r9`, [V009](reports/behavior-log.md)). Der Code steht, der Schalter steht, kein Wert hat sich gehalten | — | — | — | — | — |
 | 4 | **Zweites lohnendes Ziel** — Harvester und Refinery statt HQ-Kurzschluss | `r10` | `AI/` | `targetHqWeight` so hoch, dass er alles überstimmt | Zahl verschiedener Zielarten je Partie (heute faktisch 1) | [NEXT-STEPS §2](NEXT-STEPS.md) |
 | 5 | **Wellengrösse nach Lage** — Kampfpunkte der gesehenen Feindgruppe bestimmen die Schwelle | `r11` | `AI/`, `AI.Data/` | `waveOvermatchPercent: 0` | Verteilung der Wellengrössen (braucht **L1**) | [KAMPFSTAERKE §5a](KAMPFSTAERKE.md) |
 | 6 | **Basis ausbauen und Fahrzeuge kaufen** — Bauliste bis Fahrzeugwerk, Kaufregel nach Punkten je 100 AE | `r12` | `AI/`, `AI.Data/` | `buildVehiclePlant: false` | `buildingsByRole`, Credits-Kurve, Armeezusammensetzung | [KAMPFSTAERKE §7–§8.1](KAMPFSTAERKE.md) |
@@ -152,7 +153,7 @@ ein — als *Eingabe* der Entscheidung, nicht als Zustand).
 |---|---|
 | ~~**1 vor jeder Anhebung der Obergrenze**~~ | **eingelöst** mit `DefendHome` (`r8`). Der Defekt „wartet, während das HQ brennt" wächst mit der Obergrenze — wartende Einheit-Ticks je 1.000 gingen von 3.502 auf 12.326 —, und deshalb musste er vor jeder Anhebung fallen. **Er ist gemildert, nicht behoben:** wehrlos im Beschussfenster 96 % → 60 % (V008) |
 | ~~**2 vor 3**~~ | **eingelöst.** Die Module stehen; die Nachschub-Doktrin wird eins davon, kein vierter Zweig |
-| **3 vor 5** | Der Abbruchwert ist ein Prozentsatz **der** Wellenschwelle. Wird die Schwelle im selben Zug variabel, misst man zwei Änderungen als eine |
+| ~~**3 vor 5**~~ | **eingelöst** — 3 ist gebaut und gemessen. Die Auflage bleibt inhaltlich stehen: wer den Schalter aus V009 wieder anfasst, tut das **nicht** im selben Zug wie 5, sonst misst man zwei Änderungen als eine |
 | **4 vor 5** | Wellengrösse nach Lage braucht mehr als eine Lage. Solange jedes Ziel das HQ ist, gibt es keine |
 | **L1 vor 5** | „Verschiedene Wellengrössen" ohne Wellenmetrik ist unbelegbar |
 | **6 vor 7** | Ein Stärkeziel ohne Fahrzeugwerk kauft nur mehr Infanterie und misst den halben Effekt |

@@ -88,6 +88,7 @@ namespace Nova.AiLab
   .goal-retreat { color:var(--bad); } .goal-attack { color:var(--warn); }
   .goal-hold { color:var(--ink2); } .goal-advance { color:var(--accent); }
   .goal-defendHome { color:var(--bad); font-weight:600; }
+  .goal-reinforce { color:var(--warn); font-style:italic; }
 </style>
 </head>
 <body>
@@ -127,6 +128,7 @@ namespace Nova.AiLab
         <button data-goal=""3"">hold</button>
         <button data-goal=""4"">advance</button>
         <button data-goal=""5"">defend home</button>
+        <button data-goal=""6"">reinforce</button>
         <button data-goal=""0"">release</button>
       </div>
       <div class=""sub"" style=""margin-top:8px"">
@@ -153,7 +155,7 @@ namespace Nova.AiLab
 </main>
 
 <script>
-const GOALS = ['—', 'retreat', 'attack', 'hold', 'advance', 'defendHome'];
+const GOALS = ['—', 'retreat', 'attack', 'hold', 'advance', 'defendHome', 'reinforce'];
 const WAVE_MODE = ['off', 'units', 'points'];
 /*
  * GENERATED FROM UnitRole, not typed out here. This table used to be a hand

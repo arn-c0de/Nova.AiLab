@@ -661,7 +661,7 @@ const loaded = { view:false, tracks:false, events:false, units:false, goals:fals
  * use one vocabulary. Position in this array IS the enum value; index 0 is the
  * ""no goal"" that never appears in a recorded row.
  */
-const GOAL_NAMES = ['—', 'retreat', 'attack', 'hold', 'advance', 'defendHome'];
+const GOAL_NAMES = ['—', 'retreat', 'attack', 'hold', 'advance', 'defendHome', 'reinforce'];
 
 /** What each goal is, in the words of the rule that picks it. */
 const GOAL_WHY = [
@@ -670,7 +670,8 @@ const GOAL_WHY = [
   'marching on the army target',
   'standing at the staging cell — deliberately given no order at all',
   'reinforcement on its way to the staging cell',
-  'an armed enemy is at the base — breaking off the gathering to walk home'
+  'an armed enemy is at the base — breaking off the gathering to walk home',
+  'the wave outside is still intact — marching after it without waiting for the gate'
 ];
 
 const WAVE_MODE_NAMES = ['off', 'units', 'points'];

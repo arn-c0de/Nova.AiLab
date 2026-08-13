@@ -39,6 +39,134 @@ was als nächstes drankommt und in welcher Reihenfolge.
 
 ---
 
+## V009 · 2026-08-13 · Nachschub-Doktrin — **gebaut, elf Stellungen gemessen, ausgeschaltet ausgeliefert**
+
+**Lauf:** einseitig, Seed `0xA17E57DE57`, kanonische Spec, `out/r9-messreihe/` ·
+**Status:** im Labor gemessen, **im laufenden Spiel ungesehen** ·
+**KI-Verhalten:** `r8.1E6E7AE3` → **`r9.800C26B0`** ·
+**Stand:** `integration/ai-goals` (Goal-System `r8` und der Feld-Fix aus #85
+lokal zusammengeführt, beides noch nicht in `upstream/main`)
+
+### Was genau geändert wurde
+
+Neues Goal `Reinforce`, Priorität zwischen `DefendHome` und `Attack`, und ein
+Profilfeld `reinforceMinStrengthPercent` (**0 = aus**). Die Regel vergleicht die
+Kampfpunktsumme der Einheiten **draussen** gegen den eingestellten Anteil der
+vollen Wellenschwelle:
+
+| Lage | draussen | Wirkung |
+|---|---|---|
+| Erstschlag | 0 Punkte | nichts — das Wellentor behält seine Antwort |
+| Welle intakt | ≥ Anteil | jede sammelnde Einheit marschiert sofort, als `Reinforce` |
+| Welle gebrochen | > 0, < Anteil | der Ring wird auf die **volle** Schwelle festgehalten, niemand tröpfelt nach |
+
+Die Arithmetik liegt als `ReinforcementDoctrine` in einem eigenen Typ, aus
+demselben Grund wie `WaveStrengthGate`: die Zustände, auf die es ankommt — genau
+die Schwelle, ein abschneidender Prozentsatz, ein Rest von einem Punkt — kann
+eine Partie nicht herstellen.
+
+**Was sie ersetzt, ist ein Nebeneffekt und keine Regel.** Seit `r5` wird der
+Schwellwert auf das gekappt, was die Produktion noch liefern kann. Steht die
+Armee an ihrer Obergrenze, fällt diese Decke auf das, was ohnehin im Ring steht,
+der Vergleich wird `x >= x`, und jede Ersatzeinheit marschiert los — gleich ob
+sie einem laufenden Gefecht oder einem Rest hinterherläuft.
+
+### Besser
+
+**Nichts, das trägt.** Es gibt gute Einzelwerte, und genau deshalb steht hier
+die ganze Reihe statt der schmeichelhaftesten Zeile.
+
+Eigene Verluste, einseitig, Sitz mit der Regel gegen denselben Sitz ohne
+(Allianz / Legion, aus ist **33 / 71**):
+
+| Prozent | 25 | 30 | 35 | **40** | 45 | 50 | 60 | 70 | 80 | 90 | 100 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Allianz | 43 | 55 | 35 | **21** | 21 | 51 | 33 | 28 | 28 | 58 | 58 |
+| Legion | 93 | 33 | 33 | **34** | 83 | 83 | 83 | 83 | 83 | 83 | 83 |
+
+**Die Allianz verbessert sich bei 40–45 und 70–80, die Legion nur bei 30–40.**
+Die Schnittmenge ist der einzelne Punkt **40**, und ein Schritt zur Seite
+verliert einen Sitz: bei 45 springt die Legion von 34 auf 83. Bei 40 sieht jede
+Spalte gut aus — Allianz Austausch 247 statt 215, Gefechtsintervalle 9 statt 15,
+Entscheidung 6.136 statt 7.381, Intents je 1.000 Ticks 41,7 statt 43,2 — und das
+ist genau die Sorte Zeile, die man nicht nehmen darf. Die Seed-Achse des Labors
+ist leer, also kann kein weiteres Abtasten aus diesem Punkt ein Plateau machen.
+Es ist eine Einzelpartie treffen, derselbe Fehler wie Kappe 20 in V007.
+
+### Schlechter
+
+**Dort, wo die Regel wirken soll, ist sie auf jeder Stellung schlechter.** Bei
+Obergrenze 30 bindet die `r5`-Decke nicht mehr, also läuft erstmals die ganze
+Regel statt nur ihrer zurückhaltenden Hälfte. Gemessen gegen dieselbe Obergrenze
+**ohne** Doktrin (Allianz 37 eigene Verluste, Austausch 213, gewonnen):
+
+| Prozent | 30 | 40 | 50 | 60 | 70 | 80 |
+|---|---:|---:|---:|---:|---:|---:|
+| Eigene Verluste | 102 | 63 | 101 | 77 | 102 | 73 |
+| Austausch | 100 | 153 | 145 | 155 | 98 | 91 |
+| Ausgang | **verloren** | gewonnen | gewonnen | gewonnen | **verloren** | **verloren** |
+
+Drei von sechs Stellungen drehen eine gewonnene Partie in eine verlorene. Keine
+liegt bei den 37 Verlusten der Aus-Stellung.
+
+Dazu, bei der ausgelieferten Obergrenze: **niedrige Werte kosten Befehlsstrom.**
+Bei 20 steigen die Intents je 1.000 Ticks auf 49,0 und bei 25 auf 53,6, gegen
+43,2 ohne die Regel — das ist der V002-Fehlermodus, den KAMPFSTAERKE §6.4
+vorhergesagt hat, und er tritt genau dort auf, wo er vorhergesagt wurde. Ab 35
+bleibt die Zahl unter der Aus-Stellung.
+
+### Unverändert
+
+- **`reinforceMinStrengthPercent: 0` ergibt bitgenau `r8`:** Entscheidung
+  **7.381**, Endzustand **`0x68A90A2C0FAB6EE2`**, `hashchain.json` und
+  `trace.ndjson` byteidentisch gegen den vorher gesicherten Referenzlauf. Die
+  Aus-Stellung ist gemessen, nicht behauptet.
+- `match --repeat 2` läuft mit Exit 0 durch.
+- Die vier Determinismus-Baselines bleiben grün; keine fasst ein KI-System an.
+- Verworfene Intents bleiben 0 auf allen Stellungen.
+- **Der befürchtete Blockade-Rückfall trat nicht ein.** Fall (c) hält den Ring an
+  einer Schwelle fest, die eine überlebende Restwelle blockieren kann — das ist
+  V006 unter neuem Namen. Kein Lauf endete im Zeitlimit; alle 24 gingen als
+  `VictoryElimination` aus. Das ist eine Beobachtung über diese Partie, kein
+  Beweis, dass die Blockade unmöglich ist.
+
+### Widerlegt
+
+- **„Die Nachschub-Doktrin ist die Hälfte, die `r5` schon tut, plus eine
+  Bedingung."** So stand es in KAMPFSTAERKE §6, und bei der ausgelieferten
+  Obergrenze stimmt es nicht: dort feuert `Reinforce` **überhaupt nicht**. Die
+  `r5`-Decke hat das Tor bereits offen, also hat die freigebende Hälfte nichts
+  freizugeben, und was bei Kappe 12 gemessen wird, ist ausschliesslich die
+  zurückhaltende Hälfte. Wer die Zahlen dieser Obergrenze als Urteil über die
+  Doktrin liest, urteilt über eine halbe Regel.
+  `ReinforcementDoctrineTests.AtTheShippedArmyCap_TheGateIsAlreadyOpenAndTheGoalNeverFires`
+  hält das fest, statt es wiederentdecken zu lassen.
+- **„Ein mittlerer Wert ist nicht automatisch ein Kompromiss"** (V006) bestätigt
+  sich zum zweiten Mal, diesmal schärfer: der Startwert 50 aus dem Plan ist auf
+  **beiden** Sitzen schlechter als die Aus-Stellung, während 40 auf beiden
+  besser ist. Zehn Prozentpunkte, gegenläufiges Vorzeichen.
+- **„Die Obergrenze anheben macht die Regel wirksam."** Das war die Erwartung
+  aus KAMPFSTAERKE §6 („verschwindet der Nebeneffekt von selbst"). Sie ist
+  widerlegt: bei Kappe 30 verschwindet der Nebeneffekt tatsächlich, und die
+  Regel, die ihn ersetzt, ist schlechter als er.
+
+### Offen
+
+- **Welche Hälfte trägt die Verschlechterung bei Kappe 30?** Beide laufen dort
+  gleichzeitig. Sie zu trennen bräuchte einen zweiten Schalter, und das wären
+  zwei Verhaltensänderungen in einem PR. Wer das aufmacht, macht es als eigenen
+  Schritt.
+- **Die Asymmetrie zwischen den Sitzen ist geerbt, nicht erfunden.** Ein
+  Prozentsatz **einer** Punktschwelle bedeutet für die zwei Fraktionen sehr
+  verschiedene Bruchteile ihrer Armee: 480 Punkte sind knapp fünf
+  Allianz-Schützen, aber elf Legions-Rekruten. Das ist das r6-Argument eine
+  Ebene höher — eine Zahl für beide Fraktionen ist Absicht, und hier ist der
+  Preis dafür sichtbar.
+- Ob eine gespielte Partie das anders sieht, ist **ungeprüft**. Der Wert steht
+  auf 0, es gibt im Spiel nichts zu sehen.
+
+---
+
 ## B002 · 2026-08-09 · **Gespielte Beobachtung** — Wellen und Rückzug bestätigt, Zielwahl nicht
 
 **Quelle:** Partie am Rechner, kein Laborlauf · **KI-Verhalten:** `r4.779A1B5B` ·

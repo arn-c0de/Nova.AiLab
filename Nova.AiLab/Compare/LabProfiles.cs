@@ -197,6 +197,51 @@ namespace Nova.AiLab
             Derive("army-34", targetArmySize: 34),
             Derive("army-40", targetArmySize: 40),
             Derive("army-48", targetArmySize: 48),
+
+            // ---- die Nachschub-Doktrin (r9) ----
+            //
+            // Die Referenz traegt reinforceMinStrengthPercent 0, also ist hier
+            // ausnahmsweise die AUS-Stellung die Referenz und der Kandidat die
+            // Regel — dieselbe einseitige Messung wie sonst, nur andersherum
+            // (M001). Ein Prozentsatz ist ein Anteil der vollen Wellenschwelle:
+            // bei 1200 Punkten sind 20/50/70 genau 240/600/840.
+            //
+            // Drei Stellungen und nicht eine, weil ein mittlerer Wert nicht
+            // automatisch ein Kompromiss ist: `wave-6` lag unter beiden Raendern
+            // (V006), und dieselbe Warnung gilt hier, bis die Kurve dagegen
+            // spricht.
+            //
+            // DIE ERSTE ZAHL IST NICHT DIE SIEGQUOTE, sondern Intents je 1.000
+            // Ticks: am Schwellwert kann eine Einheit zwischen "nachruecken" und
+            // "sammeln" kippen, und das ist exakt der Fehlermodus, an dem
+            // DefendBase gescheitert ist (V002, +23 % Intents ohne besseres
+            // Spiel). Die zweite ist der Entscheidungstick — Fall (c) haelt den
+            // Ring an einer Schwelle fest, die eine ueberlebende Restwelle
+            // blockieren kann (V006 unter neuem Namen).
+            Derive("reinforce-20", reinforceMinStrengthPercent: 20),
+            Derive("reinforce-50", reinforceMinStrengthPercent: 50),
+            Derive("reinforce-70", reinforceMinStrengthPercent: 70),
+            Derive("reinforce-40", reinforceMinStrengthPercent: 40),
+            Derive("reinforce-25", reinforceMinStrengthPercent: 25),
+            Derive("reinforce-30", reinforceMinStrengthPercent: 30),
+            Derive("reinforce-35", reinforceMinStrengthPercent: 35),
+            Derive("reinforce-45", reinforceMinStrengthPercent: 45),
+            Derive("reinforce-60", reinforceMinStrengthPercent: 60),
+            Derive("reinforce-80", reinforceMinStrengthPercent: 80),
+            Derive("reinforce-90", reinforceMinStrengthPercent: 90),
+            Derive("reinforce-100", reinforceMinStrengthPercent: 100),
+
+            // Die Gegenprobe zur Kappe: bei Obergrenze 12 bindet die
+            // Erreichbarkeitsdecke ohnehin, das Nachruecken passiert also heute
+            // schon bedingungslos. Sichtbar wird der Unterschied zwischen
+            // "bedingungslos" und "bedingt" erst dort, wo die Decke NICHT
+            // bindet — sonst misst man die Kappe und nennt es die Doktrin.
+            Derive("army-30-reinforce-30", targetArmySize: 30, reinforceMinStrengthPercent: 30),
+            Derive("army-30-reinforce-40", targetArmySize: 30, reinforceMinStrengthPercent: 40),
+            Derive("army-30-reinforce-50", targetArmySize: 30, reinforceMinStrengthPercent: 50),
+            Derive("army-30-reinforce-60", targetArmySize: 30, reinforceMinStrengthPercent: 60),
+            Derive("army-30-reinforce-70", targetArmySize: 30, reinforceMinStrengthPercent: 70),
+            Derive("army-30-reinforce-80", targetArmySize: 30, reinforceMinStrengthPercent: 80),
         };
 
         public static bool TryGet(string profileId, out AiProfile profile)
@@ -243,7 +288,8 @@ namespace Nova.AiLab
             int? retreatHealthPercent = null,
             int? retreatDangerCells = null,
             int? waveStrengthPoints = null,
-            int? defendHomeCells = null)
+            int? defendHomeCells = null,
+            int? reinforceMinStrengthPercent = null)
         {
             AiProfile b = Reference;
             return new AiProfile(
@@ -266,7 +312,9 @@ namespace Nova.AiLab
                 retreatHealthPercent: retreatHealthPercent ?? b.RetreatHealthPercent,
                 retreatDangerCells: retreatDangerCells ?? b.RetreatDangerCells,
                 waveStrengthPoints: waveStrengthPoints ?? b.WaveStrengthPoints,
-                defendHomeCells: defendHomeCells ?? b.DefendHomeCells);
+                defendHomeCells: defendHomeCells ?? b.DefendHomeCells,
+                reinforceMinStrengthPercent:
+                    reinforceMinStrengthPercent ?? b.ReinforceMinStrengthPercent);
         }
 
         /// <summary>Which values a candidate changed against the reference, for the report.</summary>
@@ -315,6 +363,9 @@ namespace Nova.AiLab
                 diffs.Add($"waveStrength {r.WaveStrengthPoints}→{candidate.WaveStrengthPoints}");
             if (candidate.DefendHomeCells != r.DefendHomeCells)
                 diffs.Add($"defendHome {r.DefendHomeCells}→{candidate.DefendHomeCells}");
+            if (candidate.ReinforceMinStrengthPercent != r.ReinforceMinStrengthPercent)
+                diffs.Add(
+                    $"reinforceAt {r.ReinforceMinStrengthPercent}→{candidate.ReinforceMinStrengthPercent}%");
             return diffs;
         }
     }
