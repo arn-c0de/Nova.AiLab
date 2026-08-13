@@ -273,6 +273,50 @@ namespace Nova.AiLab
             // Einzelpartie, wenn er eine ANDERE Variation ueberlebt. Jede Kappe
             // wird gegen dieselbe Kappe ohne Gewicht gemessen, sonst misst man
             // die Kappe und nennt es das Gewicht.
+            // ---- r11: der Standoff-Ring ----
+            //
+            // Die Referenz traegt engagementStandoffPercent 0, und 0 IST die
+            // Aus-Stellung: die Einheit laeuft an ihr Ziel heran und bleibt
+            // dort stehen. Die Aus-Stellung braucht hier also keinen eigenen
+            // Kandidaten, sie IST die Referenz — anders als bei `wave-off`,
+            // `retreat-off` oder `defend-off`, wo die Regel eingeschaltet
+            // ausgeliefert wird (M001 bleibt erfuellt, nur andersherum).
+            //
+            // ES LIEST DEN WERT NOCH NIEMAND. r11 ist bisher die Datenhaelfte:
+            // das Feld steht im Profil und im Profilhash, die Bewegungshaelfte
+            // ist nicht geschrieben. Bis sie es ist, messen diese Kandidaten
+            // dasselbe wie die Referenz — die Liste haelt die Achse bereit,
+            // sie beweist noch nichts.
+            //
+            // ES IST EIN ANTEIL DER EIGENEN REICHWEITE, keine Kachelzahl. Die
+            // Achse misst deshalb nicht "wie weit", sondern "wie viel von dem,
+            // was die Waffe kann" — 100 haelt exakt auf der Grenze, die
+            // CombatSystem.IsInRange prueft, und der erste Schubs der
+            // Trennsteuerung nimmt die Einheit wieder heraus. Ueber 100 steht
+            // sie ausser Schussweite: als Kandidat drin, weil eine Achse, die
+            // nur dort misst, wo es gut ausgeht, keine Achse ist.
+            Derive("standoff-25", engagementStandoffPercent: 25),
+            Derive("standoff-40", engagementStandoffPercent: 40),
+            Derive("standoff-55", engagementStandoffPercent: 55),
+            Derive("standoff-65", engagementStandoffPercent: 65),
+            Derive("standoff-70", engagementStandoffPercent: 70),
+            Derive("standoff-90", engagementStandoffPercent: 90),
+            Derive("standoff-100", engagementStandoffPercent: 100),
+            Derive("standoff-120", engagementStandoffPercent: 120),
+
+            // Gegenprobe auf der Armeekappe, aus demselben Grund wie beim
+            // HQ-Gewicht: ein einzelner guter Wert ist erst dann keine
+            // Einzelpartie, wenn er eine ANDERE Variation ueberlebt. Jede Kappe
+            // gegen dieselbe Kappe ohne Standoff, sonst misst man die Kappe.
+            // Die AUS-Seite dieser Gegenprobe hat schon einen Namen: die
+            // Referenz steht auf 0, also IST `army-16` zugleich
+            // `army-16-standoff-off`. Ein zweiter Name auf dasselbe Profil
+            // misst nichts doppelt, er macht die Liste nur laenger und eine
+            // Zeile zur scheinbaren Bestaetigung der anderen. Hier steht
+            // deshalb nur die AN-Seite.
+            Derive("army-16-standoff-80", targetArmySize: 16, engagementStandoffPercent: 80),
+            Derive("army-20-standoff-80", targetArmySize: 20, engagementStandoffPercent: 80),
+            Derive("army-30-standoff-80", targetArmySize: 30, engagementStandoffPercent: 80),
             Derive("army-16-hq-100", targetArmySize: 16, targetHqWeight: 100),
             Derive("army-20-hq-100", targetArmySize: 20, targetHqWeight: 100),
             Derive("army-30-hq-100", targetArmySize: 30, targetHqWeight: 100),
@@ -331,7 +375,8 @@ namespace Nova.AiLab
             int? waveStrengthPoints = null,
             int? defendHomeCells = null,
             int? reinforceMinStrengthPercent = null,
-            int? targetHqWeight = null)
+            int? targetHqWeight = null,
+            int? engagementStandoffPercent = null)
         {
             AiProfile b = Reference;
             return new AiProfile(
@@ -357,7 +402,9 @@ namespace Nova.AiLab
                 defendHomeCells: defendHomeCells ?? b.DefendHomeCells,
                 reinforceMinStrengthPercent:
                     reinforceMinStrengthPercent ?? b.ReinforceMinStrengthPercent,
-                targetHqWeight: targetHqWeight ?? b.TargetHqWeight);
+                targetHqWeight: targetHqWeight ?? b.TargetHqWeight,
+                engagementStandoffPercent:
+                    engagementStandoffPercent ?? b.EngagementStandoffPercent);
         }
 
         /// <summary>Which values a candidate changed against the reference, for the report.</summary>
@@ -411,6 +458,9 @@ namespace Nova.AiLab
             if (candidate.ReinforceMinStrengthPercent != r.ReinforceMinStrengthPercent)
                 diffs.Add(
                     $"reinforceAt {r.ReinforceMinStrengthPercent}→{candidate.ReinforceMinStrengthPercent}%");
+            if (candidate.EngagementStandoffPercent != r.EngagementStandoffPercent)
+                diffs.Add(
+                    $"standoff {r.EngagementStandoffPercent}→{candidate.EngagementStandoffPercent}%");
             return diffs;
         }
     }
