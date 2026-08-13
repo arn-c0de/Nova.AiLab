@@ -42,7 +42,11 @@ namespace Nova.AiLab
                 .Append((int)Army.WaveMode).Append(',')
                 .Append(Army.Gathered).Append(',').Append(Army.Committed).Append(',')
                 .Append(Army.GatheredStrength).Append(',').Append(Army.WaveThreshold).Append(',')
-                .Append(Army.HomeThreatened ? 1 : 0)
+                .Append(Army.HomeThreatened ? 1 : 0).Append(',')
+                // Appended, never renumbered: a reader of an older file keeps
+                // reading the columns it has (r9).
+                .Append(Army.CommittedStrength).Append(',')
+                .Append(Army.Reinforces ? 1 : 0)
                 .Append(']');
 
             json.Append(",\"u\":[");

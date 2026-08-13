@@ -236,6 +236,47 @@ namespace Nova.AiLab
             // schon bedingungslos. Sichtbar wird der Unterschied zwischen
             // "bedingungslos" und "bedingt" erst dort, wo die Decke NICHT
             // bindet — sonst misst man die Kappe und nennt es die Doktrin.
+            // ---- das HQ-Gewicht statt des Kurzschlusses (r10) ----
+            //
+            // Die Referenz traegt targetHqWeight 0, und 0 IST der Kurzschluss:
+            // das HQ wird genommen, sobald es gesehen wird. Jeder Wert darueber
+            // laesst es mitspielen statt gewinnen. Die Skala ist die des Scores
+            // — die anderen vier Gewichte multiplizieren Terme im niedrigen
+            // dreistelligen Bereich, ein Gewicht von 100.000 ist also praktisch
+            // wieder der Kurzschluss und steht als Gegenprobe dafuer da.
+            //
+            // DIE ERSTE ZAHL IST NICHT DIE SIEGQUOTE, sondern die Zahl
+            // verschiedener Zielarten je Partie: vor r10 faktisch 1. Eine Regel,
+            // die daran nichts aendert, hat nichts geaendert, egal was die
+            // Verlustspalte sagt.
+            //
+            // Die Referenz traegt seit r10 targetHqWeight 100, also ist
+            // `hq-short-circuit` die Aus-Stellung und die einzige Art, die Regel
+            // gegen ihre eigene Abwesenheit zu messen (M001) — dieselbe Rolle
+            // wie `wave-off`, `retreat-off`, `strength-off` und `defend-off`.
+            // 100 selbst ist kein Kandidat mehr: es IST die Referenz.
+            Derive("hq-short-circuit", targetHqWeight: 0),
+            Derive("hq-weight-1", targetHqWeight: 1),
+            Derive("hq-weight-25", targetHqWeight: 25),
+            Derive("hq-weight-50", targetHqWeight: 50),
+            Derive("hq-weight-75", targetHqWeight: 75),
+            Derive("hq-weight-150", targetHqWeight: 150),
+            Derive("hq-weight-200", targetHqWeight: 200),
+            Derive("hq-weight-250", targetHqWeight: 250),
+            Derive("hq-weight-500", targetHqWeight: 500),
+            Derive("hq-weight-1000", targetHqWeight: 1000),
+            Derive("hq-weight-2000", targetHqWeight: 2000),
+            Derive("hq-weight-100000", targetHqWeight: 100000),
+
+            // Die Gegenprobe auf einer zweiten echten Achse. Die Seed-Achse des
+            // Labors ist leer, also ist ein einzelner guter Wert erst dann keine
+            // Einzelpartie, wenn er eine ANDERE Variation ueberlebt. Jede Kappe
+            // wird gegen dieselbe Kappe ohne Gewicht gemessen, sonst misst man
+            // die Kappe und nennt es das Gewicht.
+            Derive("army-16-hq-100", targetArmySize: 16, targetHqWeight: 100),
+            Derive("army-20-hq-100", targetArmySize: 20, targetHqWeight: 100),
+            Derive("army-30-hq-100", targetArmySize: 30, targetHqWeight: 100),
+
             Derive("army-30-reinforce-30", targetArmySize: 30, reinforceMinStrengthPercent: 30),
             Derive("army-30-reinforce-40", targetArmySize: 30, reinforceMinStrengthPercent: 40),
             Derive("army-30-reinforce-50", targetArmySize: 30, reinforceMinStrengthPercent: 50),
@@ -289,7 +330,8 @@ namespace Nova.AiLab
             int? retreatDangerCells = null,
             int? waveStrengthPoints = null,
             int? defendHomeCells = null,
-            int? reinforceMinStrengthPercent = null)
+            int? reinforceMinStrengthPercent = null,
+            int? targetHqWeight = null)
         {
             AiProfile b = Reference;
             return new AiProfile(
@@ -314,7 +356,8 @@ namespace Nova.AiLab
                 waveStrengthPoints: waveStrengthPoints ?? b.WaveStrengthPoints,
                 defendHomeCells: defendHomeCells ?? b.DefendHomeCells,
                 reinforceMinStrengthPercent:
-                    reinforceMinStrengthPercent ?? b.ReinforceMinStrengthPercent);
+                    reinforceMinStrengthPercent ?? b.ReinforceMinStrengthPercent,
+                targetHqWeight: targetHqWeight ?? b.TargetHqWeight);
         }
 
         /// <summary>Which values a candidate changed against the reference, for the report.</summary>
@@ -363,6 +406,8 @@ namespace Nova.AiLab
                 diffs.Add($"waveStrength {r.WaveStrengthPoints}→{candidate.WaveStrengthPoints}");
             if (candidate.DefendHomeCells != r.DefendHomeCells)
                 diffs.Add($"defendHome {r.DefendHomeCells}→{candidate.DefendHomeCells}");
+            if (candidate.TargetHqWeight != r.TargetHqWeight)
+                diffs.Add($"hqWeight {r.TargetHqWeight}→{candidate.TargetHqWeight}");
             if (candidate.ReinforceMinStrengthPercent != r.ReinforceMinStrengthPercent)
                 diffs.Add(
                     $"reinforceAt {r.ReinforceMinStrengthPercent}→{candidate.ReinforceMinStrengthPercent}%");

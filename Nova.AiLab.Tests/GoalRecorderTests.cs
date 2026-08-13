@@ -247,7 +247,11 @@ namespace Nova.AiLab.Tests
             MatchRunResult run = MatchRun.Execute(WatchedSpec());
             Assert.That(run.Goals, Is.Not.Empty);
 
-            const int armyColumns = 13;
+            // 13 until r9, which appended committedStrength and reinforces.
+            // Columns are APPENDED and never renumbered — a reader of an older
+            // file keeps reading the columns it has — so this number only ever
+            // grows, and it growing is the signal that the writer changed.
+            const int armyColumns = 15;
             const int unitColumns = 10;
 
             foreach (GoalFrame frame in run.Goals)

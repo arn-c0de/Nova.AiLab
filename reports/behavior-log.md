@@ -39,6 +39,120 @@ was als nächstes drankommt und in welcher Reihenfolge.
 
 ---
 
+## V010 · 2026-08-13 · Das HQ wird ein Gewicht — **angenommen**, und es ist die erste Regel, die die Zielvielfalt bewegt
+
+**Lauf:** einseitig, Seed `0xA17E57DE57`, kanonische Spec, `out/r10-messreihe/` ·
+**Status:** im Labor gemessen, **im laufenden Spiel ungesehen** ·
+**KI-Verhalten:** `r9.800C26B0` → **`r10.E75CB19D`** ·
+**Stand:** `integration/ai-goals`
+
+### Was genau geändert wurde
+
+In `FindBestVisibleEnemyByScore` fällt der `return` für das feindliche HQ weg.
+Statt abzubrechen bekommt das HQ `targetHqWeight` (ausgeliefert **100**,
+**0 = der alte Kurzschluss**) auf seinen gewöhnlichen Score addiert und
+konkurriert damit mit allem anderen Sichtbaren.
+
+**Warum das nötig war, obwohl V001 richtig argumentiert hat.** „Eine
+Siegbedingung ist keine Vorliebe" stimmt als Regel. Falsch wird es durch eine
+Eigenschaft der Karte: die Ausweich-Marschzelle ist das feindliche Startgebiet,
+und dort steht das HQ. Der Kurzschluss und die Ausweichzelle zeigten also auf
+dasselbe Gebäude — B001 hat genau das gespielt gesehen („rennen immer auf
+Headquarter … laufen einfach straight line").
+
+**Die Aus-Stellung ist 0 und nicht „eine sehr grosse Zahl".** Der Plan wollte ein
+Gewicht, das alles überstimmt. Das ist ein schwächeres Versprechen, als es
+klingt: „überstimmt alles" hängt an der Kartengrösse, der Schadenstabelle und
+der Entfernungsstrafe und müsste bei jeder ihrer Änderungen neu geprüft werden.
+0 als Sentinel lässt den alten Zweig **denselben Code** sein. Ein Gewicht von
+100.000 ist trotzdem messbar identisch zum Kurzschluss, und ein Test hält das
+fest — es ist nur nicht das, worauf der Schalter ruht.
+
+### Besser
+
+Allianz-Sitz, einseitig gegen dieselbe Partie mit dem Kurzschluss:
+
+| Kennzahl | Kurzschluss | Gewicht 100 |
+|---|---:|---:|
+| **Verschiedene Zielarten** | **3** | **5** — Refinery und Harvester erstmals dabei |
+| Entscheidungstick | 7.381 | **4.767** (−35 %) |
+| Eigene Verluste | 33 | **14** |
+| Intents je 1.000 Ticks | 43,2 | **42,4** |
+| Ausgang | gewonnen | gewonnen |
+
+**Gegengeprüft auf einer zweiten echten Achse.** Die Seed-Achse des Labors ist
+leer, also ist ein guter Wert auf einer Achse eine Einzelpartie. Je
+Armeeobergrenze gegen **dieselbe** Obergrenze ohne Gewicht:
+
+| Obergrenze | Zielarten | Eigene Verluste | Entscheidung |
+|---|---|---:|---:|
+| 12 | 3 → **5** | 33 → **14** | 7.381 → **4.767** |
+| 16 | 3 → **4** | 24 → 27 | 6.590 → 6.645 |
+| 20 | 3 → **4** | 147 → **50** | 21.512 → **10.570** |
+| 30 | 3 → **4** | 37 → **30** | 7.122 → **6.439** |
+
+Die Zielarten steigen auf **jeder** Obergrenze, und die Refinery ist jedes Mal
+dabei. Das ist der Unterschied zu V009: dort hing alles an einem Punkt einer
+Achse, hier hält der Effekt über vier.
+
+### Schlechter
+
+- **Austauschverhältnis leicht runter** bei den kleinen Obergrenzen: 215 → 207
+  (Kappe 12) und 254 → 248 (Kappe 16). Bei 20 und 30 geht es hoch (169 → 222,
+  213 → 230). Die KI tauscht bei kurzen Partien etwas schlechter und gewinnt sie
+  trotzdem früher.
+- **Kappe 16 ist die eine Zeile, die nicht besser ist:** 27 statt 24 eigene
+  Verluste bei praktisch gleichem Entscheidungstick.
+- **Die Zwischenwerte sind teuer und stehen deshalb hier.** 1 bis 75 heben die
+  Zielarten auf 5–7 und bezahlen es: Partie 1,4- bis 1,9-fach so lang, Intents je
+  1.000 Ticks 53–58 gegen 43,2 (+24 bis +34 %). Das ist die V002-Signatur, und
+  sie ist der Grund, warum keiner dieser Werte ausgeliefert wird — nicht ein
+  Gefühl über „zu viel Ablenkung".
+- **Bei Kappe 20 kostet auch der ausgelieferte Wert Befehlsstrom** (57,4 → 63,5,
+  +11 %). Auf den anderen drei Kappen nicht.
+
+### Unverändert
+
+- **`targetHqWeight: 0` ist der alte Zweig, nicht seine Nachbildung** — der
+  `return` steht noch da und wird noch genommen. Ein Test spielt eine Partie
+  damit und prüft, dass die KI keine Refinery erreicht.
+- **Ein Gewicht von 100.000 ist messbar der Kurzschluss:** dieselben Zielarten,
+  dieselbe Partie.
+- **Der Legion-Sitz ist auf fast jedem Wert unverändert.** Er bekommt das
+  gegnerische HQ in dieser Partie nie zu sehen, also feuert die Regel dort nicht.
+  Einzige Ausnahme ist Kappe 20, wo er eine Zielart dazugewinnt und marginal
+  schlechter abschneidet (249 → 257 Verluste).
+- `match --repeat 2` läuft mit Exit 0 durch; die vier Determinismus-Baselines
+  bleiben grün.
+
+### Widerlegt
+
+- **„Der HQ-Kurzschluss ist als Siegbedingung richtig und nicht verhandelbar"**
+  (V001). Er ist als *Regel* richtig und als *Verhalten* falsch, und der Grund
+  ist keine Meinungsfrage: die Ausweichzelle zeigt auf dasselbe Gebäude, also
+  gab es faktisch nur ein Ziel. Als Gewicht bleibt die Vorliebe erhalten — das
+  HQ wird weiter angegriffen, auf jeder gemessenen Stellung.
+- **„Mehr Zielvielfalt heisst längere Partien."** Das gilt für die kleinen
+  Gewichte und kippt bei 100: fünf Zielarten und die kürzeste gemessene Partie
+  der ganzen Reihe. Die Refinery abzuräumen ist nicht Ablenkung, sondern
+  schneidet die gegnerische Produktion ab.
+
+### Offen
+
+- **Die Messung ruht auf einem Sitz.** Solange die Legion das gegnerische HQ
+  nicht zu sehen bekommt, sagt diese Reihe nichts über sie. Ein Szenario, in dem
+  beide Sitze weit genug kommen, fehlt.
+- **Die Kurve ist nicht interpolierbar.** 75 und 150 sind beide schlechter als
+  100. Wer den Wert verschiebt, misst neu.
+- **Punkt 8a (Anmarsch über eine Route)** ist damit nicht erledigt: die Armee
+  läuft weiterhin die Luftlinie, sie läuft sie jetzt nur auf mehr verschiedene
+  Ziele. Die zweite Ursache aus NEXT-STEPS §2 steht.
+- **Ungesehen im laufenden Spiel.** Das ist die sichtbarste Änderung dieser
+  Reihe — „läuft der Angriff zweimal denselben Weg?" ist eine der fünf Fragen
+  der Playtest-Checkliste — und genau deshalb ist es keine erledigte.
+
+---
+
 ## V009 · 2026-08-13 · Nachschub-Doktrin — **gebaut, elf Stellungen gemessen, ausgeschaltet ausgeliefert**
 
 **Lauf:** einseitig, Seed `0xA17E57DE57`, kanonische Spec, `out/r9-messreihe/` ·
