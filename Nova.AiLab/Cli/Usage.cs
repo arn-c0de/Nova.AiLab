@@ -15,6 +15,9 @@ namespace Nova.AiLab
             "  duel [options]         measure the counter-table: every role pairing, three distances,\n" +
             "                         both directions, plus the siege echelon\n" +
             "  movement [options]     the four movement scenarios: arrival, blocking, standoff, detour\n" +
+            "  raid [options]         the field raid: one enemy unit shoots the AI's harvester while the\n" +
+            "                         AI's own units stand a settable distance away — swept over that\n" +
+            "                         distance, for the start field and for an expansion field\n" +
             "  compare [options]      run every candidate profile against the frozen reference and\n" +
             "                         write report.html, resultset.json and a PR draft\n" +
             "  player --out <dir>     write player.html again into an artifact directory (or into every\n" +
@@ -69,6 +72,20 @@ namespace Nova.AiLab
             "                         endpoint can change what an AI does and has no authentication\n" +
             "  --out <dir>            where the session writes goals.ndjson, overrides.ndjson and a\n" +
             "                         result.json carrying intervened — written on request, not on exit\n" +
+            "\n" +
+            "raid:\n" +
+            "  --field <name>         start | expansion (default: both). start is two cells off the HQ and\n" +
+            "                         INSIDE DefendHomeCells; expansion is far outside it\n" +
+            "  --guard-distance <n>   cells between the defending units and the raided cell. Omit for the\n" +
+            "                         sweep 2,4,6,8,10,12,20,35 — one distance cannot tell a range problem\n" +
+            "                         from a missing rule\n" +
+            "  --guard-role <role>    role of the defending units (default BasicInfantry)\n" +
+            "  --raid-delay <n>       leave the seat alone for n ticks BEFORE the raider appears, so the\n" +
+            "                         raid meets an army that is already marching instead of an idle one\n" +
+            "  --group <n>            how many of them (default 6)\n" +
+            "  --ticks <n>            tick budget per raid (default 1200)\n" +
+            "  --profile1 <id>        the profile the defending seat plays\n" +
+            "  --out <dir>            write raid.ndjson\n" +
             "\n" +
             "movement:\n" +
             "  --group <n>            units per group (default 8)\n" +

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Nova.AI;
 using Nova.AI.Data;
+using Nova.Simulation.State;
 
 namespace Nova.AiLab
 {
@@ -22,6 +23,22 @@ namespace Nova.AiLab
         public int UnitsPerSide = DuelTable.DefaultUnitsPerSide;
         public int GroupSize = 8;
         public string AgainstFile;
+
+        /// <summary>
+        /// Guard distance of the <c>raid</c> scenario. 0 means the sweep — the
+        /// default, because one distance cannot tell a range problem from a
+        /// missing rule.
+        /// </summary>
+        public int GuardDistanceCells;
+
+        /// <summary>Ticks the raid scenario leaves the defending seat alone before the raider appears.</summary>
+        public int RaidDelayTicks;
+
+        /// <summary>Which field the raid runs at; null runs both.</summary>
+        public RaidField? RaidField;
+
+        /// <summary>The role the defending seat's units carry in the raid scenario.</summary>
+        public UnitRole GuardRole = UnitRole.BasicInfantry;
 
         /// <summary>Loopback port of the <c>live</c> session. Only the port is settable — the address never is.</summary>
         public int Port = 8787;
@@ -84,6 +101,10 @@ namespace Nova.AiLab
                     case "--parallel": options.Parallelism = ParseInt(flag.Value, flag.Key); break;
                     case "--units": options.UnitsPerSide = ParseInt(flag.Value, flag.Key); break;
                     case "--group": options.GroupSize = ParseInt(flag.Value, flag.Key); break;
+                    case "--guard-distance": options.GuardDistanceCells = ParseInt(flag.Value, flag.Key); break;
+                    case "--guard-role": options.GuardRole = ParseRole(flag.Value); break;
+                    case "--raid-delay": options.RaidDelayTicks = ParseInt(flag.Value, flag.Key); break;
+                    case "--field": options.RaidField = ParseRaidField(flag.Value); break;
                     case "--against": options.AgainstFile = flag.Value; break;
                     case "--port": options.Port = ParseInt(flag.Value, flag.Key); break;
                     case "--profile": profileAll = flag.Value; break;
@@ -117,6 +138,12 @@ namespace Nova.AiLab
             // still wins.
             if ((mode == "duel" || mode == "movement") && !flags.ContainsKey("--ticks")) options.Spec.TickBudget = 3000;
 
+            // A raid is one engagement, and the sweep runs it sixteen times.
+            // The match default would spend 27.000 ticks each on watching an
+            // already-decided position.
+            if (mode == "raid" && !flags.ContainsKey("--ticks")) options.Spec.TickBudget = 1200;
+            if (mode == "raid" && !flags.ContainsKey("--group")) options.GroupSize = 6;
+
             // The seed axis is empty, so a comparison defaults to ONE seed
             // instead of pretending eight of them are eight observations.
             if (mode == "compare" && !flags.ContainsKey("--seeds")) options.SeedCount = 1;
@@ -131,8 +158,30 @@ namespace Nova.AiLab
             if (options.Port < 1 || options.Port > 65535) throw new ArgumentException("--port must be a port number");
             if (options.Repeat < 1) throw new ArgumentException("--repeat must be positive");
             if (options.SeedCount < 1) throw new ArgumentException("--seeds must be positive");
+            if (options.GuardDistanceCells < 0) throw new ArgumentException("--guard-distance must not be negative");
+            if (options.RaidDelayTicks < 0) throw new ArgumentException("--raid-delay must not be negative");
 
             return options;
+        }
+
+        private static UnitRole ParseRole(string value)
+        {
+            if (!Enum.TryParse(value, ignoreCase: true, out UnitRole role) || !Enum.IsDefined(typeof(UnitRole), role))
+            {
+                throw new ArgumentException(
+                    $"'{value}' is not a unit role — known: {string.Join(", ", Enum.GetNames(typeof(UnitRole)))}");
+            }
+            return role;
+        }
+
+        private static RaidField ParseRaidField(string value)
+        {
+            if (!Enum.TryParse(value, ignoreCase: true, out RaidField field)
+                || !Enum.IsDefined(typeof(RaidField), field))
+            {
+                throw new ArgumentException($"'{value}' is not a raid field — known: start, expansion");
+            }
+            return field;
         }
 
         private static ulong ParseSeed(string value)

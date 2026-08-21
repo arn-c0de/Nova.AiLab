@@ -38,6 +38,7 @@ namespace Nova.AiLab
                 "sweep" => SweepCommand.Run(options),
                 "duel" => DuelCommand.Run(options),
                 "movement" => MovementCommand.Run(options),
+                "raid" => RaidCommand.Run(options),
                 "compare" => CompareCommand.Run(options),
                 "player" => PlayerCommand.Run(options),
                 "live" => LiveCommand.Run(options),
